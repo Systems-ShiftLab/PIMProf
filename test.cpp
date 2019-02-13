@@ -3,16 +3,23 @@ using namespace std;
 
 int main()
 {
-	for (int i = 0; i < 100; i++) {
-		if (i < 15) {
-			cout << "wow" << endl;
-		}
-		else if (i < 55) {
-			cout << "aha" << endl;
-		}
-		else {
-			cout << "emm" << endl;
-		}
-	}
+    for (int i = 0; i < 5; i++) {
+        cout << "it is begin" << endl;
+        switch(i) {
+        case 0:
+            cout << "it is 0" << endl; break;
+        case 1:
+            cout << "it is 1" << endl; break;
+        case 2:
+            cout << "it is 2" << endl; break;
+        case 3:
+            cout << "it is 3" << endl; break;
+        case 4:
+            cout << "it is 4" << endl; break;
+        default:
+            cout << "wtf" << endl;
+        }
+        cout << "it is end" << endl;
+    }
 
 }

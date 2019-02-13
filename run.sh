@@ -1,0 +1,1 @@
+../pin-3.7-97619/pin -t ./obj-intel64/MyPinTool.so -- ./test.exe

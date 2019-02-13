@@ -298,9 +298,12 @@ VOID Trace(TRACE trace, VOID *v)
         return;
 
     const BOOL accurate_handling_of_predicates = KnobProfilePredicated.Value();
+    //std::cout << "Trace:" << std::hex << TRACE_Address(trace) << std::endl;
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
     {
+        if (BBL_Address(bbl) < 0x500000)
+            std::cout << std::hex << BBL_Address(bbl) << std::endl;
         const INS head = BBL_InsHead(bbl);
         if (! INS_Valid(head)) continue;
 

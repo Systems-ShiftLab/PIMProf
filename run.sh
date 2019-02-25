@@ -1,1 +1,0 @@
-../pin-3.7-97619/pin -t ./obj-intel64/PinInstrument.so -- ./test.exe

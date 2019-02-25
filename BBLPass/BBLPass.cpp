@@ -6,12 +6,12 @@
 using namespace llvm;
 
 namespace {
-  struct BBLPass : public FunctionPass {
+  struct BBLPass : public BasicBlockPass {
     static char ID;
-    BBLPass() : FunctionPass(ID) {}
+    BBLPass() : BasicBlockPass(ID) {}
 
-    virtual bool runOnFunction(Function &F) {
-      errs() << "I saw a function called " << F.getName() << "!\n";
+    virtual bool runOnBasicBlock(BasicBlock &BB) {
+      errs() << "Insert to BBL " << BB.getName() << "!\n";
       return false;
     }
   };

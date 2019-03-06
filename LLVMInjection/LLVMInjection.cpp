@@ -13,7 +13,7 @@ static const std::string annotatorName = "PIMProfAnnotator";
 namespace {
     // Add the annotator declaration to each source file
     // so that the 
-    class GenerateAnnotatorDecl : public ModulePass {
+    struct GenerateAnnotatorDecl : public ModulePass {
         static char ID;
         GenerateAnnotatorDecl() : ModulePass(ID) {}
 

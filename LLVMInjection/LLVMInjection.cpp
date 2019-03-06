@@ -6,30 +6,25 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 using namespace llvm;
 
+static LLVMContext context;
+
+static const std::string annotatorName = "PIMProfAnnotator";
+
 namespace {
     // Add the annotator declaration to each source file
-    // so th
-    struct GenerateAnnotatorDecl : public ModulePass {
+    // so that the 
+    class GenerateAnnotatorDecl : public ModulePass {
         static char ID;
         GenerateAnnotatorDecl() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), Doubles, false);
-            Function *F = Function::Create(
-                FT,
-                Function::ExternalLinkage,
-                "PIMProfAnnotator",
-                &M);
+            std::vector<Type *> param(1, Type::getInt32Ty(context));
+            FunctionType *FT = FunctionType::get(Type::getInt32Ty(context),
+                                                 param, false);
+            Function *F = Function::Create(FT, Function::ExternalLinkage,
+                                           annotatorName, &M);
         }
 
-        virtual bool runOnBasicBlock(BasicBlock &BB) {
-            Instruction *instr_start;
-            Instruction *instr_end;
-            BB.getInstList().insert(BB.getFirstInsertionPt(), instr_start);
-            BB.getInstList().insert(BB.end(), instr_end);
-            errs() << "Insert to BBL " << BB.getName() << "!\n";
-            return false;
-        }
     };
 
     struct InjectAnnotation : public BasicBlockPass {
@@ -37,10 +32,6 @@ namespace {
         InjectAnnotation() : BasicBlockPass(ID) {}
 
         virtual bool runOnBasicBlock(BasicBlock &BB) {
-            Instruction *instr_start;
-            Instruction *instr_end;
-            BB.getInstList().insert(BB.getFirstInsertionPt(), instr_start);
-            BB.getInstList().insert(BB.end(), instr_end);
             errs() << "Insert to BBL " << BB.getName() << "!\n";
             return false;
         }

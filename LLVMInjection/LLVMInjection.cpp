@@ -1,12 +1,14 @@
 #include "llvm/Pass.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 using namespace llvm;
 
-static LLVMContext context;
+
 
 static const std::string annotatorName = "PIMProfAnnotator";
 
@@ -18,11 +20,16 @@ namespace {
         GenerateAnnotatorDecl() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            std::vector<Type *> param(1, Type::getInt32Ty(context));
-            FunctionType *FT = FunctionType::get(Type::getInt32Ty(context),
+            std::vector<Type *> param(1, Type::getInt32Ty(M.getContext()));
+            FunctionType *FT = FunctionType::get(Type::getInt32Ty(M.getContext()),
                                                  param, false);
-            Function *F = Function::Create(FT, Function::ExternalLinkage,
-                                           annotatorName, &M);
+            // Function *F = Function::Create(FT, Function::ExternalLinkage,
+            //                                annotatorName, &M);
+            // Constant *c = M.getOrInsertFunction(
+            //                 annotatorName, 
+            //                 FunctionType::getVoidTy(M.getContext()), 
+            //                 Type::getInt32Ty(M.getContext()), 
+            //                 NULL);
         }
 
     };

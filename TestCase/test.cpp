@@ -1,6 +1,8 @@
 #include <iostream>
 using namespace std;
 
+extern void print4();
+
 int main()
 {
     for (int i = 0; i < 5; i++) {
@@ -15,7 +17,8 @@ int main()
         case 3:
             cout << "it is 3" << endl; break;
         case 4:
-            cout << "it is 4" << endl; break;
+            print4(); 
+            break;
         default:
             cout << "wtf" << endl;
         }

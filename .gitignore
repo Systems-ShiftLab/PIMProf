@@ -33,3 +33,7 @@ build/
 *.exe
 *.out
 *.app
+
+# Bitcode and IR
+*.ll
+*.bc

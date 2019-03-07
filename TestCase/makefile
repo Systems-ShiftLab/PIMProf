@@ -10,17 +10,17 @@ ANNOTATOR_DIR := ../AnnotatorInjection
 
 INJECTED_SRC  := print4.cpp test.cpp
 
-ANNOTATOR_OBJ := $(ANNOTATOR_SRC:%.cpp=%.o)
+ANNOTATOR_OBJ := PIMProfAnnotator.o
 INJECTED_OBJ  := $(INJECTED_SRC:%.cpp=%.o)
 
-ANNOTATOR_LL := $(ANNOTATOR_SRC:%.cpp=%.ll)
 INJECTED_LL  := $(INJECTED_SRC:%.cpp=%.ll)
 
-ANNOTATOR_BC := $(ANNOTATOR_SRC:%.cpp=%.bc)
+ANNOTATOR_BC := $(ANNOTATOR_OBJ:%.o=%.bc)
 INJECTED_BC  := $(INJECTED_SRC:%.cpp=%.bc)
 
+# execute "make cmake" first then "make"
 
-all: $(INJECTED_OBJ) $(ANNOTATOR_OBJ)
+all: $(ANNOTATOR_OBJ) $(INJECTED_OBJ)
 	$(CLANGXX) $(CXXFLAGS) $(INCLUDE) -o test.exe $^ $(LDFLAGS)
 
 cmake:

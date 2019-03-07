@@ -23,23 +23,37 @@ int main(int argc, char **argv) {
     Module *M = new Module("AnnotatorGeneration", ctx);
 
     // declare annotator function 
-    Function *annotator = dyn_cast<Function>(
+    Function *annotator_head = dyn_cast<Function>(
         M->getOrInsertFunction(
-            annotatorName, 
+            PIMProfAnnotatorHead, 
+            FunctionType::getVoidTy(ctx), 
+            Type::getInt32Ty(ctx)
+        )
+    );
+    Function *annotator_tail = dyn_cast<Function>(
+        M->getOrInsertFunction(
+            PIMProfAnnotatorTail, 
             FunctionType::getVoidTy(ctx), 
             Type::getInt32Ty(ctx)
         )
     );
 
-    // provide definition of function if it has not been defined 
-    if (annotator->empty()) {
+    // provide definition of function if it has not been defined
+    // these functions do nothing so just insert a return instruction
+    if (annotator_head->empty()) {
         BasicBlock *temp = BasicBlock::Create(
-            ctx, "", annotator, 0);
+            ctx, "", annotator_head, 0);
+        ReturnInst::Create(ctx, temp);
+    }
+    if (annotator_tail->empty()) {
+        BasicBlock *temp = BasicBlock::Create(
+            ctx, "", annotator_tail, 0);
         ReturnInst::Create(ctx, temp);
     }
 
     std::error_code EC;
-    raw_fd_ostream os(annotatorFileName, EC, static_cast<sys::fs::OpenFlags>(0));
+    raw_fd_ostream os(PIMProfAnnotatorFileName, EC,
+        static_cast<sys::fs::OpenFlags>(0));
     WriteBitcodeToFile(*M, os);
 
   return 0;

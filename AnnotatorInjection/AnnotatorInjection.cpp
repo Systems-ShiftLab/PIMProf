@@ -28,13 +28,21 @@ namespace {
             LLVMContext &ctx = M->getContext();
 
             // declare annotator function 
-            Function *annotator = dyn_cast<Function>(
+            Function *annotator_head = dyn_cast<Function>(
                 M->getOrInsertFunction(
-                    annotatorName, 
+                    PIMProfAnnotatorHead, 
                     FunctionType::getVoidTy(ctx), 
                     Type::getInt32Ty(ctx)
                 )
             );
+            Function *annotator_tail = dyn_cast<Function>(
+                M->getOrInsertFunction(
+                    PIMProfAnnotatorTail, 
+                    FunctionType::getVoidTy(ctx), 
+                    Type::getInt32Ty(ctx)
+                )
+            );
+            
 
             errs()  << "Before injection: " << BB.getParent()->getName()
                     << "::" << BB.getName() << "\n";
@@ -48,11 +56,11 @@ namespace {
                 IntegerType::get(M->getContext(),32), 1234);
             
             CallInst::Create(
-                annotator, ArrayRef<Value *>(BBid), "",
+                annotator_head, ArrayRef<Value *>(BBid), "",
                 BB.getFirstNonPHIOrDbgOrLifetime());
 
             CallInst::Create(
-                annotator, ArrayRef<Value *>(BBid), "",
+                annotator_tail, ArrayRef<Value *>(BBid), "",
                 BB.getTerminator());
 
 

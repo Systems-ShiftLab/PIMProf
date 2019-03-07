@@ -37,3 +37,6 @@ build/
 # Bitcode and IR
 *.ll
 *.bc
+
+# vscode
+.vscode

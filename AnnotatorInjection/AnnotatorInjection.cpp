@@ -73,10 +73,10 @@ char InjectAnnotation::ID = 0;
 
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
-static void registerLLVMInjection(const PassManagerBuilder &,
+static void registerAnnotatorInjection(const PassManagerBuilder &,
                          legacy::PassManagerBase &PM) {
     PM.add(new InjectAnnotation());
 }
 static RegisterStandardPasses
   RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible,
-                 registerLLVMInjection);
+                 registerAnnotatorInjection);

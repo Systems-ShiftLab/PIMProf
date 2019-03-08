@@ -42,37 +42,27 @@ namespace {
                     Type::getInt32Ty(ctx)
                 )
             );
-            
-
-            errs()  << "Before injection: " << BB.getParent()->getName()
-                    << "::" << BB.getName() << "\n";
-            for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-                (*i).print(errs());
-                errs() << "\n";
-            }
-            errs() << "\n";
 
             Value *BBid = ConstantInt::get(
                 IntegerType::get(M->getContext(),32), 1234);
             
-            CallInst::Create(
+            CallInst *head_instr = CallInst::Create(
                 annotator_head, ArrayRef<Value *>(BBid), "",
                 BB.getFirstNonPHIOrDbgOrLifetime());
 
-            CallInst::Create(
+            CallInst *tail_instr = CallInst::Create(
                 annotator_tail, ArrayRef<Value *>(BBid), "",
                 BB.getTerminator());
 
 
-            errs() << "After injection: " << BB.getName() << "\n";
-            for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-                (*i).print(errs());
-                errs() << "\n";
-            }
-            errs() << "\n";
+            // errs() << "After injection: " << BB.getName() << "\n";
+            // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+            //     (*i).print(errs());
+            //     errs() << "\n";
+            // }
+            // errs() << "\n";
 
-
-            return false;
+            return true;
         }
     };
 }

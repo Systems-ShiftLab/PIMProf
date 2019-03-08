@@ -20,6 +20,18 @@ using namespace llvm;
 
 LLVMContext ctx;
 
+void BasicBlockDFS(BasicBlock *BB, int depth)
+{
+    std::string blanks(depth * 2, ' ');
+    errs() << blanks << depth << BB->getName() << "\n";
+    const TerminatorInst *TInst = BB->getTerminator();
+    for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) {
+        BasicBlock *Succ = TInst->getSuccessor(I);
+        BasicBlockDFS(Succ, depth + 1);
+    // Do stuff with Succ
+    }
+}
+
 int main(int argc, char **argv) {
     // Module Construction
     std::unique_ptr<Module> M;
@@ -38,9 +50,23 @@ int main(int argc, char **argv) {
         }
     }
 
-    
+    // M->print(errs(), nullptr);
 
-    // graph
-    M->print(errs(), nullptr);
+    // dump the entire CFG of the module
+    Function *main_func = M->getFunction("main");
+    main_func->print(errs());
+    BasicBlock *BB_head = &main_func->getEntryBlock();
+    BasicBlockDFS(BB_head, 0);
+    BB_head->print(errs());
+    BB_head->setName()
+    
+    errs() << "succ:\n";
+    const TerminatorInst *TInst = BB_head->getTerminator();
+    for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) {
+        BasicBlock *Succ = TInst->getSuccessor(I);
+        Succ->print(errs());
+    // Do stuff with Succ
+    }
+    
   return 0;
 }

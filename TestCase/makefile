@@ -1,11 +1,11 @@
 CXX          := clang++-7
 LLC          := llc-7
 CXXFLAGS     := -flto -fPIC -std=c++11 -O3 #-pedantic-errors -Wall -Wextra -Werror
-PASSFLAGS    := -Xclang -load -Xclang ../build/AnnotatorInjection/libAnnotatorInjection.so
+PASSFLAGS    := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
 LDFLAGS      := -L/usr/lib -lstdc++ -lm -pthread #-lbacktrace -ldl
 INCLUDE      :=
 
-ANNOTATOR_DIR := ../AnnotatorInjection
+ANNOTATOR_DIR := ../LLVMAnalysis
 
 INJECTED_SRC  := print4.cpp test.cpp
 
@@ -31,7 +31,7 @@ $(INJECTED_OBJ): %.o: %.cpp
 	$(CXX) $(PASSFLAGS) $(CXXFLAGS) $(INCLUDE) -o $@ -c $<
 
 $(ANNOTATOR_OBJ):
-	../build/AnnotatorInjection/AnnotatorGeneration.exe
+	../build/LLVMAnalysis/AnnotatorGeneration.exe
 	$(LLC) -filetype=obj -o $(ANNOTATOR_OBJ) $(ANNOTATOR_BC)
 
 ll: $(ANNOTATOR_LL) $(INJECTED_LL)

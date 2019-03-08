@@ -11,7 +11,6 @@
 #include "llvm/IR/Function.h"
 
 #include "Common.h"
-#include "fstream"
 
 using namespace llvm;
 

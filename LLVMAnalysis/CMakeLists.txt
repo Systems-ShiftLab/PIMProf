@@ -1,23 +1,25 @@
-add_library(AnnotatorInjection MODULE
-    AnnotatorInjection.cpp
-)
+set(ANNOTATORINJECTION "AnnotatorInjection")
+add_library(${ANNOTATORINJECTION} MODULE 
+    AnnotatorInjection.cpp)
+target_compile_features(${ANNOTATORINJECTION} PRIVATE
+    cxx_range_for cxx_auto_type)
+set_target_properties(${ANNOTATORINJECTION} PROPERTIES
+    COMPILE_FLAGS "-fno-rtti")
 
-add_executable(AnnotatorGeneration.exe
-    AnnotatorGeneration.cpp
-)
+set(ANNOTATORGENERATION "AnnotatorGeneration.exe")
+add_executable(${ANNOTATORGENERATION}
+    AnnotatorGeneration.cpp)
+target_link_libraries(${ANNOTATORGENERATION} LLVM)
+target_compile_features(${ANNOTATORGENERATION} PRIVATE
+    cxx_range_for cxx_auto_type)
+set_target_properties(${ANNOTATORGENERATION} PROPERTIES
+    COMPILE_FLAGS "-fno-rtti")
 
-target_compile_features(AnnotatorInjection PRIVATE cxx_range_for cxx_auto_type)
-
-set_target_properties(AnnotatorInjection PROPERTIES
-    COMPILE_FLAGS "-fno-rtti"
-)
-
-target_compile_features(AnnotatorGeneration.exe PRIVATE cxx_range_for cxx_auto_type)
-
-set_target_properties(AnnotatorGeneration.exe PROPERTIES
-    COMPILE_FLAGS "-fno-rtti"
-)
-
-target_link_libraries(AnnotatorGeneration.exe
-    LLVM
-)
+set(CFGDUMP "CFGDump.exe")
+add_executable(${CFGDUMP}
+    CFGDump.cpp)
+target_link_libraries(${CFGDUMP} LLVM)
+target_compile_features(${CFGDUMP} PRIVATE
+    cxx_range_for cxx_auto_type)
+set_target_properties(${CFGDUMP} PROPERTIES
+    COMPILE_FLAGS "-fno-rtti")

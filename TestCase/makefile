@@ -1,5 +1,6 @@
 CXX          := clang++-7
 LLC          := llc-7
+LINK         := llvm-link-7
 CXXFLAGS     := -flto -fPIC -std=c++11 -O3 #-pedantic-errors -Wall -Wextra -Werror
 PASSFLAGS    := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
 LDFLAGS      := -L/usr/lib -lstdc++ -lm -pthread #-lbacktrace -ldl
@@ -21,6 +22,7 @@ INJECTED_BC  := $(INJECTED_SRC:%.cpp=%.bc)
 
 all: $(ANNOTATOR_OBJ) $(INJECTED_OBJ)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -o test.exe $^ $(LDFLAGS)
+	$(LINK) -o big.bc $(ANNOTATOR_BC) $(INJECTED_OBJ)
 
 cmake:
 	cd .. && mkdir -p build
@@ -32,6 +34,7 @@ $(INJECTED_OBJ): %.o: %.cpp
 
 $(ANNOTATOR_OBJ):
 	../build/LLVMAnalysis/AnnotatorGeneration.exe
+	# cp $(ANNOTATOR_BC) $(ANNOTATOR_OBJ)
 	$(LLC) -filetype=obj -o $(ANNOTATOR_OBJ) $(ANNOTATOR_BC)
 
 ll: $(ANNOTATOR_LL) $(INJECTED_LL)

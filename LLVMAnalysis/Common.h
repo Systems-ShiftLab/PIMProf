@@ -2,6 +2,7 @@
 #define __COMMON_H__
 
 static const std::string PIMProfAnnotatorFileName = "PIMProfAnnotator.bc";
+
 static const std::string PIMProfAnnotatorHead = "PIMProfAnnotatorHead";
 static const std::string PIMProfAnnotatorTail = "PIMProfAnnotatorTail";
 

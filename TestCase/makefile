@@ -1,8 +1,7 @@
-CXX          := g++
-CLANGXX      := clang++-7
+CXX          := clang++-7
 LLC          := llc-7
-CXXFLAGS     := -fPIC -std=c++11 #-pedantic-errors -Wall -Wextra -Werror
-PASSFLAGS    := -Xclang -load -Xclang ../build/AnnotatorInjection/libAnnotatorInjection.so -fPIC -std=c++11
+CXXFLAGS     := -flto -fPIC -std=c++11 -O3 #-pedantic-errors -Wall -Wextra -Werror
+PASSFLAGS    := -Xclang -load -Xclang ../build/AnnotatorInjection/libAnnotatorInjection.so
 LDFLAGS      := -L/usr/lib -lstdc++ -lm -pthread #-lbacktrace -ldl
 INCLUDE      :=
 
@@ -21,7 +20,7 @@ INJECTED_BC  := $(INJECTED_SRC:%.cpp=%.bc)
 # execute "make cmake" first then "make"
 
 all: $(ANNOTATOR_OBJ) $(INJECTED_OBJ)
-	$(CLANGXX) $(CXXFLAGS) $(INCLUDE) -o test.exe $^ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -o test.exe $^ $(LDFLAGS)
 
 cmake:
 	cd .. && mkdir -p build
@@ -29,7 +28,7 @@ cmake:
 	make -C ../build/
 
 $(INJECTED_OBJ): %.o: %.cpp
-	$(CLANGXX) $(PASSFLAGS) $(INCLUDE) -o $@ -c $<
+	$(CXX) $(PASSFLAGS) $(CXXFLAGS) $(INCLUDE) -o $@ -c $<
 
 $(ANNOTATOR_OBJ):
 	../build/AnnotatorInjection/AnnotatorGeneration.exe
@@ -38,18 +37,18 @@ $(ANNOTATOR_OBJ):
 ll: $(ANNOTATOR_LL) $(INJECTED_LL)
 
 $(INJECTED_LL) : %.ll : %.cpp
-	$(CLANGXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -S $<
+	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -S $<
 
 $(ANNOTATOR_LL) : %.ll : $(ANNOTATOR_DIR)/%.cpp
-	$(CLANGXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -S $<
+	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -S $<
 
 bc: $(ANNOTATOR_BC) $(INJECTED_BC)
 
 $(INJECTED_BC) : %.bc : %.cpp
-	$(CLANGXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -c $<
+	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -c $<
 
 $(ANNOTATOR_BC) : %.bc : $(ANNOTATOR_DIR)/%.cpp
-	$(CLANGXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -c $<
+	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -c $<
 
 clean:
 	rm -rf *.o *.exe *.bc *.ll

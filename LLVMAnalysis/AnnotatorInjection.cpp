@@ -21,6 +21,7 @@ namespace {
     void InjectAnnotatorCall(Module &M, BasicBlock &BB, int BBID) {
         LLVMContext &ctx = M.getContext();
 
+        // declare extern annotator function
         Function *annotator_head = dyn_cast<Function>(
             M.getOrInsertFunction(
                 PIMProfAnnotatorHead, 
@@ -35,6 +36,7 @@ namespace {
                 Type::getInt32Ty(ctx)
             )
         );
+
         errs() << "Before injection: " << BB.getName() << "\n";
         for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
             (*i).print(errs());
@@ -42,6 +44,7 @@ namespace {
         }
         errs() << "\n";
 
+        // insert instruction
         Value *bbid = ConstantInt::get(
             IntegerType::get(M.getContext(),32), BBID);
         
@@ -52,6 +55,17 @@ namespace {
         CallInst *tail_instr = CallInst::Create(
             annotator_tail, ArrayRef<Value *>(bbid), "",
             BB.getTerminator());
+        
+        // insert instruction metadata
+        MDNode* md = MDNode::get(
+            ctx, 
+            ConstantAsMetadata::get(
+                ConstantInt::get(
+                    IntegerType::get(M.getContext(),32), BBID)
+            )
+        );
+        head_instr->setMetadata("basicblock.id", md);
+        tail_instr->setMetadata("basicblock.id", md);
             
         errs() << "After injection: " << BB.getName() << "\n";
         for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
@@ -76,6 +90,7 @@ namespace {
                     bbid++;
                 }
             }
+            // M.print(errs(), nullptr);
             return true;
         }
     };

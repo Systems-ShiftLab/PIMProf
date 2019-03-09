@@ -1,4 +1,5 @@
 CXX          := clang++-7
+OPT          := opt-7
 LLC          := llc-7
 LINK         := llvm-link-7
 CXXFLAGS     := -flto -fPIC -std=c++11 #-pedantic-errors -Wall -Wextra -Werror
@@ -7,22 +8,21 @@ LDFLAGS      := -L/usr/lib -lstdc++ -lm -pthread #-lbacktrace -ldl
 INCLUDE      :=
 
 ANNOTATOR_DIR := ../LLVMAnalysis
+ANNOTATOR_BC  := PIMProfAnnotator.bc
 
 EXTERNAL_SRC  := print4.cpp test.cpp
-
-ANNOTATOR_OBJ := PIMProfAnnotator.o
 EXTERNAL_OBJ  := $(EXTERNAL_SRC:%.cpp=%.o)
+EXTERNAL_BC   := $(EXTERNAL_SRC:%.cpp=%.bc)
 
-EXTERNAL_LL  := $(EXTERNAL_SRC:%.cpp=%.ll)
-
-ANNOTATOR_BC := $(ANNOTATOR_OBJ:%.o=%.bc)
-EXTERNAL_BC  := $(EXTERNAL_SRC:%.cpp=%.bc)
+MERGED_BC     := merged.bc
+OPTIMIZED_BC  := optimized.bc
 
 # execute "make cmake" first then "make"
 
-all: $(ANNOTATOR_OBJ) $(EXTERNAL_OBJ)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -o test.exe $^ $(LDFLAGS)
-	$(LINK) -o big.bc $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
+all: $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
+	$(LINK) -o $(MERGED_BC) $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
+	$(OPT) -load ../build/LLVMAnalysis/libAnnotatorInjection.so -AnnotatorInjection $(MERGED_BC) -o $(OPTIMIZED_BC)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -o test.exe $(OPTIMIZED_BC) $(LDFLAGS)
 
 cmake:
 	cd .. && mkdir -p build
@@ -32,10 +32,10 @@ cmake:
 $(EXTERNAL_OBJ): %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ -c $<
 
-$(ANNOTATOR_OBJ):
+$(ANNOTATOR_BC):
 	../build/LLVMAnalysis/AnnotatorGeneration.exe
 	# cp $(ANNOTATOR_BC) $(ANNOTATOR_OBJ)
-	$(LLC) -filetype=obj -o $(ANNOTATOR_OBJ) $(ANNOTATOR_BC)
+	# $(LLC) -filetype=obj -o $(ANNOTATOR_OBJ) $(ANNOTATOR_BC)
 
 # ll: $(ANNOTATOR_LL) $(EXTERNAL_LL)
 

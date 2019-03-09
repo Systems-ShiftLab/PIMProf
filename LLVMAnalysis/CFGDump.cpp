@@ -58,9 +58,6 @@ int main(int argc, char **argv) {
     BasicBlock *BB_head = &main_func->getEntryBlock();
     BasicBlockDFS(BB_head, 0);
     BB_head->print(errs());
-    BB_head->setName()
-    
-    errs() << "succ:\n";
     const TerminatorInst *TInst = BB_head->getTerminator();
     for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) {
         BasicBlock *Succ = TInst->getSuccessor(I);

@@ -18,63 +18,79 @@
 using namespace llvm;
 
 namespace {
+    void InjectAnnotatorCall(Module &M, BasicBlock &BB, int BBID) {
+        LLVMContext &ctx = M.getContext();
 
-    struct InjectAnnotation : public BasicBlockPass {
-        static char ID;
-        InjectAnnotation() : BasicBlockPass(ID) {}
+        Function *annotator_head = dyn_cast<Function>(
+            M.getOrInsertFunction(
+                PIMProfAnnotatorHead, 
+                FunctionType::getVoidTy(ctx), 
+                Type::getInt32Ty(ctx)
+            )
+        );
+        Function *annotator_tail = dyn_cast<Function>(
+            M.getOrInsertFunction(
+                PIMProfAnnotatorTail, 
+                FunctionType::getVoidTy(ctx), 
+                Type::getInt32Ty(ctx)
+            )
+        );
+        errs() << "Before injection: " << BB.getName() << "\n";
+        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+            (*i).print(errs());
+            errs() << "\n";
+        }
+        errs() << "\n";
 
-        virtual bool runOnBasicBlock(BasicBlock &BB) {
-            Module *M = BB.getModule();
-            LLVMContext &ctx = M->getContext();
+        Value *bbid = ConstantInt::get(
+            IntegerType::get(M.getContext(),32), BBID);
+        
+        CallInst *head_instr = CallInst::Create(
+            annotator_head, ArrayRef<Value *>(bbid), "",
+            BB.getFirstNonPHIOrDbgOrLifetime());
 
-            // declare annotator function 
-            Function *annotator_head = dyn_cast<Function>(
-                M->getOrInsertFunction(
-                    PIMProfAnnotatorHead, 
-                    FunctionType::getVoidTy(ctx), 
-                    Type::getInt32Ty(ctx)
-                )
-            );
-            Function *annotator_tail = dyn_cast<Function>(
-                M->getOrInsertFunction(
-                    PIMProfAnnotatorTail, 
-                    FunctionType::getVoidTy(ctx), 
-                    Type::getInt32Ty(ctx)
-                )
-            );
-
-            Value *BBid = ConstantInt::get(
-                IntegerType::get(M->getContext(),32), 1234);
+        CallInst *tail_instr = CallInst::Create(
+            annotator_tail, ArrayRef<Value *>(bbid), "",
+            BB.getTerminator());
             
-            CallInst *head_instr = CallInst::Create(
-                annotator_head, ArrayRef<Value *>(BBid), "",
-                BB.getFirstNonPHIOrDbgOrLifetime());
+        errs() << "After injection: " << BB.getName() << "\n";
+        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+            (*i).print(errs());
+            errs() << "\n";
+        }
+        errs() << "\n";
+    }
 
-            CallInst *tail_instr = CallInst::Create(
-                annotator_tail, ArrayRef<Value *>(BBid), "",
-                BB.getTerminator());
+    struct AnnotatorInjection : public ModulePass {
+        static char ID;
+        AnnotatorInjection() : ModulePass(ID) {}
 
+        virtual bool runOnModule(Module &M) {
+            // assign unique id to each basic block
+            int bbid = 0;
 
-            // errs() << "After injection: " << BB.getName() << "\n";
-            // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-            //     (*i).print(errs());
-            //     errs() << "\n";
-            // }
-            // errs() << "\n";
-
+            for (auto &func : M) {
+                for (auto &bb: func) {
+                    // declare annotator function 
+                    InjectAnnotatorCall(M, bb, bbid);
+                    bbid++;
+                }
+            }
             return true;
         }
     };
 }
 
-char InjectAnnotation::ID = 0;
+char AnnotatorInjection::ID = 0;
+static RegisterPass<AnnotatorInjection> RegisterMyPass(
+    "AnnotatorInjection", "Inject annotators to uniquely identify each basic block.");
 
-// Automatically enable the pass.
-// http://adriansampson.net/blog/clangpass.html
-static void registerAnnotatorInjection(const PassManagerBuilder &,
-                         legacy::PassManagerBase &PM) {
-    PM.add(new InjectAnnotation());
-}
-static RegisterStandardPasses
-  RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible,
-                 registerAnnotatorInjection);
+// // Automatically enable the pass.
+// // http://adriansampson.net/blog/clangpass.html
+// static void registerAnnotatorInjection(const PassManagerBuilder &,
+//                          legacy::PassManagerBase &PM) {
+//     PM.add(new AnnotatorInjection());
+// }
+// static RegisterStandardPasses
+//   RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible,
+//                  registerAnnotatorInjection);

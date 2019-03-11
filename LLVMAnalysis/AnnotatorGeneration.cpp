@@ -1,3 +1,10 @@
+//===- AnnotatorGeneration.cpp - Generate BB annotator ----------*- C++ -*-===//
+//
+//
+//===----------------------------------------------------------------------===//
+//
+//
+//===----------------------------------------------------------------------===//
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/CallingConv.h"

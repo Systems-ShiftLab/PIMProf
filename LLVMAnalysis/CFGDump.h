@@ -1,8 +1,8 @@
 #ifndef __CFGDUMP_H__
 #define __CFGDUMP_H__
 
-class CFGDump {
-    
+namespace CFGDump {
+    int CFGDump(const std::string &);
 };
 
 #endif // __CFGDUMP_H__

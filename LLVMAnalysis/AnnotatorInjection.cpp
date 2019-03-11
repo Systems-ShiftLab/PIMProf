@@ -1,3 +1,11 @@
+//===- AnnotatorInjection.cpp - Pass that injects BB annotator --*- C++ -*-===//
+//
+//
+//===----------------------------------------------------------------------===//
+//
+//
+//===----------------------------------------------------------------------===//
+
 #include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"

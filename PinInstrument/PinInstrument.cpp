@@ -40,6 +40,8 @@ END_LEGAL */
 #include "pin.H"
 #include "control_manager.H"
 
+#include "../LLVMAnalysis/Common.h"
+
 using namespace CONTROLLER;
 
 /* ===================================================================== */
@@ -124,7 +126,7 @@ LOCALFUN UINT32 INS_GetIndex(INS ins)
 
 /* ===================================================================== */
 
-LOCALFUN  UINT32 IndexStringLength(BBL bbl, BOOL memory_acess_profile)
+LOCALFUN UINT32 IndexStringLength(BBL bbl, BOOL memory_acess_profile)
 {
     UINT32 count = 0;
 
@@ -298,7 +300,6 @@ VOID Trace(TRACE trace, VOID *v)
         return;
 
     const BOOL accurate_handling_of_predicates = KnobProfilePredicated.Value();
-    //std::cout << "Trace:" << std::hex << TRACE_Address(trace) << std::endl;
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
     {
@@ -421,8 +422,42 @@ VOID Fini(int, VOID * v)
 
 /* ===================================================================== */
 
+VOID InstrumentAnnotatorHead(INT32 bbid)
+{
+    std::cout << "BBHead: " << bbid << std::endl;
+}
+
+VOID InstrumentAnnotatorTail(INT32 bbid)
+{
+    std::cout << "BBTail: " << bbid << std::endl;
+}
+
 VOID Image(IMG img, VOID * v)
 {
+    // find annotator head and tail by their names
+    RTN annotator_head = RTN_FindByName(img, PIMProfAnnotatorHead.c_str());
+    RTN annotator_tail = RTN_FindByName(img, PIMProfAnnotatorTail.c_str());
+
+    if (RTN_Valid(annotator_head) && RTN_Valid(annotator_tail))
+    {
+        // Instrument malloc() to print the input argument value and the return value.
+        RTN_Open(annotator_head);
+        RTN_InsertCall(
+            annotator_head, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorHead,
+            IARG_FUNCARG_CALLSITE_VALUE, 0,
+            // IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+            IARG_END);
+        RTN_Close(annotator_head);
+
+        RTN_Open(annotator_tail);
+        RTN_InsertCall(
+            annotator_tail, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorTail,
+            IARG_FUNCARG_CALLSITE_VALUE, 0,
+            // IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+            IARG_END);
+        RTN_Close(annotator_tail);
+    }
+
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
     {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))

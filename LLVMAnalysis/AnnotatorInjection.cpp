@@ -45,12 +45,12 @@ namespace {
             )
         );
 
-        errs() << "Before injection: " << BB.getName() << "\n";
-        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-            (*i).print(errs());
-            errs() << "\n";
-        }
-        errs() << "\n";
+        // errs() << "Before injection: " << BB.getName() << "\n";
+        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+        //     (*i).print(errs());
+        //     errs() << "\n";
+        // }
+        // errs() << "\n";
 
         // insert instruction
         Value *bbid = ConstantInt::get(
@@ -75,12 +75,12 @@ namespace {
         head_instr->setMetadata("basicblock.id", md);
         tail_instr->setMetadata("basicblock.id", md);
             
-        errs() << "After injection: " << BB.getName() << "\n";
-        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-            (*i).print(errs());
-            errs() << "\n";
-        }
-        errs() << "\n";
+        // errs() << "After injection: " << BB.getName() << "\n";
+        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+        //     (*i).print(errs());
+        //     errs() << "\n";
+        // }
+        // errs() << "\n";
     }
 
     struct AnnotatorInjection : public ModulePass {

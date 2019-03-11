@@ -1,11 +1,13 @@
-CXX          := clang++-7
-OPT          := opt-7
-LLC          := llc-7
-LINK         := llvm-link-7
-CXXFLAGS     := -flto -fPIC -std=c++11 #-pedantic-errors -Wall -Wextra -Werror
-PASSFLAGS    := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
-LDFLAGS      := -L/usr/lib -lstdc++ -lm -pthread #-lbacktrace -ldl
-INCLUDE      :=
+CXX              := clang++-7
+OPT              := opt-7
+LLC              := llc-7
+LINK             := llvm-link-7
+DIS              := llvm-dis-7
+PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 # -O3 -pedantic-errors -Wall -Wextra -Werror
+POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -O0 -g
+PASSFLAGS        := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
+LDFLAGS          := -L/usr/lib -lstdc++ -lm -pthread #-lbacktrace -ldl
+INCLUDE          :=
 
 ANNOTATOR_DIR := ../LLVMAnalysis
 ANNOTATOR_BC  := PIMProfAnnotator.bc
@@ -15,22 +17,35 @@ EXTERNAL_OBJ  := $(EXTERNAL_SRC:%.cpp=%.o)
 EXTERNAL_BC   := $(EXTERNAL_SRC:%.cpp=%.bc)
 
 MERGED_BC     := merged.bc
-OPTIMIZED_BC  := optimized.bc
+MERGED_LL     := merged.ll
 
-# execute "make cmake" first then "make"
+TEST_EXE      := test.exe
 
-all: $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
+# Process TestCase folder
+all: cmake bitcode 
+
+# generate merged bitcode, then compile to executable
+bitcode: $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
 	$(LINK) -o $(MERGED_BC) $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
-	$(OPT) -load ../build/LLVMAnalysis/libAnnotatorInjection.so -AnnotatorInjection $(MERGED_BC) -o $(OPTIMIZED_BC)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -o test.exe $(OPTIMIZED_BC) $(LDFLAGS)
+	$(DIS) $(MERGED_BC) -o $(MERGED_LL)
+	$(CXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
+	objdump -d $(TEST_EXE) > objdump.out
 
+# generate LLVM analysis tools
 cmake:
 	cd .. && mkdir -p build
 	cd ../build/ && cmake ..
 	make -C ../build/
 
+# test pintool
+pin: all
+	make -C ../PinInstrument/
+	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE) -o opcodemix.out
+
+# generate the bitcode of each source code and apply annotator injection
 $(EXTERNAL_OBJ): %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ -c $<
+	$(CXX) $(PREOPT_CXXFLAGS) $(INCLUDE) -o $@ -c $<
+	$(OPT) -load ../build/LLVMAnalysis/libAnnotatorInjection.so -AnnotatorInjection $@ -o $@
 
 $(ANNOTATOR_BC):
 	../build/LLVMAnalysis/AnnotatorGeneration.exe
@@ -54,5 +69,7 @@ $(ANNOTATOR_BC):
 # 	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -c $<
 
 clean:
-	rm -rf *.o *.exe *.bc *.ll
+	rm -rf *.o *.exe *.bc *.ll *.out *.log
 	rm -rf ../build
+
+.PHONY: all bitcode cmake pin clean

@@ -424,12 +424,12 @@ VOID Fini(int, VOID * v)
 
 VOID InstrumentAnnotatorHead(INT32 bbid)
 {
-    std::cout << "BBHead: " << bbid << std::endl;
+    std::cout << std::oct << "PIMProfHead: " << bbid << std::endl;
 }
 
 VOID InstrumentAnnotatorTail(INT32 bbid)
 {
-    std::cout << "BBTail: " << bbid << std::endl;
+    std::cout << std::oct << "PIMProfTail: " << bbid << std::endl;
 }
 
 VOID Image(IMG img, VOID * v)

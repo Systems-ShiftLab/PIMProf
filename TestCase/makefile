@@ -3,10 +3,10 @@ OPT              := opt-7
 LLC              := llc-7
 LINK             := llvm-link-7
 DIS              := llvm-dis-7
-PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 # -O3 -pedantic-errors -Wall -Wextra -Werror
-POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS)
+PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 -g # -O3 -pedantic-errors -Wall -Wextra -Werror
+POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -fno-inline
 PASSFLAGS        := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
-LDFLAGS          := -L/usr/lib -lstdc++ -lm -pthread #-lbacktrace -ldl
+LDFLAGS          := 
 INCLUDE          :=
 
 ANNOTATOR_DIR := ../LLVMAnalysis
@@ -35,21 +35,24 @@ cmake:
 	cd ../build/ && cmake ..
 	make -C ../build/
 
+
 # test pintool
+# $(OPT) -O$$LEVEL $(MERGED_BC) -o merged$$LEVEL.bc; \
+# $(DIS) merged$$LEVEL.bc -o merged$$LEVEL.ll; \
+# $(CXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS); \
+#
+# cp ./merged.bc ./merged$$LEVEL.bc; \
+# $(CXX) $(POSTOPT_CXXFLAGS) -O$$LEVEL $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS); \
+#
+
 pin: all
 	make -C ../PinInstrument/
-	$(CXX) $(POSTOPT_CXXFLAGS) -O0 $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
-	objdump -d $(TEST_EXE) > objdump0.out
-	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE) -o opcodemix.out > output0.out
-	$(CXX) $(POSTOPT_CXXFLAGS) -O1 $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
-	objdump -d $(TEST_EXE) > objdump1.out
-	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE) -o opcodemix.out > output1.out
-	$(CXX) $(POSTOPT_CXXFLAGS) -O2 $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
-	objdump -d $(TEST_EXE) > objdump2.out
-	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE) -o opcodemix.out > output2.out
-	$(CXX) $(POSTOPT_CXXFLAGS) -O3 $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
-	objdump -d $(TEST_EXE) > objdump3.out
-	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE) -o opcodemix.out > output3.out
+	for LEVEL in 0 1 2 3 ; do \
+		cp ./merged.bc ./merged$$LEVEL.bc; \
+		$(CXX) $(POSTOPT_CXXFLAGS) -O$$LEVEL $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS); \
+		objdump -d test$$LEVEL.exe > objdump$$LEVEL.out; \
+		$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./test$$LEVEL.exe -o opcodemix.out > output$$LEVEL.out; \
+	done
 	
 
 # generate the bitcode of each source code and apply annotator injection

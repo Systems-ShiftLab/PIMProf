@@ -32,14 +32,14 @@ int main(int argc, char **argv) {
     Function *annotator_head = dyn_cast<Function>(
         M->getOrInsertFunction(
             PIMProfAnnotatorHead, 
-            FunctionType::getVoidTy(ctx), 
+            FunctionType::getInt32Ty(ctx), 
             Type::getInt32Ty(ctx)
         )
     );
     Function *annotator_tail = dyn_cast<Function>(
         M->getOrInsertFunction(
             PIMProfAnnotatorTail, 
-            FunctionType::getVoidTy(ctx), 
+            FunctionType::getInt32Ty(ctx), 
             Type::getInt32Ty(ctx)
         )
     );
@@ -54,12 +54,12 @@ int main(int argc, char **argv) {
     if (annotator_head->empty()) {
         BasicBlock *temp = BasicBlock::Create(
             ctx, "", annotator_head, 0);
-        ReturnInst::Create(ctx, temp);
+        ReturnInst::Create(ctx, annotator_head->arg_begin(), temp);
     }
     if (annotator_tail->empty()) {
         BasicBlock *temp = BasicBlock::Create(
             ctx, "", annotator_tail, 0);
-        ReturnInst::Create(ctx, temp);
+        ReturnInst::Create(ctx, annotator_tail->arg_begin(), temp);
     }
 
     std::error_code EC;

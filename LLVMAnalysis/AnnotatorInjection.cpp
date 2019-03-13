@@ -33,14 +33,14 @@ namespace {
         Function *annotator_head = dyn_cast<Function>(
             M.getOrInsertFunction(
                 PIMProfAnnotatorHead, 
-                FunctionType::getVoidTy(ctx), 
+                FunctionType::getInt32Ty(ctx), 
                 Type::getInt32Ty(ctx)
             )
         );
         Function *annotator_tail = dyn_cast<Function>(
             M.getOrInsertFunction(
                 PIMProfAnnotatorTail, 
-                FunctionType::getVoidTy(ctx), 
+                FunctionType::getInt32Ty(ctx), 
                 Type::getInt32Ty(ctx)
             )
         );

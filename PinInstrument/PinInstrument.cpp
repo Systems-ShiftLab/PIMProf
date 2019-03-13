@@ -440,20 +440,28 @@ VOID Image(IMG img, VOID * v)
 
     if (RTN_Valid(annotator_head) && RTN_Valid(annotator_tail))
     {
-        // Instrument malloc() to print the input argument value and the return value.
+        // Instrument to print the input argument value and the return value.
         RTN_Open(annotator_head);
+        // RTN_InsertCall(
+        //     annotator_head, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorHead,
+        //     // IARG_FUNCARG_CALLSITE_VALUE, 0,
+        //     IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+        //     IARG_END);
         RTN_InsertCall(
-            annotator_head, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorHead,
-            IARG_FUNCARG_CALLSITE_VALUE, 0,
-            // IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+            annotator_head, IPOINT_AFTER, (AFUNPTR)InstrumentAnnotatorHead,
+            IARG_FUNCRET_EXITPOINT_VALUE, 
             IARG_END);
         RTN_Close(annotator_head);
 
         RTN_Open(annotator_tail);
+        // RTN_InsertCall(
+        //     annotator_tail, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorTail,
+        //     // IARG_FUNCARG_CALLSITE_VALUE, 0,
+        //     IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+        //     IARG_END);
         RTN_InsertCall(
-            annotator_tail, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorTail,
-            IARG_FUNCARG_CALLSITE_VALUE, 0,
-            // IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+            annotator_tail, IPOINT_AFTER, (AFUNPTR)InstrumentAnnotatorTail,
+            IARG_FUNCRET_EXITPOINT_VALUE, 
             IARG_END);
         RTN_Close(annotator_tail);
     }

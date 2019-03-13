@@ -38,7 +38,7 @@ void BasicBlockDFS(BasicBlock *BB, int depth) {
     }
 }
 
-int CFGDump::CFGDump(const std::string &filename) {
+int PIMProf::CFGDump(const std::string &filename) {
     // Module Construction
     std::unique_ptr<Module> M;
     
@@ -73,7 +73,7 @@ int CFGDump::CFGDump(const std::string &filename) {
 //         return -1;
 //     }
 //     else {
-//         CFGDump::CFGDump(argv[1]);
+//         PIMProf::CFGDump(argv[1]);
 //     }
     
 //   return 0;

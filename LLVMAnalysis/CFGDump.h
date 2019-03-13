@@ -1,7 +1,7 @@
 #ifndef __CFGDUMP_H__
 #define __CFGDUMP_H__
 
-namespace CFGDump {
+namespace PIMProf {
     int CFGDump(const std::string &);
 };
 

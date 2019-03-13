@@ -4,7 +4,7 @@ LLC              := llc-7
 LINK             := llvm-link-7
 DIS              := llvm-dis-7
 PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 -g # -O3 -pedantic-errors -Wall -Wextra -Werror
-POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -mllvm -debug-pass=Structure
+POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -O3
 PASSFLAGS        := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
 LDFLAGS          := 
 INCLUDE          :=
@@ -44,15 +44,19 @@ cmake:
 # cp ./merged.bc ./merged$$LEVEL.bc; \
 # $(CXX) $(POSTOPT_CXXFLAGS) -O$$LEVEL $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS); \
 #
+# for LEVEL in 0 1 2 3 ; do \
+# 	$(OPT) -O$$LEVEL $(MERGED_BC) -o merged$$LEVEL.bc; \
+# 	$(DIS) merged$$LEVEL.bc -o merged$$LEVEL.ll; \
+# 	$(CXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS); \
+# 	objdump -d test$$LEVEL.exe > objdump$$LEVEL.out; \
+# 	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./test$$LEVEL.exe -o opcodemix.out > output$$LEVEL.out; \
+# done
 
 pin: all
 	make -C ../PinInstrument/
-	for LEVEL in 0 1 2 3 ; do \
-		cp ./merged.bc ./merged$$LEVEL.bc; \
-		$(CXX) $(POSTOPT_CXXFLAGS) -O$$LEVEL $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS) > log$$LEVEL.out 2>&1; \
-		objdump -d test$$LEVEL.exe > objdump$$LEVEL.out; \
-		$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./test$$LEVEL.exe -o opcodemix.out > output$$LEVEL.out; \
-	done
+	$(CXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
+	objdump -d $(TEST_EXE) > objdump$$LEVEL.out
+	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE) -o opcodemix.out > output.out
 	
 
 # generate the bitcode of each source code and apply annotator injection
@@ -62,24 +66,6 @@ $(EXTERNAL_OBJ): %.o: %.cpp
 
 $(ANNOTATOR_BC):
 	../build/LLVMAnalysis/AnnotatorGeneration.exe
-	# cp $(ANNOTATOR_BC) $(ANNOTATOR_OBJ)
-	# $(LLC) -filetype=obj -o $(ANNOTATOR_OBJ) $(ANNOTATOR_BC)
-
-# ll: $(ANNOTATOR_LL) $(EXTERNAL_LL)
-
-# $(EXTERNAL_LL) : %.ll : %.cpp
-# 	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -S $<
-
-# $(ANNOTATOR_LL) : %.ll : $(ANNOTATOR_DIR)/%.cpp
-# 	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -S $<
-
-# bc: $(ANNOTATOR_BC) $(EXTERNAL_BC)
-
-# $(EXTERNAL_BC) : %.bc : %.cpp
-# 	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -c $<
-
-# $(ANNOTATOR_BC) : %.bc : $(ANNOTATOR_DIR)/%.cpp
-# 	$(CXX) $(PASSFLAGS) $(INCLUDE) -emit-llvm -o $@ -c $<
 
 clean:
 	rm -rf *.o *.exe *.bc *.ll *.out *.log

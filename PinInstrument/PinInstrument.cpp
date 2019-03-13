@@ -41,6 +41,7 @@ END_LEGAL */
 #include "control_manager.H"
 
 #include "../LLVMAnalysis/Common.h"
+#include "PinInstrument.h"
 
 using namespace CONTROLLER;
 

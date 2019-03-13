@@ -44,13 +44,15 @@ int main(int argc, char **argv) {
         )
     );
 
+    // add "optnone" attribute to function
+    // which suppresses essentially all optimizations on a function or method
     annotator_head->addFnAttr(Attribute::OptimizeNone);
     annotator_head->addFnAttr(Attribute::NoInline);
     annotator_tail->addFnAttr(Attribute::OptimizeNone);
     annotator_tail->addFnAttr(Attribute::NoInline);
 
     // provide definition of function if it has not been defined
-    // these functions do nothing so just insert a return instruction
+    // these functions will do nothing so just insert a return instruction
     if (annotator_head->empty()) {
         BasicBlock *temp = BasicBlock::Create(
             ctx, "", annotator_head, 0);

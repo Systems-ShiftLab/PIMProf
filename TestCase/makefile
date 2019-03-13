@@ -4,7 +4,7 @@ LLC              := llc-7
 LINK             := llvm-link-7
 DIS              := llvm-dis-7
 PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 -g # -O3 -pedantic-errors -Wall -Wextra -Werror
-POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -fno-inline
+POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -mllvm -debug-pass=Structure
 PASSFLAGS        := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
 LDFLAGS          := 
 INCLUDE          :=
@@ -49,7 +49,7 @@ pin: all
 	make -C ../PinInstrument/
 	for LEVEL in 0 1 2 3 ; do \
 		cp ./merged.bc ./merged$$LEVEL.bc; \
-		$(CXX) $(POSTOPT_CXXFLAGS) -O$$LEVEL $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS); \
+		$(CXX) $(POSTOPT_CXXFLAGS) -O$$LEVEL $(INCLUDE) -o test$$LEVEL.exe merged$$LEVEL.bc $(LDFLAGS) > log$$LEVEL.out 2>&1; \
 		objdump -d test$$LEVEL.exe > objdump$$LEVEL.out; \
 		$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./test$$LEVEL.exe -o opcodemix.out > output$$LEVEL.out; \
 	done

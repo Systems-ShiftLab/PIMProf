@@ -32,7 +32,7 @@ namespace PIMProf {
     class InstructionLatency {
     private:
         /// Construction of latency table follows the opcode generation function in
-        /// $(PIN_ROOT)/source/tools/SimpleExamples/opcodemix.cpp.
+        /// $(PIN_ROOT)/source/tools/SimpleExamples/opcodemix.cpp
         UINT32 latencytable[MAX_INDEX];
 
     public:
@@ -49,7 +49,7 @@ namespace PIMProf {
 
         /// Print the default instruction latency config to ofstream.
         /// This is the default instruction latency config PIMProf will use.
-        void PrintConfigTemplate(ostream& out);
+        void PrintConfigTemplate(std::ostream& out);
 
         /// Generate a template of instruction latency config for the given program.
         /// This function will pre-execute the given program once.

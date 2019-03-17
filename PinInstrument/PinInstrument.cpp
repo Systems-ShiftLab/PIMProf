@@ -23,18 +23,28 @@ using namespace PIMProf;
 
 InstructionLatency::InstructionLatency()
 {
+    for (int i = 0; i < MAX_INDEX; i++) {
+        latencytable[i] = 1;
+    }
+    ReadConfig("defaultlatency.ini");
+}
+
+InstructionLatency::InstructionLatency(const std::string filename)
+{
+    InstructionLatency();
+    ReadConfig(filename);
 }
 
 void InstructionLatency::ReadConfig(const std::string filename)
 {
     INIReader reader(filename);
-    for (UINT32 i = 0; i < MAX_INDEX; i++)
-    {
+    for (UINT32 i = 0; i < MAX_INDEX; i++) {
         std::string opcodestr = OPCODE_StringShort(i);
         if (opcodestr != "LAST") {
-            istringstream buf(reader.Get("InstructionLatency", opcodestr, "1"));
-            buf >> latencytable[i];
-            std::cout << opcodestr << latencytable[i] << std::endl;
+            long latency = reader.GetInteger("InstructionLatency", opcodestr, -1);
+            if (latency >= 0) {
+                latencytable[i] = latency;
+            }
         }
     }
 }

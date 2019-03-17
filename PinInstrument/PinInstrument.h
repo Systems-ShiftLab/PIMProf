@@ -41,11 +41,12 @@ namespace PIMProf {
         InstructionLatency();
 
         /// Initialization with input config.
-        InstructionLatency(std::istream &in);
+        InstructionLatency(const std::string filename);
     
     public:
         
         /// Read instruction latency config to latencytable from ofstream or file.
+        /// Invalid values (including negative latency, non-integer values) will be ignored.
         void ReadConfig(const std::string filename);
 
         /// Write the current instruction latency config to ofstream or file.

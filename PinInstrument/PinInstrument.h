@@ -44,17 +44,16 @@ namespace PIMProf {
         InstructionLatency(std::istream &in);
     
     public:
-        void ReadConfigFromFile();
-        void WriteConfigToFile();
+        
+        /// Read instruction latency config to latencytable from ofstream or file.
+        void ReadConfig(const std::string filename);
 
-        /// Print the default instruction latency config to ofstream.
-        /// This is the default instruction latency config PIMProf will use.
-        void PrintConfigTemplate(std::ostream& out);
+        /// Write the current instruction latency config to ofstream or file.
+        /// If no modification is made, then this will output the 
+        /// default instruction latency config PIMProf will use.
+        void WriteConfig(std::ostream& out);
+        void WriteConfig(const std::string filename);
 
-        /// Generate a template of instruction latency config for the given program.
-        /// This function will pre-execute the given program once.
-        /// filename: the filename of input program file.
-        void GenerateConfigTemplateFromFile(const std::string &filename);
 
     };
 

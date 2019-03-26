@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include "pin.H"
+#include "pin_cache.H"
 
 #include "../LLVMAnalysis/Common.h"
 #include "PinInstrument.h"
@@ -21,9 +22,19 @@
 
 using namespace PIMProf;
 
+LOCALFUN ITLB::CACHE itlb("ITLB", ITLB::cacheSize, ITLB::lineSize, ITLB::associativity);
+LOCALVAR DTLB::CACHE dtlb("DTLB", DTLB::cacheSize, DTLB::lineSize, DTLB::associativity);
+
+LOCALFUN ITLB::CACHE itlb("ITLB", ITLB::cacheSize, ITLB::lineSize, ITLB::associativity);
+LOCALVAR DTLB::CACHE dtlb("DTLB", DTLB::cacheSize, DTLB::lineSize, DTLB::associativity);
+LOCALVAR IL1::CACHE il1("L1 Instruction Cache", IL1::cacheSize, IL1::lineSize, IL1::associativity);
+LOCALVAR DL1::CACHE dl1("L1 Data Cache", DL1::cacheSize, DL1::lineSize, DL1::associativity);
+LOCALVAR UL2::CACHE ul2("L2 Unified Cache", UL2::cacheSize, UL2::lineSize, UL2::associativity);
+LOCALVAR UL3::CACHE ul3("L3 Unified Cache", UL3::cacheSize, UL3::lineSize, UL3::associativity);
+
 InstructionLatency::InstructionLatency()
 {
-    for (int i = 0; i < MAX_INDEX; i++) {
+    for (UINT32 i = 0; i < MAX_INDEX; i++) {
         latencytable[i] = 1;
     }
     ReadConfig("defaultlatency.ini");

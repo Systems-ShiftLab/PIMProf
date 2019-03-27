@@ -11,8 +11,6 @@
 #include <fstream>
 #include <unistd.h>
 
-#include "pin.H"
-
 #include "../LLVMAnalysis/Common.h"
 #include "PinInstrument.h"
 

@@ -13,7 +13,74 @@
 #include <stack>
 #include <assert.h>
 #include "pin.H"
+
+typedef UINT32 CACHE_STATS;
+
 #include "pin_cache.H"
+
+namespace CACHE_SET {
+    template <UINT32 MAX_ASSOCIATIVITY = 4>
+    class LRU {
+    public:
+        std::list<CACHE_TAG> CacheTagList;
+    private:
+        // this is a fixed-size list where the size is the current associativity
+        // front is MRU, back is LRU
+        CacheTagList _tags;
+    public:
+        LRU(UINT32 associativity = MAX_ASSOCIATIVITY)
+        {
+            ASSERTX(associativity <= MAX_ASSOCIATIVITY);
+            for (INT32 i = 0; i < associativity; i++) {
+                _tags.push_back(CACHE_TAG(0));
+            }
+        }
+
+        VOID SetAssociativity(UINT32 associativity)
+        {
+            ASSERTX(associativity <= MAX_ASSOCIATIVITY);
+            _tags.clear();
+            for (INT32 i = 0; i < associativity; i++) {
+                _tags.push_back(CACHE_TAG(0));
+            }
+        }
+
+        UINT32 GetAssociativity(UINT32 associativity) 
+        {
+            return _tags.size();
+        }
+
+        UINT32 Find(CACHE_TAG tag)
+        {
+            for (CacheTagList::iterator it = _tags.begin(), CacheTagList::iterator eit = _tags.end(); it != eit; it++) {
+                // promote the accessed cache line to the front
+                if (*it == tag) {
+                    _tags.erase(it);
+                    _tags.push_front(tag);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        VOID Replace(CACHE_TAG tag)
+        {
+            _tags.pop_back();
+            _tags.push_front(tag);
+        }
+
+        VOID Flush()
+        {
+            UINT32 associativity = _tags.size();
+            _tags.clear();
+            for (INT32 i = 0; i < associativity; i++) {
+                _tags.push_back(CACHE_TAG(0));
+            }
+        }
+    };
+} // namespace CACHE_SET
+
+#define CACHE_LRU(MAX_SETS, MAX_ASSOCIATIVITY, ALLOCATION) CACHE<CACHE_SET::LRU<MAX_ASSOCIATIVITY>, MAX_SETS, ALLOCATION>
 
 namespace PIMProf {
     
@@ -132,13 +199,13 @@ namespace PIMProf {
     public:
         /// Read instruction latency config to latencytable from ofstream or file.
         /// Invalid values (including negative latency, non-integer values) will be ignored.
-        void ReadConfig(const std::string filename);
+        VOID ReadConfig(const std::string filename);
 
         /// Write the current instruction latency config to ofstream or file.
         /// If no modification is made, then this will output the 
         /// default instruction latency config PIMProf will use.
-        void WriteConfig(std::ostream& out);
-        void WriteConfig(const std::string filename);
+        VOID WriteConfig(std::ostream& out);
+        VOID WriteConfig(const std::string filename);
 
 
     };
@@ -155,12 +222,12 @@ namespace PIMProf {
         PinInstrument();
 
     public:
-        inline void DoAtAnnotatorHead(UINT32 BBLID)
+        inline VOID DoAtAnnotatorHead(UINT32 BBLID)
         {
             bblidstack.push(BBLID);
         }
 
-        inline void DoAtAnnotatorTail(UINT32 BBLID)
+        inline VOID DoAtAnnotatorTail(UINT32 BBLID)
         {
             if (bblidstack.top() != BBLID) {
                 assert(0 && "Annotator head and tail does not match! This may be cause by exceptions or gotos in the original program.");
@@ -173,70 +240,16 @@ namespace PIMProf {
             return bblidstack.top();
         }
     };
-}
 
-namespace CACHE_SET {
-    template <UINT32 MAX_ASSOCIATIVITY = 4>
-    class LRU {
+    class MemoryLatency {
     public:
-        std::list<CACHE_TAG> CacheTagList;
-    private:
-        // this is a fixed-size list where the size is the current associativity
-        // front is MRU, back is LRU
-        CacheTagList _tags;
-    public:
-        LRU(UINT32 associativity = MAX_ASSOCIATIVITY)
-        {
-            ASSERTX(associativity <= MAX_ASSOCIATIVITY);
-            for (INT32 i = 0; i < associativity; i++) {
-                _tags.push_back(CACHE_TAG(0));
-            }
-        }
-
-        VOID SetAssociativity(UINT32 associativity)
-        {
-            ASSERTX(associativity <= MAX_ASSOCIATIVITY);
-            _tags.clear();
-            for (INT32 i = 0; i < associativity; i++) {
-                _tags.push_back(CACHE_TAG(0));
-            }
-        }
-
-        UINT32 GetAssociativity(UINT32 associativity) 
-        {
-            return _tags.size();
-        }
-
-        UINT32 Find(CACHE_TAG tag)
-        {
-            for (CacheTagList::iterator it = _tags.begin(), CacheTagList::iterator e = _tags.end(); it != eit; it++) {
-                // promote the accessed cache line to the front
-                if (*it == tag) {
-                    _tags.erase(it);
-                    _tags.push_front(tag);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        VOID Replace(CACHE_TAG tag)
-        {
-            _tags.pop_back();
-            _tags.push_front(tag);
-        }
-
-        VOID Flush()
-        {
-            UINT32 associativity = _tags.size();
-            _tags.clear();
-            for (INT32 i = 0; i < associativity; i++) {
-                _tags.push_back(CACHE_TAG(0));
-            }
-        }
+        static VOID InsRef(ADDRINT addr);
+        static VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_BASE::ACCESS_TYPE accessType);
+        static VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_BASE::ACCESS_TYPE accessType);
+        static VOID Instruction(INS ins, VOID *v);
     };
-}
 
-#define CACHE_LRU(MAX_SETS, MAX_ASSOCIATIVITY, ALLOCATION) CACHE<CACHE_SET::LRU<MAX_ASSOCIATIVITY>, MAX_SETS, ALLOCATION>
+} // namespace PIMProf
+
 
 #endif // __PININSTRUMENT_H__

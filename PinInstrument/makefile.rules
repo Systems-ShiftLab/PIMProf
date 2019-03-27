@@ -75,7 +75,7 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 # TOOL_CXXFLAGS += -g
 
-$(OBJDIR)PrintConfigTemplate$(PINTOOL_SUFFIX): $(OBJDIR)PinInstrument$(OBJ_SUFFIX) $(OBJDIR)PrintConfigTemplate$(OBJ_SUFFIX) 
+$(OBJDIR)PinInstrument$(PINTOOL_SUFFIX): $(OBJDIR)main$(OBJ_SUFFIX) $(OBJDIR)PinInstrument$(OBJ_SUFFIX)
 	$(LINKER) -o $@ $^ $(TOOL_LDFLAGS) $(TOOL_LPATHS) $(TOOL_LIBS)
 
 # compile all source to object

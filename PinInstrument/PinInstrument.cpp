@@ -20,6 +20,22 @@
 
 using namespace PIMProf;
 
+/* ===================================================================== */
+/* CACHE DEFINITION */
+/* ===================================================================== */
+
+LOCALFUN ITLB::CACHE itlb("ITLB", ITLB::cacheSize, ITLB::lineSize, ITLB::associativity);
+LOCALVAR DTLB::CACHE dtlb("DTLB", DTLB::cacheSize, DTLB::lineSize, DTLB::associativity);
+LOCALVAR IL1::CACHE il1("L1 Instruction Cache", IL1::cacheSize, IL1::lineSize, IL1::associativity);
+LOCALVAR DL1::CACHE dl1("L1 Data Cache", DL1::cacheSize, DL1::lineSize, DL1::associativity);
+LOCALVAR UL2::CACHE ul2("L2 Unified Cache", UL2::cacheSize, UL2::lineSize, UL2::associativity);
+LOCALVAR UL3::CACHE ul3("L3 Unified Cache", UL3::cacheSize, UL3::lineSize, UL3::associativity);
+
+
+/* ===================================================================== */
+/* InstructionLatency */
+/* ===================================================================== */
+
 
 InstructionLatency::InstructionLatency()
 {
@@ -71,10 +87,23 @@ VOID InstructionLatency::WriteConfig(const std::string filename)
     out.close();
 }
 
-static VOID MemoryLatency::InsRef(ADDRINT addr)
+/* ===================================================================== */
+/* MemoryLatency */
+/* ===================================================================== */
+
+VOID MemoryLatency::Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+{
+    // second level unified cache
+    const BOOL ul2Hit = ul2.Access(addr, size, accessType);
+
+    // third level unified cache
+    if ( ! ul2Hit) ul3.Access(addr, size, accessType);
+}
+
+VOID MemoryLatency::InsRef(ADDRINT addr)
 {
     const UINT32 size = 1; // assuming access does not cross cache lines
-    const CACHE_BASE::ACCESS_TYPE accessType = CACHE_BASE::ACCESS_TYPE_LOAD;
+    const CACHE_LEVEL_BASE::ACCESS_TYPE accessType = CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD;
 
     // ITLB
     itlb.AccessSingleLine(addr, accessType);
@@ -86,10 +115,10 @@ static VOID MemoryLatency::InsRef(ADDRINT addr)
     if ( ! il1Hit) Ul2Access(addr, size, accessType);
 }
 
-static VOID MemoryLatency::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_BASE::ACCESS_TYPE accessType)
+VOID MemoryLatency::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
 {
     // DTLB
-    dtlb.AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
+    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
 
     // first level D-cache
     const BOOL dl1Hit = dl1.Access(addr, size, accessType);
@@ -98,10 +127,10 @@ static VOID MemoryLatency::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_BASE::AC
     if ( ! dl1Hit) Ul2Access(addr, size, accessType);
 }
 
-static VOID MemoryLatency::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_BASE::ACCESS_TYPE accessType)
+VOID MemoryLatency::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
 {
     // DTLB
-    dtlb.AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
+    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
 
     // first level D-cache
     const BOOL dl1Hit = dl1.AccessSingleLine(addr, accessType);
@@ -110,7 +139,7 @@ static VOID MemoryLatency::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_BASE::A
     if ( ! dl1Hit) Ul2Access(addr, size, accessType);
 }
 
-static VOID MemoryLatency::Instruction(INS ins, VOID *v)
+VOID MemoryLatency::Instruction(INS ins, VOID *v)
 {
     // all instruction fetches access I-cache
     INS_InsertCall(
@@ -128,7 +157,7 @@ static VOID MemoryLatency::Instruction(INS ins, VOID *v)
             ins, IPOINT_BEFORE, countFun,
             IARG_MEMORYREAD_EA,
             IARG_MEMORYREAD_SIZE,
-            IARG_UINT32, CACHE_BASE::ACCESS_TYPE_LOAD,
+            IARG_UINT32, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD,
             IARG_END);
     }
 
@@ -142,8 +171,53 @@ static VOID MemoryLatency::Instruction(INS ins, VOID *v)
             ins, IPOINT_BEFORE, countFun,
             IARG_MEMORYWRITE_EA,
             IARG_MEMORYWRITE_SIZE,
-            IARG_UINT32, CACHE_BASE::ACCESS_TYPE_STORE,
+            IARG_UINT32, CACHE_LEVEL_BASE::ACCESS_TYPE_STORE,
             IARG_END);
     }
 }
 
+
+VOID MemoryLatency::Fini(INT32 code, VOID * v)
+{
+    std::cerr << itlb;
+    std::cerr << dtlb;
+    std::cerr << il1;
+    std::cerr << dl1;
+    std::cerr << ul2;
+    std::cerr << ul3;
+}
+
+VOID MemoryLatency::ReadConfig(const std::string filename)
+{
+    // INIReader reader(filename);
+    // for (UINT32 i = 0; i < MAX_INDEX; i++) {
+    //     std::string opcodestr = OPCODE_StringShort(i);
+    //     if (opcodestr != "LAST") {
+    //         long latency = reader.GetInteger("InstructionLatency", opcodestr, -1);
+    //         if (latency >= 0) {
+    //             instruction_latency.latencytable[i] = latency;
+    //         }
+    //     }
+    // }
+}
+
+VOID MemoryLatency::WriteConfig(ostream& out)
+{
+    // out << "[InstructionLatency]" << std::endl;
+    // for (UINT32 i = 0; i < MAX_INDEX; i++)
+    // {
+    //     std::string opcodestr = OPCODE_StringShort(i);
+    //     if (opcodestr != "LAST") {
+    //         opcodestr = ljstr(opcodestr, 15);
+    //         out << opcodestr << "= " << instruction_latency.latencytable[i] << std::endl;
+    //     }
+    // }
+}
+
+VOID MemoryLatency::WriteConfig(const std::string filename)
+{
+    ofstream out;
+    out.open(filename.c_str(), ios_base::out);
+    WriteConfig(out);
+    out.close();
+}

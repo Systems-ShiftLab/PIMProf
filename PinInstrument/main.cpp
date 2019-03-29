@@ -37,14 +37,13 @@ END_LEGAL */
 #include <iomanip>
 #include <fstream>
 #include <unistd.h>
-#include "pin.H"
-#include "pin_cache.H"
 #include "control_manager.H"
 
 #include "../LLVMAnalysis/Common.h"
 #include "PinInstrument.h"
 
 using namespace CONTROLLER;
+using namespace PIMProf;
 
 /* ===================================================================== */
 /* Commandline Switches */
@@ -89,9 +88,7 @@ INT32 Usage()
 /* INDEX HELPERS */
 /* ===================================================================== */
 
-const UINT32 MAX_INDEX = 4096;
 const UINT32 INDEX_SPECIAL =  3000;
-const UINT32 MAX_MEM_SIZE = 512;
 
 
 const UINT32 INDEX_TOTAL =          INDEX_SPECIAL + 0;
@@ -114,20 +111,6 @@ BOOL IsMemWriteIndex(UINT32 i)
 {
     return (INDEX_MEM_WRITE_SIZE <= i && i < INDEX_MEM_WRITE_SIZE + MAX_MEM_SIZE );
 }
-
-/* ===================================================================== */
-/* CACHE DEFINITION */
-/* ===================================================================== */
-
-LOCALFUN ITLB::CACHE itlb("ITLB", ITLB::cacheSize, ITLB::lineSize, ITLB::associativity);
-LOCALVAR DTLB::CACHE dtlb("DTLB", DTLB::cacheSize, DTLB::lineSize, DTLB::associativity);
-
-LOCALFUN ITLB::CACHE itlb("ITLB", ITLB::cacheSize, ITLB::lineSize, ITLB::associativity);
-LOCALVAR DTLB::CACHE dtlb("DTLB", DTLB::cacheSize, DTLB::lineSize, DTLB::associativity);
-LOCALVAR IL1::CACHE il1("L1 Instruction Cache", IL1::cacheSize, IL1::lineSize, IL1::associativity);
-LOCALVAR DL1::CACHE dl1("L1 Data Cache", DL1::cacheSize, DL1::lineSize, DL1::associativity);
-LOCALVAR UL2::CACHE ul2("L2 Unified Cache", UL2::cacheSize, UL2::lineSize, UL2::associativity);
-LOCALVAR UL3::CACHE ul3("L3 Unified Cache", UL3::cacheSize, UL3::lineSize, UL3::associativity);
 
 /* ===================================================================== */
 
@@ -437,15 +420,6 @@ VOID Fini(int, VOID * v)
 
 /* ===================================================================== */
 
-VOID InstrumentAnnotatorHead(INT32 bbid)
-{
-    std::cout << std::oct << "PIMProfHead: " << bbid << std::endl;
-}
-
-VOID InstrumentAnnotatorTail(INT32 bbid)
-{
-    std::cout << std::oct << "PIMProfTail: " << bbid << std::endl;
-}
 
 VOID Image(IMG img, VOID * v)
 {
@@ -458,26 +432,18 @@ VOID Image(IMG img, VOID * v)
         // Instrument to print the input argument value and the return value.
         RTN_Open(annotator_head);
         RTN_InsertCall(
-            annotator_head, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorHead,
-            // IARG_FUNCARG_CALLSITE_VALUE, 0,
+            annotator_head, IPOINT_BEFORE, (AFUNPTR)PinInstrument::DoAtAnnotatorTail,
             IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
             IARG_END);
-        // RTN_InsertCall(
-        //     annotator_head, IPOINT_AFTER, (AFUNPTR)InstrumentAnnotatorHead,
-        //     IARG_FUNCRET_EXITPOINT_VALUE, 
-        //     IARG_END);
+
         RTN_Close(annotator_head);
 
         RTN_Open(annotator_tail);
         RTN_InsertCall(
-            annotator_tail, IPOINT_BEFORE, (AFUNPTR)InstrumentAnnotatorTail,
-            // IARG_FUNCARG_CALLSITE_VALUE, 0,
+            annotator_tail, IPOINT_BEFORE, (AFUNPTR)PinInstrument::DoAtAnnotatorTail,
             IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
             IARG_END);
-        // RTN_InsertCall(
-        //     annotator_tail, IPOINT_AFTER, (AFUNPTR)InstrumentAnnotatorTail,
-        //     IARG_FUNCRET_EXITPOINT_VALUE, 
-        //     IARG_END);
+
         RTN_Close(annotator_tail);
     }
 
@@ -542,10 +508,11 @@ int main(int argc, CHAR *argv[])
     out = new std::ofstream(filename.c_str());
 
 
-    // TRACE_AddInstrumentFunction(Trace, 0);
-    INS_AddInstrumentFunction(MemoryLatency.Instruction(), 0);
+    TRACE_AddInstrumentFunction(Trace, 0);
+    INS_AddInstrumentFunction(MemoryLatency::Instruction, 0);
 
     PIN_AddFiniFunction(Fini, 0);
+    PIN_AddFiniFunction(MemoryLatency::Fini, 0);
 
     if( !KnobProfileDynamicOnly.Value() )
         IMG_AddInstrumentFunction(Image, 0);

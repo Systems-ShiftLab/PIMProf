@@ -17,7 +17,7 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := PrintConfigTemplate
+TEST_TOOL_ROOTS := PinInstrument
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
 TEST_ROOTS :=
@@ -75,7 +75,7 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 # TOOL_CXXFLAGS += -g
 
-$(OBJDIR)PinInstrument$(PINTOOL_SUFFIX): $(OBJDIR)main$(OBJ_SUFFIX) $(OBJDIR)PinInstrument$(OBJ_SUFFIX)
+$(OBJDIR)PinInstrument$(PINTOOL_SUFFIX): $(OBJDIR)main$(OBJ_SUFFIX) $(OBJDIR)PinInstrument$(OBJ_SUFFIX) $(OBJDIR)Cache$(OBJ_SUFFIX) $(CONTROLLERLIB)
 	$(LINKER) -o $@ $^ $(TOOL_LDFLAGS) $(TOOL_LPATHS) $(TOOL_LIBS)
 
 # compile all source to object

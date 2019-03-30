@@ -34,13 +34,13 @@ GLOBALFUN std::string StringString(std::string val, UINT32 width, CHAR padding)
     return ostr.str();
 }
 
-/// ostream operator for CACHE_BASE
-std::ostream & operator<< (std::ostream & out, const CACHE_BASE & cacheBase)
+/// ostream operator for CACHE_LEVEL_BASE
+std::ostream & operator<< (std::ostream & out, const CACHE_LEVEL_BASE & cacheBase)
 {
     return cacheBase.StatsLong(out);
 }
 
-CACHE_BASE::CACHE_BASE(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
+CACHE_LEVEL_BASE::CACHE_LEVEL_BASE(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
   : _name(name),
     _cacheSize(cacheSize),
     _lineSize(lineSize),
@@ -62,7 +62,7 @@ CACHE_BASE::CACHE_BASE(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT
 /*!
  *  @brief Stats output method
  */
-std::ostream & CACHE_BASE::StatsLong(std::ostream & out) const
+std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
 {
     const UINT32 headerWidth = 19;
     const UINT32 numberWidth = 10;
@@ -103,4 +103,124 @@ std::ostream & CACHE_BASE::StatsLong(std::ostream & out) const
     out << std::endl;
 
     return out;
+}
+
+CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
+    : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity), _replacement_policy(policy)
+{
+    if (policy == "direct_mapped") {
+        for (UINT32 i = 0; i < NumSets(); i++) {
+            DIRECT_MAPPED _set = new DIRECT_MAPPED();
+            _set.SetAssociativity(associativity);
+            _sets.push_back(_set);
+        }
+    }
+    else if (policy == "round_robin") {
+        for (UINT32 i = 0; i < NumSets(); i++) {
+            ROUND_ROBIN _set = new ROUND_ROBIN(associativity);
+            _set.SetAssociativity(associativity);
+            _sets.push_back(_set);
+        }
+    }
+    else if (policy == "lru") {
+        for (UINT32 i = 0; i < NumSets(); i++) {
+            LRU _set = new LRU(associativity);
+            _set.SetAssociativity(associativity);
+            _sets.push_back(_set);
+        }
+    }
+    else {
+        ASSERT(0 && "Invalid cache replacement policy name!");
+    }
+}
+
+CACHE_LEVEL::~CACHE_LEVEL()
+{
+    while (!_sets.empty()) {
+        delete _sets.back();
+        _sets.pop_back();
+    }
+}
+
+/*!
+ *  @return true if all accessed cache lines hit
+ */
+bool CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+{
+    const ADDRINT highAddr = addr + size;
+    bool allHit = true;
+
+    const ADDRINT lineSize = LineSize();
+    const ADDRINT notLineMask = ~(lineSize - 1);
+    do
+    {
+        CACHE_TAG tag;
+        UINT32 setIndex;
+
+        SplitAddress(addr, tag, setIndex);
+
+        CACHE_SET &set = _sets[setIndex];
+
+        bool localHit = set.Find(tag);
+        allHit &= localHit;
+
+        // on miss, loads always allocate, stores optionally
+        if ((!localHit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
+        {
+            set.Replace(tag);
+        }
+
+        addr = (addr & notLineMask) + lineSize; // start of next cache line
+    } while (addr < highAddr);
+
+    _access[accessType][allHit]++;
+
+    return allHit;
+}
+
+/*!
+ *  @return true if accessed cache line hits
+ */
+bool CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
+{
+    CACHE_TAG tag;
+    UINT32 setIndex;
+
+    SplitAddress(addr, tag, setIndex);
+
+    CACHE_SET &set = _sets[setIndex];
+
+    bool hit = set.Find(tag);
+
+    // on miss, loads always allocate, stores optionally
+    if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
+    {
+        set.Replace(tag);
+    }
+
+    _access[accessType][hit]++;
+
+    return hit;
+}
+/*!
+ *  @return true if accessed cache line hits
+ */
+void CACHE_LEVEL::Flush()
+{
+    for (INT32 index = NumSets(); index >= 0; index--)
+    {
+        CACHE_SET &set = _sets[index];
+        set.Flush();
+    }
+    IncFlushCounter();
+}
+
+void CACHE_LEVEL::ResetStats()
+{
+    for (UINT32 accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
+    {
+        _access[accessType][false] = 0;
+        _access[accessType][true] = 0;
+    }
+    IncResetCounter();
 }

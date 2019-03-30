@@ -11,6 +11,7 @@
 
 #include <string>
 #include <list>
+#include <vector>
 
 #include "pin.H"
 
@@ -115,14 +116,14 @@ class DIRECT_MAPPED : public CACHE_SET
     CACHE_TAG _tag;
 
   public:
-    DIRECT_MAPPED(UINT32 associativity = 1) { ASSERTX(associativity == 1); }
+    inline DIRECT_MAPPED(UINT32 associativity = 1) { ASSERTX(associativity == 1); }
 
-    VOID SetAssociativity(UINT32 associativity) { ASSERTX(associativity == 1); }
-    UINT32 GetAssociativity(UINT32 associativity) { return 1; }
+    inline VOID SetAssociativity(UINT32 associativity) { ASSERTX(associativity == 1); }
+    inline UINT32 GetAssociativity(UINT32 associativity) { return 1; }
 
-    UINT32 Find(CACHE_TAG tag) { return (_tag == tag); }
-    VOID Replace(CACHE_TAG tag) { _tag = tag; }
-    VOID Flush() { _tag = 0; }
+    inline UINT32 Find(CACHE_TAG tag) { return (_tag == tag); }
+    inline VOID Replace(CACHE_TAG tag) { _tag = tag; }
+    inline VOID Flush() { _tag = 0; }
 };
 
 /*!
@@ -136,7 +137,7 @@ class ROUND_ROBIN : public CACHE_SET
     UINT32 _nextReplaceIndex;
 
   public:
-    ROUND_ROBIN(UINT32 associativity)
+    inline ROUND_ROBIN(UINT32 associativity)
         : _tagsLastIndex(associativity - 1)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
@@ -148,15 +149,16 @@ class ROUND_ROBIN : public CACHE_SET
         }
     }
 
-    VOID SetAssociativity(UINT32 associativity)
+    inline VOID SetAssociativity(UINT32 associativity)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
         _tagsLastIndex = associativity - 1;
         _nextReplaceIndex = _tagsLastIndex;
     }
-    UINT32 GetAssociativity(UINT32 associativity) { return _tagsLastIndex + 1; }
 
-    UINT32 Find(CACHE_TAG tag)
+    inline UINT32 GetAssociativity(UINT32 associativity) { return _tagsLastIndex + 1; }
+
+    inline UINT32 Find(CACHE_TAG tag)
     {
         bool result = true;
 
@@ -173,7 +175,7 @@ class ROUND_ROBIN : public CACHE_SET
         return result;
     }
 
-    VOID Replace(CACHE_TAG tag)
+    inline VOID Replace(CACHE_TAG tag)
     {
         // g++ -O3 too dumb to do CSE on following lines?!
         const UINT32 index = _nextReplaceIndex;
@@ -182,7 +184,7 @@ class ROUND_ROBIN : public CACHE_SET
         // condition typically faster than modulo
         _nextReplaceIndex = (index == 0 ? _tagsLastIndex : index - 1);
     }
-    VOID Flush()
+    inline VOID Flush()
     {
         for (INT32 index = _tagsLastIndex; index >= 0; index--)
         {
@@ -203,7 +205,7 @@ class LRU : public CACHE_SET
     CacheTagList _tags;
 
   public:
-    LRU(UINT32 associativity = MAX_ASSOCIATIVITY)
+    inline LRU(UINT32 associativity = MAX_ASSOCIATIVITY)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
         for (UINT32 i = 0; i < associativity; i++)
@@ -212,7 +214,7 @@ class LRU : public CACHE_SET
         }
     }
 
-    VOID SetAssociativity(UINT32 associativity)
+    inline VOID SetAssociativity(UINT32 associativity)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
         _tags.clear();
@@ -222,12 +224,12 @@ class LRU : public CACHE_SET
         }
     }
 
-    UINT32 GetAssociativity(UINT32 associativity)
+    inline UINT32 GetAssociativity(UINT32 associativity)
     {
         return _tags.size();
     }
 
-    UINT32 Find(CACHE_TAG tag)
+    inline UINT32 Find(CACHE_TAG tag)
     {
         CacheTagList::iterator it = _tags.begin();
         CacheTagList::iterator eit = _tags.end();
@@ -244,13 +246,13 @@ class LRU : public CACHE_SET
         return false;
     }
 
-    VOID Replace(CACHE_TAG tag)
+    inline VOID Replace(CACHE_TAG tag)
     {
         _tags.pop_back();
         _tags.push_front(tag);
     }
 
-    VOID Flush()
+    inline VOID Flush()
     {
         UINT32 associativity = _tags.size();
         _tags.clear();
@@ -372,22 +374,18 @@ class CACHE_LEVEL_BASE
 class CACHE_LEVEL : public CACHE_LEVEL_BASE
 {
   private:
-    CACHE_SET _sets[MAX_SETS];
-    UINT32 MAX_SETS;
+    std::string _replacement_policy;
+    std::vector<CACHE_SET *> _sets;
     UINT32 STORE_ALLOCATION;
+  
+  // forbid copy constructor
+  private:
+    CACHE_LEVEL(const CACHE_LEVEL &);
 
   public:
     // constructors/destructors
-    CACHE_LEVEL(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
-        : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity)
-    {
-        ASSERTX(NumSets() <= MAX_SETS);
-
-        for (UINT32 i = 0; i < NumSets(); i++)
-        {
-            _sets[i].SetAssociativity(associativity);
-        }
-    }
+    CACHE_LEVEL(std::string name, std::string cacheSet, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
+    ~CACHE_LEVEL();
 
     // modifiers
     /// Cache access from addr to addr+size-1
@@ -396,92 +394,11 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
     bool AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
     void Flush();
     void ResetStats();
+    inline std::string getReplacementPolicy() {
+        return _replacement_policy;
+    }
 };
 
-/*!
- *  @return true if all accessed cache lines hit
- */
-
-
-bool CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
-{
-    const ADDRINT highAddr = addr + size;
-    bool allHit = true;
-
-    const ADDRINT lineSize = LineSize();
-    const ADDRINT notLineMask = ~(lineSize - 1);
-    do
-    {
-        CACHE_TAG tag;
-        UINT32 setIndex;
-
-        SplitAddress(addr, tag, setIndex);
-
-        CACHE_SET &set = _sets[setIndex];
-
-        bool localHit = set.Find(tag);
-        allHit &= localHit;
-
-        // on miss, loads always allocate, stores optionally
-        if ((!localHit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
-        {
-            set.Replace(tag);
-        }
-
-        addr = (addr & notLineMask) + lineSize; // start of next cache line
-    } while (addr < highAddr);
-
-    _access[accessType][allHit]++;
-
-    return allHit;
-}
-
-/*!
- *  @return true if accessed cache line hits
- */
-bool CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
-{
-    CACHE_TAG tag;
-    UINT32 setIndex;
-
-    SplitAddress(addr, tag, setIndex);
-
-    CACHE_SET &set = _sets[setIndex];
-
-    bool hit = set.Find(tag);
-
-    // on miss, loads always allocate, stores optionally
-    if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
-    {
-        set.Replace(tag);
-    }
-
-    _access[accessType][hit]++;
-
-    return hit;
-}
-/*!
- *  @return true if accessed cache line hits
- */
-void CACHE_LEVEL::Flush()
-{
-    for (INT32 index = NumSets(); index >= 0; index--)
-    {
-        CACHE_SET &set = _sets[index];
-        set.Flush();
-    }
-    IncFlushCounter();
-}
-
-void CACHE_LEVEL::ResetStats()
-{
-    for (UINT32 accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
-    {
-        _access[accessType][false] = 0;
-        _access[accessType][true] = 0;
-    }
-    IncResetCounter();
-}
 
 // define shortcuts
 #define CACHE_DIRECT_MAPPED(MAX_SETS, ALLOCATION) CACHE_LEVEL<CACHE_SET::DIRECT_MAPPED, MAX_SETS, ALLOCATION>

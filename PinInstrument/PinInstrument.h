@@ -11,7 +11,6 @@
 #define __PININSTRUMENT_H__
 
 #include <stack>
-#include <assert.h>
 #include <list>
 #include "pin.H"
 
@@ -124,16 +123,16 @@ class MemoryLatency {
   private:
 
   public:
-    static VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_BASE::ACCESS_TYPE accessType);
+    static VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 
     /// Do on instruction cache reference
     static VOID InsRef(ADDRINT addr);
 
     /// Do on multi-line data cache references
-    static VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_BASE::ACCESS_TYPE accessType);
+    static VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 
     /// Do on a single-line data cache reference
-    static VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_BASE::ACCESS_TYPE accessType);
+    static VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 
     /// The instrumentation function for memory instructions
     static VOID Instruction(INS ins, VOID *v);
@@ -203,7 +202,7 @@ class PinInstrument {
     {
         std::cout << std::oct << "PIMProfTail: " << BBLID << std::endl;
         if (bblidstack.top() != BBLID) {
-            assert(0 && "Annotator head and tail does not match! This may be cause by exceptions or gotos in the original program.");
+            ASSERTX(0 && "Annotator head and tail does not match! This may be cause by exceptions or gotos in the original program.");
         }
         bblidstack.pop();
     }

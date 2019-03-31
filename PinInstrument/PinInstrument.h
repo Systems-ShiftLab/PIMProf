@@ -32,98 +32,13 @@ namespace PIMProf {
     // const UINT32 INDEX_MEM_WRITE_SIZE = INDEX_SPECIAL + 6 + MAX_MEM_SIZE;
     // const UINT32 INDEX_SPECIAL_END   =  INDEX_SPECIAL + 6 + MAX_MEM_SIZE + MAX_MEM_SIZE;
 
-namespace ITLB
-{
-    // instruction TLB: 4 kB pages, 32 entries, fully associative
-    const UINT32 lineSize = 4*KILO;
-    const UINT32 cacheSize = 32 * lineSize;
-    const UINT32 associativity = 32;
-    const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_ALLOCATE;
-
-    const UINT32 max_sets = cacheSize / (lineSize * associativity);
-    const UINT32 max_associativity = associativity;
-
-    typedef CACHE_LRU(max_sets, max_associativity, allocation) CACHE;
-} // namespace PIMProf::ITLB
-
-namespace DTLB
-{
-    // data TLB: 4 kB pages, 32 entries, fully associative
-    const UINT32 lineSize = 4*KILO;
-    const UINT32 cacheSize = 32 * lineSize;
-    const UINT32 associativity = 32;
-    const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_ALLOCATE;
-
-    const UINT32 max_sets = cacheSize / (lineSize * associativity);
-    const UINT32 max_associativity = associativity;
-
-    typedef CACHE_LRU(max_sets, max_associativity, allocation) CACHE;
-} // namespace PIMProf::DTLB
-
-namespace IL1
-{
-    // 1st level instruction cache: 32 kB, 32 B lines, 32-way associative
-    const UINT32 cacheSize = 32*KILO;
-    const UINT32 lineSize = 32;
-    const UINT32 associativity = 32;
-    const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_NO_ALLOCATE;
-
-    const UINT32 max_sets = cacheSize / (lineSize * associativity);
-    const UINT32 max_associativity = associativity;
-
-    typedef CACHE_LRU(max_sets, max_associativity, allocation) CACHE;
-} // namespace PIMProf::IL1
-
-namespace DL1
-{
-    // 1st level data cache: 32 kB, 32 B lines, 32-way associative
-    const UINT32 cacheSize = 32*KILO;
-    const UINT32 lineSize = 32;
-    const UINT32 associativity = 32;
-    const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_NO_ALLOCATE;
-
-    const UINT32 max_sets = cacheSize / (lineSize * associativity);
-    const UINT32 max_associativity = associativity;
-
-    typedef CACHE_LRU(max_sets, max_associativity, allocation) CACHE;
-} // namespace PIMProf::DL1
-
-namespace UL2
-{
-    // 2nd level unified cache: 2 MB, 64 B lines
-    const UINT32 cacheSize = 2*MEGA;
-    const UINT32 lineSize = 64;
-    const UINT32 associativity = 32;
-    const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_ALLOCATE;
-
-    const UINT32 max_sets = cacheSize / (lineSize * associativity);
-    const UINT32 max_associativity = associativity;
-
-    typedef CACHE_LRU(max_sets, max_associativity, allocation) CACHE;
-} // namespace PIMProf::UL2
-
-namespace UL3
-{
-    // 3rd level unified cache: 16 MB, 64 B lines, direct mapped
-    const UINT32 cacheSize = 16*MEGA;
-    const UINT32 lineSize = 64;
-    const UINT32 associativity = 32;
-    const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_ALLOCATE;
-    const UINT32 max_associativity = associativity;
-
-    const UINT32 max_sets = cacheSize / (lineSize * associativity);
-
-    typedef CACHE_LRU(max_sets, max_associativity, allocation) CACHE;
-} // namespace PIMProf::UL3
-
-
 class MemoryLatency {
     friend class PinInstrument;
 
   private:
+    CACHE cache;
 
   public:
-    static VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 
     /// Do on instruction cache reference
     static VOID InsRef(ADDRINT addr);

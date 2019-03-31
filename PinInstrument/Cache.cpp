@@ -105,8 +105,8 @@ std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
     return out;
 }
 
-CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
-    : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity), _replacement_policy(policy)
+CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation)
+    : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity), _replacement_policy(policy), STORE_ALLOCATION(allocation)
 {
     if (policy == "direct_mapped") {
         for (UINT32 i = 0; i < NumSets(); i++) {
@@ -145,10 +145,10 @@ CACHE_LEVEL::~CACHE_LEVEL()
 /*!
  *  @return true if all accessed cache lines hit
  */
-bool CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     const ADDRINT highAddr = addr + size;
-    bool allHit = true;
+    BOOL allHit = true;
 
     const ADDRINT lineSize = LineSize();
     const ADDRINT notLineMask = ~(lineSize - 1);
@@ -161,7 +161,7 @@ bool CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 
         CACHE_SET &set = _sets[setIndex];
 
-        bool localHit = set.Find(tag);
+        BOOL localHit = set.Find(tag);
         allHit &= localHit;
 
         // on miss, loads always allocate, stores optionally
@@ -181,7 +181,7 @@ bool CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 /*!
  *  @return true if accessed cache line hits
  */
-bool CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
+BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 {
     CACHE_TAG tag;
     UINT32 setIndex;
@@ -190,7 +190,7 @@ bool CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 
     CACHE_SET &set = _sets[setIndex];
 
-    bool hit = set.Find(tag);
+    BOOL hit = set.Find(tag);
 
     // on miss, loads always allocate, stores optionally
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
@@ -205,7 +205,7 @@ bool CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 /*!
  *  @return true if accessed cache line hits
  */
-void CACHE_LEVEL::Flush()
+VOID CACHE_LEVEL::Flush()
 {
     for (INT32 index = NumSets(); index >= 0; index--)
     {
@@ -215,7 +215,7 @@ void CACHE_LEVEL::Flush()
     IncFlushCounter();
 }
 
-void CACHE_LEVEL::ResetStats()
+VOID CACHE_LEVEL::ResetStats()
 {
     for (UINT32 accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
     {
@@ -223,4 +223,91 @@ void CACHE_LEVEL::ResetStats()
         _access[accessType][true] = 0;
     }
     IncResetCounter();
+}
+
+/* ===================================================================== */
+/* Cache */
+/* ===================================================================== */
+
+CACHE::CACHE(const std::string filename)
+{
+    ReadConfig(filename);
+}
+
+VOID CACHE::ReadConfig(std::string filename)
+{
+    INIReader reader(filename);
+    for (UINT32 i = 0; i < MAX_LEVEL; i++) {
+        std::string name = _name[i];
+        UINT32 linesize = reader.GetInteger(name, "linesize", -1);
+        UINT32 cachesize = reader.GetInteger(name, "cachesize", -1);
+        UINT32 associativity = reader.GetInteger(name, "associativity", -1);
+        UINT32 allocation = reader.GetInteger(name, "allocation", -1);
+        std::string policy = reader.Get(name, "policy", "");
+        if (_cache[i] != NULL)
+            delete _cache[i];
+        _cache[i] = new CACHE_LEVEL(name, policy, cacheSize, linesize, associativity, allocation);
+    }
+}
+
+VOID CACHE::WriteConfig(std::ostream& out)
+{
+    // TODO
+}
+
+VOID CACHE::WriteConfig(const std::string filename)
+{
+    ofstream out;
+    out.open(filename.c_str(), ios_base::out);
+    WriteConfig(out);
+    out.close();
+}
+
+VOID CACHE::Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+{
+    // second level unified cache
+    const BOOL ul2Hit = ul2.Access(addr, size, accessType);
+
+    // third level unified cache
+    if ( ! ul2Hit) ul3.Access(addr, size, accessType);
+}
+
+VOID CACHE::InsRef(ADDRINT addr)
+{
+    const UINT32 size = 1; // assuming access does not cross cache lines
+    const CACHE_LEVEL_BASE::ACCESS_TYPE accessType = CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD;
+
+    // ITLB
+    itlb.AccessSingleLine(addr, accessType);
+
+    // first level I-cache
+    const BOOL il1Hit = il1.AccessSingleLine(addr, accessType);
+
+    // second level unified Cache
+    if ( ! il1Hit) Ul2Access(addr, size, accessType);
+}
+
+
+VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+{
+    // DTLB
+    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
+
+    // first level D-cache
+    const BOOL dl1Hit = dl1.Access(addr, size, accessType);
+
+    // second level unified Cache
+    if ( ! dl1Hit) Ul2Access(addr, size, accessType);
+}
+
+VOID CACHE::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+{
+    // DTLB
+    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
+
+    // first level D-cache
+    const BOOL dl1Hit = dl1.AccessSingleLine(addr, accessType);
+
+    // second level unified Cache
+    if ( ! dl1Hit) Ul2Access(addr, size, accessType);
 }

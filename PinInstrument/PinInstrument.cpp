@@ -87,58 +87,6 @@ VOID InstructionLatency::WriteConfig(const std::string filename)
     out.close();
 }
 
-/* ===================================================================== */
-/* MemoryLatency */
-/* ===================================================================== */
-
-VOID MemoryLatency::Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
-{
-    // second level unified cache
-    const BOOL ul2Hit = ul2.Access(addr, size, accessType);
-
-    // third level unified cache
-    if ( ! ul2Hit) ul3.Access(addr, size, accessType);
-}
-
-VOID MemoryLatency::InsRef(ADDRINT addr)
-{
-    const UINT32 size = 1; // assuming access does not cross cache lines
-    const CACHE_LEVEL_BASE::ACCESS_TYPE accessType = CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD;
-
-    // ITLB
-    itlb.AccessSingleLine(addr, accessType);
-
-    // first level I-cache
-    const BOOL il1Hit = il1.AccessSingleLine(addr, accessType);
-
-    // second level unified Cache
-    if ( ! il1Hit) Ul2Access(addr, size, accessType);
-}
-
-VOID MemoryLatency::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
-{
-    // DTLB
-    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
-
-    // first level D-cache
-    const BOOL dl1Hit = dl1.Access(addr, size, accessType);
-
-    // second level unified Cache
-    if ( ! dl1Hit) Ul2Access(addr, size, accessType);
-}
-
-VOID MemoryLatency::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
-{
-    // DTLB
-    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
-
-    // first level D-cache
-    const BOOL dl1Hit = dl1.AccessSingleLine(addr, accessType);
-
-    // second level unified Cache
-    if ( ! dl1Hit) Ul2Access(addr, size, accessType);
-}
-
 VOID MemoryLatency::Instruction(INS ins, VOID *v)
 {
     // all instruction fetches access I-cache

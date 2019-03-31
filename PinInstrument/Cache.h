@@ -100,7 +100,7 @@ class CACHE_TAG
 class CACHE_SET
 {
   protected:
-    const UINT32 MAX_ASSOCIATIVITY = 32;
+    static const UINT32 MAX_ASSOCIATIVITY = 32;
   public:
     virtual VOID SetAssociativity(UINT32 associativity) = 0;
     virtual UINT32 GetAssociativity(UINT32 associativity) = 0;
@@ -256,14 +256,13 @@ class LRU : public CACHE_SET
     {
         UINT32 associativity = _tags.size();
         _tags.clear();
-        for (INT32 i = 0; i < associativity; i++)
+        for (UINT32 i = 0; i < associativity; i++)
         {
             _tags.push_back(CACHE_TAG(0));
         }
     }
 };
 
-} // namespace PIMProf
 
 namespace CACHE_ALLOC
 {
@@ -384,30 +383,65 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    CACHE_LEVEL(std::string name, std::string cacheSet, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
+    CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation);
     ~CACHE_LEVEL();
 
     // modifiers
     /// Cache access from addr to addr+size-1
-    bool Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
     /// Cache access at addr that does not span cache lines
-    bool AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
-    void Flush();
-    void ResetStats();
+    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
+    VOID Flush();
+    VOID ResetStats();
     inline std::string getReplacementPolicy() {
         return _replacement_policy;
     }
 };
 
+class CACHE 
+{
+  public:
+    static const UINT32 MAX_LEVEL = 6;
+    enum {
+        ITLB, DTLB, IL1, DL1, UL2, UL3
+    };
+    const std::string _name[MAX_LEVEL] = {
+        "ITLB", "DTLB", "IL1", "DL1", "UL2", "UL3"
+    };
+  private:
+    CACHE_LEVEL *_cache[MAX_LEVEL];
+  public:
+    CACHE(const std::string filename);
 
-// define shortcuts
-#define CACHE_DIRECT_MAPPED(MAX_SETS, ALLOCATION) CACHE_LEVEL<CACHE_SET::DIRECT_MAPPED, MAX_SETS, ALLOCATION>
-#define CACHE_ROUND_ROBIN(MAX_SETS, MAX_ASSOCIATIVITY, ALLOCATION) CACHE_LEVEL<CACHE_SET::ROUND_ROBIN<MAX_ASSOCIATIVITY>, MAX_SETS, ALLOCATION>
-#define CACHE_LRU(MAX_SETS, MAX_ASSOCIATIVITY, ALLOCATION) CACHE_LEVEL<CACHE_SET::LRU<MAX_ASSOCIATIVITY>, MAX_SETS, ALLOCATION>
+    VOID ReadConfig(std::string filename);
+
+    /// Write the current cache config to ofstream or file.
+    /// If no modification is made, then this will output the 
+    /// default cache config PIMProf will use.
+    static VOID WriteConfig(std::ostream& out);
+    static VOID WriteConfig(const std::string filename);
+
+    static VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+
+    /// Do on instruction cache reference
+    static VOID InsRef(ADDRINT addr);
+
+    /// Do on multi-line data cache references
+    static VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+
+    /// Do on a single-line data cache reference
+    static VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+};
 
 GLOBALFUN std::string StringInt(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
 GLOBALFUN std::string StringHex(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
 GLOBALFUN std::string StringString(std::string val, UINT32 width = 0, CHAR padding = ' ');
 std::ostream &operator<<(std::ostream &out, const CACHE_LEVEL_BASE &cacheBase);
+
+} // namespace PIMProf
+
+
+
+
 
 #endif // __CACHE_H__

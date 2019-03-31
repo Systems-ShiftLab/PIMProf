@@ -32,11 +32,12 @@ namespace PIMProf {
     // const UINT32 INDEX_MEM_WRITE_SIZE = INDEX_SPECIAL + 6 + MAX_MEM_SIZE;
     // const UINT32 INDEX_SPECIAL_END   =  INDEX_SPECIAL + 6 + MAX_MEM_SIZE + MAX_MEM_SIZE;
 
+
 class MemoryLatency {
     friend class PinInstrument;
 
   private:
-    CACHE cache;
+    static CACHE cache;
 
   public:
 

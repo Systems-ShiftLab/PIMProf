@@ -102,6 +102,7 @@ class CACHE_SET
   protected:
     static const UINT32 MAX_ASSOCIATIVITY = 32;
   public:
+    virtual ~CACHE_SET() {};
     virtual VOID SetAssociativity(UINT32 associativity) = 0;
     virtual UINT32 GetAssociativity(UINT32 associativity) = 0;
     virtual UINT32 Find(CACHE_TAG tag) = 0;
@@ -137,6 +138,7 @@ class ROUND_ROBIN : public CACHE_SET
     UINT32 _nextReplaceIndex;
 
   public:
+    
     inline ROUND_ROBIN(UINT32 associativity)
         : _tagsLastIndex(associativity - 1)
     {
@@ -405,21 +407,28 @@ class CACHE
     enum {
         ITLB, DTLB, IL1, DL1, UL2, UL3
     };
-    const std::string _name[MAX_LEVEL] = {
-        "ITLB", "DTLB", "IL1", "DL1", "UL2", "UL3"
-    };
+    static const std::string _name[MAX_LEVEL];
   private:
-    CACHE_LEVEL *_cache[MAX_LEVEL];
+    static CACHE_LEVEL *_cache[MAX_LEVEL];
+
+  // forbid copy constructor
+  private:
+    CACHE(const CACHE &);
+
   public:
     CACHE(const std::string filename);
+    ~CACHE();
 
-    VOID ReadConfig(std::string filename);
+    static VOID ReadConfig(std::string filename);
 
     /// Write the current cache config to ofstream or file.
     /// If no modification is made, then this will output the 
     /// default cache config PIMProf will use.
     static VOID WriteConfig(std::ostream& out);
     static VOID WriteConfig(const std::string filename);
+
+    static VOID WriteStats(std::ostream& out);
+    static VOID WriteStats(const std::string filename);
 
     static VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 

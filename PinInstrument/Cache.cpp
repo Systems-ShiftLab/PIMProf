@@ -5,7 +5,12 @@
 //
 //
 //===----------------------------------------------------------------------===//
+#include <fstream>
+
+#include "INIReader.h"
 #include "Cache.h"
+
+using namespace PIMProf;
 
 GLOBALFUN std::string StringInt(UINT64 val, UINT32 width, CHAR padding)
 {
@@ -32,12 +37,6 @@ GLOBALFUN std::string StringString(std::string val, UINT32 width, CHAR padding)
     ostr.fill(padding);
     ostr << std::setw(width) << val;
     return ostr.str();
-}
-
-/// ostream operator for CACHE_LEVEL_BASE
-std::ostream & operator<< (std::ostream & out, const CACHE_LEVEL_BASE & cacheBase)
-{
-    return cacheBase.StatsLong(out);
 }
 
 CACHE_LEVEL_BASE::CACHE_LEVEL_BASE(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
@@ -110,27 +109,27 @@ CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize,
 {
     if (policy == "direct_mapped") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            DIRECT_MAPPED _set = new DIRECT_MAPPED();
-            _set.SetAssociativity(associativity);
+            DIRECT_MAPPED *_set = new DIRECT_MAPPED();
+            _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
     }
     else if (policy == "round_robin") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            ROUND_ROBIN _set = new ROUND_ROBIN(associativity);
-            _set.SetAssociativity(associativity);
+            ROUND_ROBIN *_set = new ROUND_ROBIN(associativity);
+            _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
     }
     else if (policy == "lru") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            LRU _set = new LRU(associativity);
-            _set.SetAssociativity(associativity);
+            LRU *_set = new LRU(associativity);
+            _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
     }
     else {
-        ASSERT(0 && "Invalid cache replacement policy name!");
+        ASSERTX(0 && "Invalid cache replacement policy name!");
     }
 }
 
@@ -159,15 +158,15 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 
         SplitAddress(addr, tag, setIndex);
 
-        CACHE_SET &set = _sets[setIndex];
+        CACHE_SET *set = _sets[setIndex];
 
-        BOOL localHit = set.Find(tag);
+        BOOL localHit = set->Find(tag);
         allHit &= localHit;
 
         // on miss, loads always allocate, stores optionally
         if ((!localHit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
         {
-            set.Replace(tag);
+            set->Replace(tag);
         }
 
         addr = (addr & notLineMask) + lineSize; // start of next cache line
@@ -188,14 +187,14 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 
     SplitAddress(addr, tag, setIndex);
 
-    CACHE_SET &set = _sets[setIndex];
+    CACHE_SET *set = _sets[setIndex];
 
-    BOOL hit = set.Find(tag);
+    BOOL hit = set->Find(tag);
 
     // on miss, loads always allocate, stores optionally
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
-        set.Replace(tag);
+        set->Replace(tag);
     }
 
     _access[accessType][hit]++;
@@ -209,8 +208,8 @@ VOID CACHE_LEVEL::Flush()
 {
     for (INT32 index = NumSets(); index >= 0; index--)
     {
-        CACHE_SET &set = _sets[index];
-        set.Flush();
+        CACHE_SET *set = _sets[index];
+        set->Flush();
     }
     IncFlushCounter();
 }
@@ -228,10 +227,21 @@ VOID CACHE_LEVEL::ResetStats()
 /* ===================================================================== */
 /* Cache */
 /* ===================================================================== */
+const std::string CACHE::_name[CACHE::MAX_LEVEL] = {
+        "ITLB", "DTLB", "IL1", "DL1", "UL2", "UL3"
+    };
 
 CACHE::CACHE(const std::string filename)
 {
     ReadConfig(filename);
+}
+
+CACHE::~CACHE()
+{
+    for (UINT32 i = 0; i < MAX_LEVEL; i++) {
+        if (_cache[i] != NULL)
+            delete _cache[i];
+    }
 }
 
 VOID CACHE::ReadConfig(std::string filename)
@@ -246,7 +256,7 @@ VOID CACHE::ReadConfig(std::string filename)
         std::string policy = reader.Get(name, "policy", "");
         if (_cache[i] != NULL)
             delete _cache[i];
-        _cache[i] = new CACHE_LEVEL(name, policy, cacheSize, linesize, associativity, allocation);
+        _cache[i] = new CACHE_LEVEL(name, policy, cachesize, linesize, associativity, allocation);
     }
 }
 
@@ -257,19 +267,33 @@ VOID CACHE::WriteConfig(std::ostream& out)
 
 VOID CACHE::WriteConfig(const std::string filename)
 {
-    ofstream out;
+    std::ofstream out;
     out.open(filename.c_str(), ios_base::out);
     WriteConfig(out);
+    out.close();
+}
+
+VOID CACHE::WriteStats(std::ostream& out)
+{
+    for (UINT32 i = 0; i < MAX_LEVEL; i++) {
+        _cache[i]->StatsLong(out);
+    }
+}
+VOID CACHE::WriteStats(const std::string filename)
+{
+    std::ofstream out;
+    out.open(filename.c_str(), ios_base::out);
+    WriteStats(out);
     out.close();
 }
 
 VOID CACHE::Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
 {
     // second level unified cache
-    const BOOL ul2Hit = ul2.Access(addr, size, accessType);
+    const BOOL ul2Hit = _cache[UL2]->Access(addr, size, accessType);
 
     // third level unified cache
-    if ( ! ul2Hit) ul3.Access(addr, size, accessType);
+    if ( ! ul2Hit) _cache[UL3]->Access(addr, size, accessType);
 }
 
 VOID CACHE::InsRef(ADDRINT addr)
@@ -278,10 +302,10 @@ VOID CACHE::InsRef(ADDRINT addr)
     const CACHE_LEVEL_BASE::ACCESS_TYPE accessType = CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD;
 
     // ITLB
-    itlb.AccessSingleLine(addr, accessType);
+    _cache[ITLB]->AccessSingleLine(addr, accessType);
 
     // first level I-cache
-    const BOOL il1Hit = il1.AccessSingleLine(addr, accessType);
+    const BOOL il1Hit = _cache[IL1]->AccessSingleLine(addr, accessType);
 
     // second level unified Cache
     if ( ! il1Hit) Ul2Access(addr, size, accessType);
@@ -291,10 +315,10 @@ VOID CACHE::InsRef(ADDRINT addr)
 VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
 {
     // DTLB
-    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
+    _cache[DTLB]->AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
 
     // first level D-cache
-    const BOOL dl1Hit = dl1.Access(addr, size, accessType);
+    const BOOL dl1Hit = _cache[DL1]->Access(addr, size, accessType);
 
     // second level unified Cache
     if ( ! dl1Hit) Ul2Access(addr, size, accessType);
@@ -303,10 +327,10 @@ VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE
 VOID CACHE::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
 {
     // DTLB
-    dtlb.AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
+    _cache[DTLB]->AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
 
     // first level D-cache
-    const BOOL dl1Hit = dl1.AccessSingleLine(addr, accessType);
+    const BOOL dl1Hit = _cache[DL1]->AccessSingleLine(addr, accessType);
 
     // second level unified Cache
     if ( ! dl1Hit) Ul2Access(addr, size, accessType);

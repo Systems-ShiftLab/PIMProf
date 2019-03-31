@@ -20,16 +20,6 @@
 
 using namespace PIMProf;
 
-/* ===================================================================== */
-/* CACHE DEFINITION */
-/* ===================================================================== */
-
-LOCALFUN ITLB::CACHE itlb("ITLB", ITLB::cacheSize, ITLB::lineSize, ITLB::associativity);
-LOCALVAR DTLB::CACHE dtlb("DTLB", DTLB::cacheSize, DTLB::lineSize, DTLB::associativity);
-LOCALVAR IL1::CACHE il1("L1 Instruction Cache", IL1::cacheSize, IL1::lineSize, IL1::associativity);
-LOCALVAR DL1::CACHE dl1("L1 Data Cache", DL1::cacheSize, DL1::lineSize, DL1::associativity);
-LOCALVAR UL2::CACHE ul2("L2 Unified Cache", UL2::cacheSize, UL2::lineSize, UL2::associativity);
-LOCALVAR UL3::CACHE ul3("L3 Unified Cache", UL3::cacheSize, UL3::lineSize, UL3::associativity);
 
 
 /* ===================================================================== */
@@ -81,7 +71,7 @@ VOID InstructionLatency::WriteConfig(ostream& out)
 
 VOID InstructionLatency::WriteConfig(const std::string filename)
 {
-    ofstream out;
+    std::ofstream out;
     out.open(filename.c_str(), ios_base::out);
     WriteConfig(out);
     out.close();
@@ -127,12 +117,7 @@ VOID MemoryLatency::Instruction(INS ins, VOID *v)
 
 VOID MemoryLatency::Fini(INT32 code, VOID * v)
 {
-    std::cerr << itlb;
-    std::cerr << dtlb;
-    std::cerr << il1;
-    std::cerr << dl1;
-    std::cerr << ul2;
-    std::cerr << ul3;
+    cache.WriteStats(std::cerr);
 }
 
 VOID MemoryLatency::ReadConfig(const std::string filename)

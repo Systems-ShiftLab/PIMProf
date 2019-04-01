@@ -48,7 +48,6 @@ CACHE_LEVEL_BASE::CACHE_LEVEL_BASE(std::string name, UINT32 cacheSize, UINT32 li
     _lineShift(FloorLog2(lineSize)),
     _setIndexMask((cacheSize / (associativity * lineSize)) - 1)
 {
-
     ASSERTX(IsPower2(_lineSize));
     ASSERTX(IsPower2(_setIndexMask + 1));
 
@@ -283,7 +282,7 @@ VOID CACHE::WriteConfig(const std::string filename)
 
 std::ostream& CACHE::WriteStats(std::ostream& out)
 {
-    std::cout << "wow" <<std::endl;
+    std::cout << 1 <<std::endl;
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
         _cache[i]->StatsLong(out);
     }

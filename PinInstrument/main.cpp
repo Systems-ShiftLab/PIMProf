@@ -78,7 +78,7 @@ int main(int argc, CHAR *argv[])
     }
     
 
-    MemoryLatency::ReadConfig("defaultcache.ini");
+    MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcache.ini");
     INS_AddInstrumentFunction(MemoryLatency::Instruction, 0);
     PIN_AddFiniFunction(MemoryLatency::Fini, 0);
 

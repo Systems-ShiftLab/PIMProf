@@ -237,7 +237,7 @@ VOID MemoryLatency::Instruction(INS ins, VOID *v)
 
 VOID MemoryLatency::Fini(INT32 code, VOID * v)
 {
-    cache.WriteStats(std::cerr);
+    cache.WriteStats("stats.out");
 }
 
 VOID MemoryLatency::ReadConfig(const std::string filename)

@@ -268,11 +268,11 @@ class LRU : public CACHE_SET
 
 namespace CACHE_ALLOC
 {
-typedef enum
+enum STORE_ALLOCATION
 {
     STORE_ALLOCATE,
     STORE_NO_ALLOCATE
-} STORE_ALLOCATION;
+};
 }
 
 /*!
@@ -282,12 +282,12 @@ class CACHE_LEVEL_BASE
 {
   public:
     // types, constants
-    typedef enum
+    enum ACCESS_TYPE
     {
         ACCESS_TYPE_LOAD,
         ACCESS_TYPE_STORE,
         ACCESS_TYPE_NUM
-    } ACCESS_TYPE;
+    };
 
   protected:
     static const UINT32 HIT_MISS_NUM = 2;
@@ -416,36 +416,36 @@ class CACHE
     CACHE(const CACHE &);
 
   public:
+    CACHE();
     CACHE(const std::string filename);
     ~CACHE();
 
-    static VOID ReadConfig(std::string filename);
+    VOID ReadConfig(std::string filename);
 
     /// Write the current cache config to ofstream or file.
     /// If no modification is made, then this will output the 
     /// default cache config PIMProf will use.
-    static VOID WriteConfig(std::ostream& out);
-    static VOID WriteConfig(const std::string filename);
+    std::ostream& WriteConfig(std::ostream& out);
+    VOID WriteConfig(const std::string filename);
 
-    static VOID WriteStats(std::ostream& out);
-    static VOID WriteStats(const std::string filename);
+    std::ostream& WriteStats(std::ostream& out);
+    VOID WriteStats(const std::string filename);
 
-    static VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 
     /// Do on instruction cache reference
-    static VOID InsRef(ADDRINT addr);
+    VOID InsRef(ADDRINT addr);
 
     /// Do on multi-line data cache references
-    static VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 
     /// Do on a single-line data cache reference
-    static VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
 };
 
-GLOBALFUN std::string StringInt(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
-GLOBALFUN std::string StringHex(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
-GLOBALFUN std::string StringString(std::string val, UINT32 width = 0, CHAR padding = ' ');
-std::ostream &operator<<(std::ostream &out, const CACHE_LEVEL_BASE &cacheBase);
+std::string StringInt(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
+std::string StringHex(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
+std::string StringString(std::string val, UINT32 width = 0, CHAR padding = ' ');
 
 } // namespace PIMProf
 

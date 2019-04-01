@@ -6,13 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 #include <fstream>
+#include <iostream>
 
 #include "INIReader.h"
 #include "Cache.h"
 
 using namespace PIMProf;
 
-GLOBALFUN std::string StringInt(UINT64 val, UINT32 width, CHAR padding)
+std::string PIMProf::StringInt(UINT64 val, UINT32 width, CHAR padding)
 {
     std::ostringstream ostr;
     ostr.setf(std::ios::fixed,std::ios::floatfield);
@@ -21,7 +22,7 @@ GLOBALFUN std::string StringInt(UINT64 val, UINT32 width, CHAR padding)
     return ostr.str();
 }
 
-GLOBALFUN std::string StringHex(UINT64 val, UINT32 width, CHAR padding)
+std::string PIMProf::StringHex(UINT64 val, UINT32 width, CHAR padding)
 {
     std::ostringstream ostr;
     ostr.setf(std::ios::fixed,std::ios::floatfield);
@@ -30,7 +31,7 @@ GLOBALFUN std::string StringHex(UINT64 val, UINT32 width, CHAR padding)
     return ostr.str();
 }
 
-GLOBALFUN std::string StringString(std::string val, UINT32 width, CHAR padding)
+std::string PIMProf::StringString(std::string val, UINT32 width, CHAR padding)
 {
     std::ostringstream ostr;
     ostr.setf(std::ios::fixed,std::ios::floatfield);
@@ -136,7 +137,9 @@ CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize,
 CACHE_LEVEL::~CACHE_LEVEL()
 {
     while (!_sets.empty()) {
-        delete _sets.back();
+        CACHE_SET *temp = _sets.back();
+        if (temp != NULL)
+            delete temp;
         _sets.pop_back();
     }
 }
@@ -230,6 +233,11 @@ VOID CACHE_LEVEL::ResetStats()
 const std::string CACHE::_name[CACHE::MAX_LEVEL] = {
         "ITLB", "DTLB", "IL1", "DL1", "UL2", "UL3"
     };
+CACHE_LEVEL *CACHE::_cache[CACHE::MAX_LEVEL];
+
+CACHE::CACHE()
+{
+}
 
 CACHE::CACHE(const std::string filename)
 {
@@ -239,7 +247,7 @@ CACHE::CACHE(const std::string filename)
 CACHE::~CACHE()
 {
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
-        if (_cache[i] != NULL)
+        if(_cache[i] != NULL)
             delete _cache[i];
     }
 }
@@ -248,21 +256,21 @@ VOID CACHE::ReadConfig(std::string filename)
 {
     INIReader reader(filename);
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
+        
         std::string name = _name[i];
         UINT32 linesize = reader.GetInteger(name, "linesize", -1);
         UINT32 cachesize = reader.GetInteger(name, "cachesize", -1);
         UINT32 associativity = reader.GetInteger(name, "associativity", -1);
         UINT32 allocation = reader.GetInteger(name, "allocation", -1);
         std::string policy = reader.Get(name, "policy", "");
-        if (_cache[i] != NULL)
-            delete _cache[i];
         _cache[i] = new CACHE_LEVEL(name, policy, cachesize, linesize, associativity, allocation);
     }
 }
 
-VOID CACHE::WriteConfig(std::ostream& out)
+std::ostream& CACHE::WriteConfig(std::ostream& out)
 {
     // TODO
+    return out;
 }
 
 VOID CACHE::WriteConfig(const std::string filename)
@@ -273,11 +281,13 @@ VOID CACHE::WriteConfig(const std::string filename)
     out.close();
 }
 
-VOID CACHE::WriteStats(std::ostream& out)
+std::ostream& CACHE::WriteStats(std::ostream& out)
 {
+    std::cout << "wow" <<std::endl;
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
         _cache[i]->StatsLong(out);
     }
+    return out;
 }
 VOID CACHE::WriteStats(const std::string filename)
 {

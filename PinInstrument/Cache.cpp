@@ -13,6 +13,15 @@
 
 using namespace PIMProf;
 
+/* ===================================================================== */
+/* Static data structure */
+/* ===================================================================== */
+
+const std::string CACHE::_name[CACHE::MAX_LEVEL] = {
+        "ITLB", "DTLB", "IL1", "DL1", "UL2", "UL3"
+    };
+CACHE_LEVEL *CACHE::_cache[CACHE::MAX_LEVEL];
+
 std::string PIMProf::StringInt(UINT64 val, UINT32 width, CHAR padding)
 {
     std::ostringstream ostr;
@@ -40,6 +49,10 @@ std::string PIMProf::StringString(std::string val, UINT32 width, CHAR padding)
     return ostr.str();
 }
 
+/* ===================================================================== */
+/* Base class for cache level */
+/* ===================================================================== */
+
 CACHE_LEVEL_BASE::CACHE_LEVEL_BASE(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
   : _name(name),
     _cacheSize(cacheSize),
@@ -58,9 +71,7 @@ CACHE_LEVEL_BASE::CACHE_LEVEL_BASE(std::string name, UINT32 cacheSize, UINT32 li
     }
 }
 
-/*!
- *  @brief Stats output method
- */
+
 std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
 {
     const UINT32 headerWidth = 19;
@@ -104,12 +115,16 @@ std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
     return out;
 }
 
+/* ===================================================================== */
+/* Cache level */
+/* ===================================================================== */
+
 CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation)
     : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity), _replacement_policy(policy), STORE_ALLOCATION(allocation)
 {
     if (policy == "direct_mapped") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            DIRECT_MAPPED *_set = new DIRECT_MAPPED();
+            DIRECT_MAPPED *_set = new DIRECT_MAPPED(associativity);
             _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
@@ -143,9 +158,7 @@ CACHE_LEVEL::~CACHE_LEVEL()
     }
 }
 
-/*!
- *  @return true if all accessed cache lines hit
- */
+
 BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     const ADDRINT highAddr = addr + size;
@@ -179,9 +192,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
     return allHit;
 }
 
-/*!
- *  @return true if accessed cache line hits
- */
+
 BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 {
     CACHE_TAG tag;
@@ -203,9 +214,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 
     return hit;
 }
-/*!
- *  @return true if accessed cache line hits
- */
+
 VOID CACHE_LEVEL::Flush()
 {
     for (INT32 index = NumSets(); index >= 0; index--)
@@ -229,10 +238,6 @@ VOID CACHE_LEVEL::ResetStats()
 /* ===================================================================== */
 /* Cache */
 /* ===================================================================== */
-const std::string CACHE::_name[CACHE::MAX_LEVEL] = {
-        "ITLB", "DTLB", "IL1", "DL1", "UL2", "UL3"
-    };
-CACHE_LEVEL *CACHE::_cache[CACHE::MAX_LEVEL];
 
 CACHE::CACHE()
 {

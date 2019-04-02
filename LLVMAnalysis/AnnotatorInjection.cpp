@@ -98,6 +98,16 @@ namespace {
                     bbid++;
                 }
             }
+
+            for (auto &func : M) {
+                for (auto &bb: func) {
+                    const TerminatorInst *t = bb.getTerminator();
+                    for (unsigned i = 0, n = t->getNumSuccessors(); i < n; i++) {
+                      BasicBlock *succ = t->getSuccessor(i);
+                      // Do stuff with Succ
+                    }
+                }
+            }
             // M.print(errs(), nullptr);
             return true;
         }

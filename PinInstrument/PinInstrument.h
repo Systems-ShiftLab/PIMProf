@@ -104,38 +104,68 @@ class InstructionLatency {
     static VOID WriteConfig(const std::string filename);
 };
 
+
+class CostGraph {
+  public:
+    typedef UINT32 COST;
+    static const UINT32 MAX_COST_SITE = 2;
+    enum {
+        PIM, CPU
+    };
+
+  public:
+    class Node;
+    class Edge;
+
+  public:
+    std::vector<Node> nodelist;
+    std::vector<Edge> edgelist;
+};
+
+class CostGraph::Node {
+  private:
+    COST cost[MAX_COST_SITE];
+    std::vector<Edge> adjacency;
+};
+
+class CostGraph::Edge {
+  private:
+    Node head;
+    Node tail;
+    /// e.g., cost[PIM][CPU] represents the edge cost if the head resides on PIM and tail resides on CPU
+    COST cost[MAX_COST_SITE][MAX_COST_SITE];
+    
+};
+
 class PinInstrument {
   public:
-    typedef std::stack<UINT32> BasicBlockIDStack;
+    typedef UINT32 BBLID;
 
   private:
     static MemoryLatency memory_latency;
     static InstructionLatency instruction_latency;
-    static BasicBlockIDStack bblidstack;
+    static std::stack<BBLID> bblidstack;
+    static CostGraph graph;
 
   public:
     PinInstrument();
 
   public:
-    static inline VOID DoAtAnnotatorHead(UINT32 BBLID)
-    {
-        std::cout << std::oct << "PIMProfHead: " << BBLID << std::endl;
-        bblidstack.push(BBLID);
-    }
+    
 
-    static inline VOID DoAtAnnotatorTail(UINT32 BBLID)
-    {
-        std::cout << std::oct << "PIMProfTail: " << BBLID << std::endl;
-        if (bblidstack.top() != BBLID) {
-            ASSERTX(0 && "Annotator head and tail does not match! This may be cause by exceptions or gotos in the original program.");
-        }
-        bblidstack.pop();
-    }
+    static VOID DoAtAnnotatorHead(BBLID bblid);
+    static VOID DoAtAnnotatorTail(BBLID bblid);
 
     inline UINT32 GetCurrentBBL()
     {
         return bblidstack.top();
     }
+
+    /// The instrumentation function for an entire image
+    static VOID Image(IMG img, VOID *v);
+
+    /// Finalization
+    static VOID Fini(INT32 code, VOID *v);
 };
 
 

@@ -21,13 +21,23 @@
 
 using namespace PIMProf;
 
+/* ===================================================================== */
+/* Static data structure */
+/* ===================================================================== */
 
+UINT32 InstructionLatency::latencytable[MAX_INDEX];
+
+CACHE MemoryLatency::cache;
+
+MemoryLatency PinInstrument::memory_latency;
+InstructionLatency PinInstrument::instruction_latency;
+std::stack<PinInstrument::BBLID> PinInstrument::bblidstack;
+CostGraph PinInstrument::graph;
 
 /* ===================================================================== */
 /* InstructionLatency */
 /* ===================================================================== */
 
-UINT32 InstructionLatency::latencytable[MAX_INDEX];
 
 InstructionLatency::InstructionLatency()
 {
@@ -182,7 +192,9 @@ VOID InstructionLatency::WriteConfig(const std::string filename)
     out.close();
 }
 
-CACHE MemoryLatency::cache;
+/* ===================================================================== */
+/* MemoryLatency */
+/* ===================================================================== */
 
 VOID MemoryLatency::InsRef(ADDRINT addr)
 {
@@ -234,7 +246,6 @@ VOID MemoryLatency::Instruction(INS ins, VOID *v)
     }
 }
 
-
 VOID MemoryLatency::Fini(INT32 code, VOID * v)
 {
     cache.WriteStats("stats.out");
@@ -265,4 +276,58 @@ VOID MemoryLatency::WriteConfig(const std::string filename)
     out.open(filename.c_str(), ios_base::out);
     WriteConfig(out);
     out.close();
+}
+
+/* ===================================================================== */
+/* CostGraph */
+/* ===================================================================== */
+
+
+
+/* ===================================================================== */
+/* PinInstrument */
+/* ===================================================================== */
+
+VOID PinInstrument::DoAtAnnotatorHead(BBLID bblid)
+{
+    std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
+    bblidstack.push(bblid);
+}
+
+VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid)
+{
+    std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
+    if (bblidstack.top() != bblid) {
+        ASSERTX(0 && "Annotator head and tail does not match! This may be cause by exceptions or gotos in the original program.");
+    }
+    bblidstack.pop();
+}
+
+VOID PinInstrument::Image(IMG img, VOID *v)
+{
+    // find annotator head and tail by their names
+    RTN annotator_head = RTN_FindByName(img, PIMProfAnnotatorHead.c_str());
+    RTN annotator_tail = RTN_FindByName(img, PIMProfAnnotatorTail.c_str());
+
+    if (RTN_Valid(annotator_head) && RTN_Valid(annotator_tail))
+    {
+        // Instrument malloc() to print the input argument value and the return value.
+        RTN_Open(annotator_head);
+        RTN_InsertCall(
+            annotator_head,
+            IPOINT_BEFORE,
+            (AFUNPTR)DoAtAnnotatorHead,
+            IARG_FUNCARG_CALLSITE_VALUE, 0, // The first argument of DoAtAnnotatorHead
+            IARG_END);
+        RTN_Close(annotator_head);
+
+        RTN_Open(annotator_tail);
+        RTN_InsertCall(
+            annotator_tail,
+            IPOINT_BEFORE,
+            (AFUNPTR)DoAtAnnotatorTail,
+            IARG_FUNCARG_CALLSITE_VALUE, 0, // The first argument of DoAtAnnotatorTail
+            IARG_END);
+        RTN_Close(annotator_tail);
+    }
 }

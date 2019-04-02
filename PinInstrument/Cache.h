@@ -21,20 +21,16 @@ typedef UINT32 CACHE_STATS;
 #define MEGA (KILO * KILO)
 #define GIGA (KILO * MEGA)
 
-/*!
- *  @brief Checks if n is a power of 2.
- *  @returns true if n is power of 2
- */
+/// @brief Checks if n is a power of 2.
+/// @returns true if n is power of 2
 static inline bool IsPower2(UINT32 n)
 {
     return ((n & (n - 1)) == 0);
 }
 
-/*!
- *  @brief Computes floor(log2(n))
- *  Works by finding position of MSB set.
- *  @returns -1 if n == 0.
- */
+/// @brief Computes floor(log2(n))
+/// Works by finding position of MSB set.
+/// @returns -1 if n == 0.
 static inline INT32 FloorLog2(UINT32 n)
 {
     INT32 p = 0;
@@ -70,11 +66,9 @@ static inline INT32 FloorLog2(UINT32 n)
     return p;
 }
 
-/*!
- *  @brief Computes floor(log2(n))
- *  Works by finding position of MSB set.
- *  @returns -1 if n == 0.
- */
+/// @brief Computes ceil(log2(n))
+/// Works by finding position of MSB set.
+/// @returns -1 if n == 0.
 static inline INT32 CeilLog2(UINT32 n)
 {
     return FloorLog2(n - 1) + 1;
@@ -82,9 +76,7 @@ static inline INT32 CeilLog2(UINT32 n)
 
 
 namespace PIMProf {
-/*!
- *  @brief Cache tag - self clearing on creation
- */
+/// @brief Cache tag - self clearing on creation
 class CACHE_TAG
 {
   private:
@@ -127,9 +119,7 @@ class DIRECT_MAPPED : public CACHE_SET
     inline VOID Flush() { _tag = 0; }
 };
 
-/*!
- *  @brief Cache set with round robin replacement
- */
+/// @brief Cache set with round robin replacement
 class ROUND_ROBIN : public CACHE_SET
 {
   private:
@@ -275,9 +265,7 @@ enum STORE_ALLOCATION
 };
 }
 
-/*!
- *  @brief Generic cache base class; no allocate specialization, no cache set specialization
- */
+/// @brief Generic cache base class; no allocate specialization, no cache set specialization
 class CACHE_LEVEL_BASE
 {
   public:
@@ -363,15 +351,14 @@ class CACHE_LEVEL_BASE
         _numberOfResets += 1;
     }
 
+    /// @brief Stats output method
     std::ostream &StatsLong(std::ostream &out) const;
 };
 
-/*!
- *  @brief Templated cache class with specific cache set allocation policies
- *
- *  All that remains to be done here is allocate and deallocate the right
- *  type of cache sets.
- */
+
+/// @brief Templated cache class with specific cache set allocation policies
+/// All that remains to be done here is allocate and deallocate the right
+/// type of cache sets.
 class CACHE_LEVEL : public CACHE_LEVEL_BASE
 {
   private:
@@ -389,10 +376,16 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
     ~CACHE_LEVEL();
 
     // modifiers
-    /// Cache access from addr to addr+size-1
+    
+    /// Cache access from addr to addr+size-1/*!
+    /// @return true if all accessed cache lines hit
     BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+
     /// Cache access at addr that does not span cache lines
+    /// @return true if accessed cache line hits
     BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
+
+    // @return true if accessed cache line hits
     VOID Flush();
     VOID ResetStats();
     inline std::string getReplacementPolicy() {
@@ -448,9 +441,5 @@ std::string StringHex(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
 std::string StringString(std::string val, UINT32 width = 0, CHAR padding = ' ');
 
 } // namespace PIMProf
-
-
-
-
 
 #endif // __CACHE_H__

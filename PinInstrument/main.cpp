@@ -77,6 +77,7 @@ int main(int argc, CHAR *argv[])
         ASSERTX(0);
     }
     
+    IMG_AddInstrumentFunction(PinInstrument::Image, 0);
 
     MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcache.ini");
     INS_AddInstrumentFunction(MemoryLatency::Instruction, 0);

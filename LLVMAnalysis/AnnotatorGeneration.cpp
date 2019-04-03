@@ -66,7 +66,7 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
             ctx, 
             ConstantAsMetadata::get(
                 ConstantInt::get(
-                    IntegerType::get(M.getContext(),32), PIMProfFakeBBID)
+                    IntegerType::get(M.getContext(),32), PIMProfAnnotatorBBID)
             )
         );
         rt->setMetadata(PIMProfBBIDMetadata, md);

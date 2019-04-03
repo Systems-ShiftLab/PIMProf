@@ -68,7 +68,7 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
             int headVal = (int) headAPVal.getLimitedValue(UINT32_MAX);
 
             // skip the annotator function
-            if (headVal == PIMProfFakeBBID)
+            if (headVal == PIMProfAnnotatorBBID)
                 continue;
 
             ofs << headVal << " ";

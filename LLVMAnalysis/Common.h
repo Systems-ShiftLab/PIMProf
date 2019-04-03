@@ -15,6 +15,6 @@ static const std::string PIMProfAnnotatorTail = "PIMProfAnnotatorTail";
 
 static const std::string PIMProfBBIDMetadata = "basicblock.id";
 
-static const int PIMProfFakeBBID = -1;
+static const int PIMProfAnnotatorBBID = -1;
 
 #endif // __COMMON_H__

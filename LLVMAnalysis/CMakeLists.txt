@@ -15,9 +15,10 @@ target_compile_features(${ANNOTATORGENERATION} PRIVATE
 set_target_properties(${ANNOTATORGENERATION} PROPERTIES
     COMPILE_FLAGS "-fno-rtti")
 
-set(CFGDUMP "CFGDump")
-add_library(${CFGDUMP} MODULE 
+set(CFGDUMP "CFGDump.exe")
+add_executable(${CFGDUMP}
     CFGDump.cpp)
+target_link_libraries(${CFGDUMP} LLVM)
 target_compile_features(${CFGDUMP} PRIVATE
     cxx_range_for cxx_auto_type)
 set_target_properties(${CFGDUMP} PROPERTIES

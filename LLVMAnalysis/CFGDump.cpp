@@ -20,6 +20,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 
+#include <fstream>
+
 #include "CFGDump.h"
 #include "Common.h"
 
@@ -38,43 +40,67 @@ void BasicBlockDFS(BasicBlock *BB, int depth) {
     }
 }
 
-int PIMProf::CFGDump(const std::string &filename) {
+int PIMProf::CFGDump(const std::string &input, const std::string &output) {
     // Module Construction
     std::unique_ptr<Module> M;
     
     SMDiagnostic error;
-    M = parseIRFile(filename, error, ctx);
+    M = parseIRFile(input, error, ctx);
     if (M == nullptr) {
-        errs()  << "CFGDump: Filename read error.\n";
+        errs() << "CFGDump: Input filename read error.\n";
         return -1;
     }
 
-    // M->print(errs(), nullptr);
+    std::ofstream ofs;
+    ofs.open(output);
 
     // dump the entire CFG of the module
-    Function *main_func = M->getFunction("main");
-    main_func->print(errs());
+    for (auto &func : *M) {
+        for (auto &bb: func) {
+            TerminatorInst *headT = bb.getTerminator();
+            ConstantAsMetadata *head = dyn_cast<ConstantAsMetadata>(
+                dyn_cast<MDNode>(
+                    headT->getMetadata(PIMProfBBIDMetadata))->getOperand(0)
+            );
+            APInt headAPVal = dyn_cast<ConstantInt>(
+                head->getValue())->getValue();
+            // get integer value of APInt
+            int headVal = (int) headAPVal.getLimitedValue(UINT32_MAX);
 
-    // BasicBlock *BB_head = &main_func->getEntryBlock();
-    // BasicBlockDFS(BB_head, 0);
-    // BB_head->print(errs());
-    // const TerminatorInst *TInst = BB_head->getTerminator();
-    // for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) {
-    //     BasicBlock *Succ = TInst->getSuccessor(I);
-    //     Succ->print(errs());
-    // // Do stuff with Succ
-    // }
+            // skip the annotator function
+            if (headVal == PIMProfFakeBBID)
+                continue;
+
+            ofs << headVal << " ";
+
+            for (unsigned i = 0, n = headT->getNumSuccessors(); i < n; i++) {
+                TerminatorInst *tailT = headT->getSuccessor(i)->getTerminator();
+                ConstantAsMetadata *tail = dyn_cast<ConstantAsMetadata>(
+                    dyn_cast<MDNode>(
+                        tailT->getMetadata(PIMProfBBIDMetadata))->getOperand(0)
+                );
+                APInt tailAPVal = dyn_cast<ConstantInt>(
+                    tail->getValue())->getValue();
+                int tailVal = (int) tailAPVal.getLimitedValue(UINT32_MAX);
+                ofs << tailVal << " ";
+              // Do stuff with Succ
+            }
+            ofs << "\n";
+        }
+    }
+
+    ofs.close();
 }
 
-// int main(int argc, char **argv) {
-//     if (argc != 2) {
-//         errs()  << "Incorrect input format.\n"
-//                 << "Usage ./CFGDump.exe <filename>\n";
-//         return -1;
-//     }
-//     else {
-//         PIMProf::CFGDump(argv[1]);
-//     }
+int main(int argc, char **argv) {
+    if (argc != 3) {
+        errs()  << "Incorrect number of arguments provided.\n"
+                << "Usage ./CFGDump.exe <inputfile> <outputfile>\n";
+        return -1;
+    }
+    else {
+        PIMProf::CFGDump(argv[1], argv[2]);
+    }
     
-//   return 0;
-// }
+    return 0;
+}

@@ -54,13 +54,22 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
     if (annotator->empty()) {
         BasicBlock *temp = BasicBlock::Create(
             ctx, "", annotator, 0);
-        auto *al = new AllocaInst(Type::getInt32Ty(ctx), 0, "", temp);
+        auto al = new AllocaInst(Type::getInt32Ty(ctx), 0, "", temp);
         al->setAlignment(4);
-        auto *st = new StoreInst(annotator->arg_begin(), al, temp);
+        auto st = new StoreInst(annotator->arg_begin(), al, temp);
         st->setAlignment(4);
-        auto *ld = new LoadInst(al, "", temp);
+        auto ld = new LoadInst(al, "", temp);
         ld->setAlignment(4);
-        ReturnInst::Create(ctx, ld, temp);
+        auto rt = ReturnInst::Create(ctx, ld, temp);
+        // insert instruction metadata
+        MDNode* md = MDNode::get(
+            ctx, 
+            ConstantAsMetadata::get(
+                ConstantInt::get(
+                    IntegerType::get(M.getContext(),32), PIMProfFakeBBID)
+            )
+        );
+        rt->setMetadata(PIMProfBBIDMetadata, md);
     }
 }
 

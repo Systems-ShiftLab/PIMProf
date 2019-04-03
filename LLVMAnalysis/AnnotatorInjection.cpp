@@ -72,8 +72,7 @@ namespace {
                     IntegerType::get(M.getContext(),32), BBID)
             )
         );
-        head_instr->setMetadata("basicblock.id", md);
-        tail_instr->setMetadata("basicblock.id", md);
+        BB.getTerminator()->setMetadata(PIMProfBBIDMetadata, md);
             
         // errs() << "After injection: " << BB.getName() << "\n";
         // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
@@ -91,21 +90,12 @@ namespace {
             // assign unique id to each basic block
             int bbid = 0;
 
+            // inject annotator function to each basic block
+            // attach basic block id to terminator
             for (auto &func : M) {
                 for (auto &bb: func) {
-                    // declare annotator function 
                     InjectAnnotatorCall(M, bb, bbid);
                     bbid++;
-                }
-            }
-
-            for (auto &func : M) {
-                for (auto &bb: func) {
-                    const TerminatorInst *t = bb.getTerminator();
-                    for (unsigned i = 0, n = t->getNumSuccessors(); i < n; i++) {
-                      BasicBlock *succ = t->getSuccessor(i);
-                      // Do stuff with Succ
-                    }
                 }
             }
             // M.print(errs(), nullptr);

@@ -120,6 +120,9 @@ class CostGraph {
   public:
     std::vector<Node> nodelist;
     std::vector<Edge> edgelist;
+
+  public:
+    CostGraph(const std::string filename);
 };
 
 class CostGraph::Node {

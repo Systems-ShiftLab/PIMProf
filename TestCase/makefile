@@ -18,6 +18,7 @@ EXTERNAL_BC   := $(EXTERNAL_SRC:%.cpp=%.bc)
 
 MERGED_BC     := merged.bc
 MERGED_LL     := merged.ll
+MERGED_DUMP   := merged.out
 
 TEST_EXE      := test.exe
 
@@ -55,8 +56,9 @@ cmake:
 pin: all
 	make -C ../PinInstrument/
 	$(CXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
+	../build/LLVMAnalysis/CFGDump.exe $(MERGED_BC) $(MERGED_DUMP)
 	objdump -d $(TEST_EXE) > objdump$$LEVEL.out
-	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE) -o opcodemix.out > output.out
+	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -- ./$(TEST_EXE)
 	
 
 # generate the bitcode of each source code and apply annotator injection

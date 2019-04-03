@@ -282,6 +282,11 @@ VOID MemoryLatency::WriteConfig(const std::string filename)
 /* CostGraph */
 /* ===================================================================== */
 
+CostGraph::CostGraph(const std::string filename)
+{
+    ifstream ifs;
+    ifs.open(filename);
+}
 
 
 /* ===================================================================== */

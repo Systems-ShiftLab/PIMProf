@@ -21,6 +21,7 @@
 #include "llvm/IR/Function.h"
 
 #include <fstream>
+#include <sstream>
 
 #include "CFGDump.h"
 #include "Common.h"
@@ -51,8 +52,8 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
         return -1;
     }
 
-    std::ofstream ofs;
-    ofs.open(output);
+    std::stringstream cfgss;
+    int maxbbid = 0;
 
     // dump the entire CFG of the module
     for (auto &func : *M) {
@@ -70,8 +71,11 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
             // skip the annotator function
             if (headVal == PIMProfAnnotatorBBID)
                 continue;
+            
+            if (headVal > maxbbid)
+                maxbbid = headVal;
 
-            ofs << headVal << " ";
+            cfgss << headVal << " ";
 
             for (unsigned i = 0, n = headT->getNumSuccessors(); i < n; i++) {
                 TerminatorInst *tailT = headT->getSuccessor(i)->getTerminator();
@@ -82,13 +86,17 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
                 APInt tailAPVal = dyn_cast<ConstantInt>(
                     tail->getValue())->getValue();
                 int tailVal = (int) tailAPVal.getLimitedValue(UINT32_MAX);
-                ofs << tailVal << " ";
+                cfgss << tailVal << " ";
               // Do stuff with Succ
             }
-            ofs << "\n";
+            cfgss << std::endl;
         }
     }
 
+    std::ofstream ofs;
+    ofs.open(output);
+    ofs << maxbbid << std::endl;
+    ofs << cfgss.rdbuf();
     ofs.close();
 }
 

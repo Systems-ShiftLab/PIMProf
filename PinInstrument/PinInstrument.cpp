@@ -328,7 +328,10 @@ VOID CostGraph::ReadControlFlowGraph(const std::string filename)
     }
 }
 
-
+VOID CostGraph::AddCostToNode(Node *node, Site site, COST cost)
+{
+    node->cost[site] += cost;
+}
 
 VOID CostGraph::CreateEdgeIfNotExist(Node *head, Node *tail)
 {

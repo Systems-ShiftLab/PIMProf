@@ -141,6 +141,8 @@ class CostGraph {
     /// Initialize 
     static VOID ReadControlFlowGraph(const std::string filename);
 
+    static VOID AddCostToNode(Node *node, Site site, COST cost);
+
     /// Perform an O(log N) search to the head Node to check if the edge exists,
     /// insert the required edge if not
     static VOID CreateEdgeIfNotExist(Node *head, Node *tail);
@@ -158,6 +160,9 @@ class CostGraph::Node {
     EdgeMap outEdge;
   public:
     inline Node(BBID id) : id(id) {
+        clear();
+    }
+    inline clear() {
         memset(cost, 0, sizeof(cost));
     }
     inline VOID print(std::ostream& out) {
@@ -174,9 +179,12 @@ class CostGraph::Edge {
     COST cost[MAX_COST_SITE][MAX_COST_SITE][MAX_EDGE_TYPE];
   public:
     inline Edge() {
-        memset(cost, 0, sizeof(cost));
+        clear();
     }
     inline Edge(Node *h, Node *t) : head(h), tail(t) {
+        clear();
+    }
+    inline clear() {
         memset(cost, 0, sizeof(cost));
     }
     inline VOID print(std::ostream& out) {

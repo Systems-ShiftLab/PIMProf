@@ -73,7 +73,7 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 
-# TOOL_CXXFLAGS += -g
+TOOL_CXXFLAGS += -g
 
 $(OBJDIR)PinInstrument$(PINTOOL_SUFFIX): $(OBJDIR)main$(OBJ_SUFFIX) $(OBJDIR)PinInstrument$(OBJ_SUFFIX) $(OBJDIR)Cache$(OBJ_SUFFIX) $(CONTROLLERLIB)
 	$(LINKER) -o $@ $^ $(TOOL_LDFLAGS) $(TOOL_LPATHS) $(TOOL_LIBS)

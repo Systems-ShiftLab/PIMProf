@@ -114,8 +114,8 @@ class CostGraph {
   public:
     typedef INT32 COST;
     typedef UINT32 BBID;
-    typedef std::map<UINT32, Edge *> EdgeMap;
-    typedef std::pair<UINT32, Edge *> EdgePair;
+    typedef std::map<BBID, Edge *> EdgeMap;
+    typedef std::pair<BBID, Edge *> EdgePair;
     static const UINT32 MAX_COST_SITE = 2;
     enum Site {
         PIM, CPU
@@ -126,8 +126,12 @@ class CostGraph {
     };
 
   private:
+    /// This vector of nodes is created at the beginning and should not be changed
+    /// because we are using reference to the vector elements elsewhere.
+    /// Behavior that resizes this vector may invalidate the references.
+    /// This is a compromise solution without using C++11 or boost
     static std::vector<Node> NodeList;
-    static std::vector<Edge> EdgeList;
+    static std::list<Edge> EdgeList;
 
   public:
     CostGraph() {};
@@ -177,7 +181,7 @@ class CostGraph::Edge {
     }
     inline VOID print(std::ostream& out) {
         head->print(out);
-        out << " ";
+        out << "->";
         tail->print(out);
         out << std::endl;
     }

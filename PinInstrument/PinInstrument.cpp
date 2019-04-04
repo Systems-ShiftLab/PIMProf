@@ -34,7 +34,7 @@ InstructionLatency PinInstrument::instruction_latency;
 std::stack<PinInstrument::BBLID> PinInstrument::bblidstack;
 CostGraph PinInstrument::graph;
 std::vector<CostGraph::Node> CostGraph::NodeList;
-std::vector<CostGraph::Edge> CostGraph::EdgeList;
+std::list<CostGraph::Edge> CostGraph::EdgeList;
 
 /* ===================================================================== */
 /* InstructionLatency */
@@ -314,20 +314,16 @@ VOID CostGraph::ReadControlFlowGraph(const std::string filename)
         BBID head, tail;
         ss >> head;
         while(ss >> tail) {
-            std::cout << "w" << std::endl;
-            std::cout << head << " " << tail << std::endl;
             CreateEdgeIfNotExist(&NodeList[head], &NodeList[tail]);
         }
     }
 
     for (UINT32 i = 0; i < NodeList.size(); i++) {
         Node *n = &NodeList[i];
-        std::cout << "node: ";
-        n->print(std::cout);
-        std::cout << " " << n->outEdge.size() << " ";
         
         for (EdgeMap::iterator it=n->outEdge.begin(); it!=n->outEdge.end(); it++) {
             it->second->print(std::cout);
+            std::cout << std::endl;
         }
     }
 }
@@ -339,7 +335,6 @@ VOID CostGraph::CreateEdgeIfNotExist(Node *head, Node *tail)
     EdgeMap &outedge = head->outEdge;
     if (outedge.find(tail->id) == outedge.end()) {
         EdgeList.push_back(Edge(head, tail));
-        EdgeList.back().getEdgePair().second->print(std::cout);
         outedge.insert(EdgeList.back().getEdgePair());
     }
 }

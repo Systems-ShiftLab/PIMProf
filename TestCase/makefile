@@ -72,5 +72,6 @@ $(ANNOTATOR_BC):
 clean:
 	rm -rf *.o *.exe *.bc *.ll *.out *.log
 	rm -rf ../build
+	make clean -C ../PinInstrument/
 
 .PHONY: all bitcode cmake pin clean

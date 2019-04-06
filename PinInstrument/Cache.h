@@ -15,12 +15,6 @@
 
 #include "pin.H"
 
-typedef UINT32 CACHE_STATS;
-
-#define KILO 1024
-#define MEGA (KILO * KILO)
-#define GIGA (KILO * MEGA)
-
 /// @brief Checks if n is a power of 2.
 /// @returns true if n is power of 2
 static inline bool IsPower2(UINT32 n)
@@ -76,11 +70,14 @@ static inline INT32 CeilLog2(UINT32 n)
 
 
 namespace PIMProf {
+    typedef UINT32 CACHE_STATS;
+    typedef UINT32 BBLID;
 /// @brief Cache tag - self clearing on creation
 class CACHE_TAG
 {
   private:
     ADDRINT _tag;
+    BBLID _bblid;
 
   public:
     CACHE_TAG(ADDRINT tag = 0) { _tag = tag; }

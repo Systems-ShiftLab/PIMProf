@@ -26,7 +26,7 @@
 using namespace llvm;
 
 namespace {
-    void InjectAnnotatorCall(Module &M, BasicBlock &BB, int BBID) {
+    void InjectAnnotatorCall(Module &M, BasicBlock &BB, int BBLID) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
@@ -53,15 +53,15 @@ namespace {
         // errs() << "\n";
 
         // insert instruction
-        Value *bbid = ConstantInt::get(
-            IntegerType::get(M.getContext(),32), BBID);
+        Value *bblid = ConstantInt::get(
+            IntegerType::get(M.getContext(),32), BBLID);
         
         CallInst *head_instr = CallInst::Create(
-            annotator_head, ArrayRef<Value *>(bbid), "",
+            annotator_head, ArrayRef<Value *>(bblid), "",
             BB.getFirstNonPHIOrDbgOrLifetime());
 
         CallInst *tail_instr = CallInst::Create(
-            annotator_tail, ArrayRef<Value *>(bbid), "",
+            annotator_tail, ArrayRef<Value *>(bblid), "",
             BB.getTerminator());
         
         // insert instruction metadata
@@ -69,10 +69,10 @@ namespace {
             ctx, 
             ConstantAsMetadata::get(
                 ConstantInt::get(
-                    IntegerType::get(M.getContext(),32), BBID)
+                    IntegerType::get(M.getContext(),32), BBLID)
             )
         );
-        BB.getTerminator()->setMetadata(PIMProfBBIDMetadata, md);
+        BB.getTerminator()->setMetadata(PIMProfBBLIDMetadata, md);
             
         // errs() << "After injection: " << BB.getName() << "\n";
         // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
@@ -88,14 +88,14 @@ namespace {
 
         virtual bool runOnModule(Module &M) {
             // assign unique id to each basic block
-            int bbid = 0;
+            int bblid = 0;
 
             // inject annotator function to each basic block
             // attach basic block id to terminator
             for (auto &func : M) {
                 for (auto &bb: func) {
-                    InjectAnnotatorCall(M, bb, bbid);
-                    bbid++;
+                    InjectAnnotatorCall(M, bb, bblid);
+                    bblid++;
                 }
             }
             // M.print(errs(), nullptr);

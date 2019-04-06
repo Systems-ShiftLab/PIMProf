@@ -113,9 +113,8 @@ class CostGraph {
 
   public:
     typedef INT32 COST;
-    typedef UINT32 BBID;
-    typedef std::map<BBID, Edge *> EdgeMap;
-    typedef std::pair<BBID, Edge *> EdgePair;
+    typedef std::map<BBLID, Edge *> EdgeMap;
+    typedef std::pair<BBLID, Edge *> EdgePair;
     static const UINT32 MAX_COST_SITE = 2;
     enum Site {
         PIM, CPU
@@ -155,14 +154,14 @@ class CostGraph {
 class CostGraph::Node {
     friend class CostGraph;
   private:
-    BBID id;
+    BBLID id;
     COST cost[MAX_COST_SITE];
     EdgeMap outEdge;
   public:
-    inline Node(BBID id) : id(id) {
+    inline Node(BBLID id) : id(id) {
         clear();
     }
-    inline clear() {
+    inline VOID clear() {
         memset(cost, 0, sizeof(cost));
     }
     inline VOID print(std::ostream& out) {
@@ -184,7 +183,7 @@ class CostGraph::Edge {
     inline Edge(Node *h, Node *t) : head(h), tail(t) {
         clear();
     }
-    inline clear() {
+    inline VOID clear() {
         memset(cost, 0, sizeof(cost));
     }
     inline VOID print(std::ostream& out) {
@@ -199,8 +198,6 @@ class CostGraph::Edge {
 };
 
 class PinInstrument {
-  public:
-    typedef UINT32 BBLID;
 
   private:
     static MemoryLatency memory_latency;

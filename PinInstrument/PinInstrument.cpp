@@ -31,7 +31,7 @@ CACHE MemoryLatency::cache;
 
 MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
-std::stack<PinInstrument::BBLID> PinInstrument::bblidstack;
+std::stack<BBLID> PinInstrument::bblidstack;
 CostGraph PinInstrument::graph;
 std::vector<CostGraph::Node> CostGraph::NodeList;
 std::list<CostGraph::Edge> CostGraph::EdgeList;
@@ -298,20 +298,20 @@ VOID CostGraph::ReadControlFlowGraph(const std::string filename)
     ifs.open(filename.c_str());
     std::string curline;
 
-    BBID MAX_NODE;
+    BBLID MAX_NODE;
     getline(ifs, curline);
     std::stringstream ss(curline);
     ss >> MAX_NODE;
 
     // create node according to maximum number of nodes
-    for (BBID i = 0; i <= MAX_NODE; i++) {
+    for (BBLID i = 0; i <= MAX_NODE; i++) {
         NodeList.push_back(Node(i));
     }
 
     // create edges
     while(getline(ifs, curline)) {
         std::stringstream ss(curline);
-        BBID head, tail;
+        BBLID head, tail;
         ss >> head;
         while(ss >> tail) {
             CreateEdgeIfNotExist(&NodeList[head], &NodeList[tail]);

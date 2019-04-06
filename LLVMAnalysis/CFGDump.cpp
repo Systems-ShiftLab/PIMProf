@@ -53,7 +53,7 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
     }
 
     std::stringstream cfgss;
-    int maxbbid = 0;
+    int maxbblid = 0;
 
     // dump the entire CFG of the module
     for (auto &func : *M) {
@@ -61,7 +61,7 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
             TerminatorInst *headT = bb.getTerminator();
             ConstantAsMetadata *head = dyn_cast<ConstantAsMetadata>(
                 dyn_cast<MDNode>(
-                    headT->getMetadata(PIMProfBBIDMetadata))->getOperand(0)
+                    headT->getMetadata(PIMProfBBLIDMetadata))->getOperand(0)
             );
             APInt headAPVal = dyn_cast<ConstantInt>(
                 head->getValue())->getValue();
@@ -69,11 +69,11 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
             int headVal = (int) headAPVal.getLimitedValue(UINT32_MAX);
 
             // skip the annotator function
-            if (headVal == PIMProfAnnotatorBBID)
+            if (headVal == PIMProfAnnotatorBBLID)
                 continue;
             
-            if (headVal > maxbbid)
-                maxbbid = headVal;
+            if (headVal > maxbblid)
+                maxbblid = headVal;
 
             cfgss << headVal << " ";
 
@@ -81,7 +81,7 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
                 TerminatorInst *tailT = headT->getSuccessor(i)->getTerminator();
                 ConstantAsMetadata *tail = dyn_cast<ConstantAsMetadata>(
                     dyn_cast<MDNode>(
-                        tailT->getMetadata(PIMProfBBIDMetadata))->getOperand(0)
+                        tailT->getMetadata(PIMProfBBLIDMetadata))->getOperand(0)
                 );
                 APInt tailAPVal = dyn_cast<ConstantInt>(
                     tail->getValue())->getValue();
@@ -95,7 +95,7 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
 
     std::ofstream ofs;
     ofs.open(output);
-    ofs << maxbbid << std::endl;
+    ofs << maxbblid << std::endl;
     ofs << cfgss.rdbuf();
     ofs.close();
 }

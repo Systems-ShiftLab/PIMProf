@@ -80,7 +80,7 @@ int main(int argc, CHAR *argv[])
     IMG_AddInstrumentFunction(PinInstrument::Image, 0);
 
     MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcache.ini");
-    CostGraph::ReadControlFlowGraph("/home/warsier/Documents/PIMProf/TestCase/merged.out");
+    CostSolver::AddControlCost("/home/warsier/Documents/PIMProf/TestCase/merged.out");
     INS_AddInstrumentFunction(MemoryLatency::Instruction, 0);
     PIN_AddFiniFunction(MemoryLatency::Fini, 0);
 

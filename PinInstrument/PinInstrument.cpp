@@ -32,9 +32,8 @@ CACHE MemoryLatency::cache;
 MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
 std::stack<BBLID> PinInstrument::bblidstack;
-CostGraph PinInstrument::graph;
-std::vector<CostGraph::Node> CostGraph::NodeList;
-std::list<CostGraph::Edge> CostGraph::EdgeList;
+CostSolver PinInstrument::solver;
+std::vector<CostSolver::CostTerm> CostSolver::BBLCostList;
 
 /* ===================================================================== */
 /* InstructionLatency */
@@ -281,72 +280,57 @@ VOID MemoryLatency::WriteConfig(const std::string filename)
 }
 
 /* ===================================================================== */
-/* CostGraph */
+/* CostSolver */
 /* ===================================================================== */
 
-CostGraph::CostGraph(const std::string filename)
+CostSolver::CostSolver(const std::string filename)
 {
-    ReadControlFlowGraph(filename);
+    AddControlCost(filename);
 }
 
-VOID CostGraph::ReadControlFlowGraph(const std::string filename)
+VOID CostSolver::AddControlCost(const std::string filename)
 {
-    NodeList.clear();
-    EdgeList.clear();
+    // NodeList.clear();
+    // EdgeList.clear();
 
-    std::ifstream ifs;
-    ifs.open(filename.c_str());
-    std::string curline;
+    // std::ifstream ifs;
+    // ifs.open(filename.c_str());
+    // std::string curline;
 
-    BBLID MAX_NODE;
-    getline(ifs, curline);
-    std::stringstream ss(curline);
-    ss >> MAX_NODE;
+    // BBLID MAX_NODE;
+    // getline(ifs, curline);
+    // std::stringstream ss(curline);
+    // ss >> MAX_NODE;
 
-    // create node according to maximum number of nodes
-    for (BBLID i = 0; i <= MAX_NODE; i++) {
-        NodeList.push_back(Node(i));
-    }
+    // // create node according to maximum number of nodes
+    // for (BBLID i = 0; i <= MAX_NODE; i++) {
+    //     NodeList.push_back(Node(i));
+    // }
 
-    // create edges
-    while(getline(ifs, curline)) {
-        std::stringstream ss(curline);
-        BBLID head, tail;
-        ss >> head;
-        while(ss >> tail) {
-            CreateEdgeIfNotExist(&NodeList[head], &NodeList[tail]);
-        }
-    }
+    // // create edges
+    // while(getline(ifs, curline)) {
+    //     std::stringstream ss(curline);
+    //     BBLID head, tail;
+    //     ss >> head;
+    //     while(ss >> tail) {
+    //         CreateEdgeIfNotExist(&NodeList[head], &NodeList[tail]);
+    //     }
+    // }
 
-    for (UINT32 i = 0; i < NodeList.size(); i++) {
-        Node *n = &NodeList[i];
+    // for (UINT32 i = 0; i < NodeList.size(); i++) {
+    //     Node *n = &NodeList[i];
         
-        for (EdgeMap::iterator it=n->outEdge.begin(); it!=n->outEdge.end(); it++) {
-            it->second->print(std::cout);
-            std::cout << std::endl;
-        }
-    }
+    //     for (EdgeMap::iterator it=n->outEdge.begin(); it!=n->outEdge.end(); it++) {
+    //         it->second->print(std::cout);
+    //         std::cout << std::endl;
+    //     }
+    // }
 }
 
-VOID CostGraph::AddCostToNode(Node *node, Site site, COST cost)
+COST CostSolver::CostTerm::Cost(DECISION &decision)
 {
-    node->cost[site] += cost;
+    
 }
-
-VOID CostGraph::CreateEdgeIfNotExist(Node *head, Node *tail)
-{
-    EdgeMap &outedge = head->outEdge;
-    if (outedge.find(tail->id) == outedge.end()) {
-        EdgeList.push_back(Edge(head, tail));
-        outedge.insert(EdgeList.back().getEdgePair());
-    }
-}
-
-VOID CostGraph::AddCostToEdge(Edge *edge, Site from, Site to, EdgeType type, COST cost)
-{
-    edge->cost[from][to][type] += cost;
-}
-
 
 
 /* ===================================================================== */

@@ -105,15 +105,13 @@ class InstructionLatency {
     static VOID WriteConfig(const std::string filename);
 };
 
-class CostGraph {
+class CostSolver {
   public:
-    class Node;
-    class Edge;
+    class CostTerm;
+    typedef std::vector<BOOL> DECISION;
 
   public:
-    typedef INT32 COST;
-    typedef std::map<BBLID, Edge *> EdgeMap;
-    typedef std::pair<BBLID, Edge *> EdgePair;
+    typedef FLT64 COST;
     static const UINT32 MAX_COST_SITE = 2;
     enum Site {
         PIM, CPU
@@ -124,82 +122,31 @@ class CostGraph {
     };
 
   private:
-    /// This vector of nodes is created at the beginning and should not be changed
-    /// because we are using reference to the vector elements elsewhere.
-    /// Behavior that resizes this vector may invalidate the references.
-    /// This is a compromise solution without using C++11 or boost
-    static std::vector<Node> NodeList;
-    static std::list<Edge> EdgeList;
+    /// All costs that are attributed to a certain BBL is stored in the corresponding CostTerm node
+    static std::vector<CostTerm> BBLCostList;
 
   public:
-    CostGraph() {};
-    CostGraph(const std::string filename);
+    CostSolver() {};
+    CostSolver(const std::string filename);
 
-    /// Read the Control Flow Graph from LLVM pass and store it in ControlEdgeList
-    /// Initialize 
-    static VOID ReadControlFlowGraph(const std::string filename);
+    /// Read the Control Flow Graph from LLVM pass
+    /// Attribute the control cost to the tail node
+    static VOID AddControlCost(const std::string filename);
 
-    static VOID AddCostToNode(Node *node, Site site, COST cost);
+    static VOID AddCostToBBL();
 
-    /// Perform an O(log N) search to the head Node to check if the edge exists,
-    /// insert the required edge if not
-    static VOID CreateEdgeIfNotExist(Node *head, Node *tail);
-
-    /// Add cost to the corresponding edge
-    /// e.g., AddCostToEdge(edge, PIM, CPU, CONTROL, 3) will add 
-    static VOID AddCostToEdge(Edge *edge, Site from, Site to, EdgeType type, COST cost);
 };
 
-class CostGraph::Node {
-    friend class CostGraph;
+class CostSolver::CostTerm {
+    friend class CostSolver;
   private:
-    BBLID id;
-    COST cost[MAX_COST_SITE];
-    EdgeMap outEdge;
-  public:
-    inline Node(BBLID id) : id(id) {
-        clear();
-    }
-    inline VOID clear() {
-        memset(cost, 0, sizeof(cost));
-    }
-    inline VOID print(std::ostream& out) {
-        out << id;
-    }
-};
-
-class CostGraph::Edge {
-    friend class CostGraph;
-  private:
-    Node *head;
-    Node *tail;
-    /// e.g., cost[PIM][CPU][CONTROL] represents the CONTROL edge cost if the head resides on PIM and tail resides on CPU
-    COST cost[MAX_COST_SITE][MAX_COST_SITE][MAX_EDGE_TYPE];
-  public:
-    inline Edge() {
-        clear();
-    }
-    inline Edge(Node *h, Node *t) : head(h), tail(t) {
-        clear();
-    }
-    inline VOID clear() {
-        memset(cost, 0, sizeof(cost));
-    }
-    inline VOID print(std::ostream& out) {
-        head->print(out);
-        out << "->";
-        tail->print(out);
-        out << std::endl;
-    }
-    inline EdgePair getEdgePair() {
-        return std::make_pair(tail->id, this);
-    }
-};
-
-class CostSolver {
-  public:
+    COST coefficient;
+    std::vector<BBLID> variables;
     
+  public:
+    COST Cost(DECISION &decision);
 };
+
 
 class PinInstrument {
 
@@ -207,7 +154,7 @@ class PinInstrument {
     static MemoryLatency memory_latency;
     static InstructionLatency instruction_latency;
     static std::stack<BBLID> bblidstack;
-    static CostGraph graph;
+    static CostSolver solver;
 
   public:
     static const BBLID GLOBALBBLID = -1;

@@ -105,7 +105,6 @@ class InstructionLatency {
     static VOID WriteConfig(const std::string filename);
 };
 
-
 class CostGraph {
   public:
     class Node;
@@ -197,6 +196,11 @@ class CostGraph::Edge {
     }
 };
 
+class CostSolver {
+  public:
+    
+};
+
 class PinInstrument {
 
   private:
@@ -206,15 +210,15 @@ class PinInstrument {
     static CostGraph graph;
 
   public:
-    PinInstrument();
+    static const BBLID GLOBALBBLID = -1;
+  public:
+    PinInstrument() {};
 
   public:
-    
-
     static VOID DoAtAnnotatorHead(BBLID bblid);
     static VOID DoAtAnnotatorTail(BBLID bblid);
 
-    inline UINT32 GetCurrentBBL()
+    static inline BBLID GetCurrentBBL()
     {
         return bblidstack.top();
     }

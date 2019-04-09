@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "INIReader.h"
+#include "PinInstrument.h"
 #include "Cache.h"
 
 using namespace PIMProf;
@@ -122,6 +123,7 @@ std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
 CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation)
     : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity), _replacement_policy(policy), STORE_ALLOCATION(allocation)
 {
+    // NumSets = cacheSize / (associativity * lineSize)
     if (policy == "direct_mapped") {
         for (UINT32 i = 0; i < NumSets(); i++) {
             DIRECT_MAPPED *_set = new DIRECT_MAPPED(associativity);
@@ -172,6 +174,9 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
         UINT32 setIndex;
 
         SplitAddress(addr, tag, setIndex);
+        tag.SetBBLID(PinInstrument::GetCurrentBBL());
+        tag.SetDirty(accessType == ACCESS_TYPE_STORE);
+
 
         CACHE_SET *set = _sets[setIndex];
 

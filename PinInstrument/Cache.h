@@ -78,11 +78,19 @@ class CACHE_TAG
   private:
     ADDRINT _tag;
     BBLID _bblid;
+    BOOL _dirty;
 
   public:
-    CACHE_TAG(ADDRINT tag = 0) { _tag = tag; }
+    CACHE_TAG(ADDRINT tag = 0, BBLID bblid = -1, BOOL dirty = false) 
+    {
+       _tag = tag;
+       _bblid = bblid;
+       _dirty = dirty;
+    }
     bool operator==(const CACHE_TAG &right) const { return _tag == right._tag; }
     operator ADDRINT() const { return _tag; }
+    inline VOID SetBBLID(BBLID bblid) { _bblid = bblid; }
+    inline VOID SetDirty(BOOL dirty) { _dirty = dirty; }
 };
 
 

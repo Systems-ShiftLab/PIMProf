@@ -370,6 +370,10 @@ VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid)
 
 VOID PinInstrument::Image(IMG img, VOID *v)
 {
+    // push a fake bblid
+
+    bblidstack.push(GLOBALBBLID);
+
     // find annotator head and tail by their names
     RTN annotator_head = RTN_FindByName(img, PIMProfAnnotatorHead.c_str());
     RTN annotator_tail = RTN_FindByName(img, PIMProfAnnotatorTail.c_str());

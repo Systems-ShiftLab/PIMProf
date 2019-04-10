@@ -13,6 +13,7 @@
 #include <list>
 #include <vector>
 
+#include "PinUtil.h"
 #include "pin.H"
 
 /// @brief Checks if n is a power of 2.
@@ -70,8 +71,6 @@ static inline INT32 CeilLog2(UINT32 n)
 
 
 namespace PIMProf {
-    typedef UINT32 CACHE_STATS;
-    typedef UINT32 BBLID;
 /// @brief Cache tag - self clearing on creation
 class CACHE_TAG
 {

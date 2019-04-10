@@ -14,10 +14,9 @@
 
 
 #include "../LLVMAnalysis/Common.h"
+#include "INIReader.h"
 #include "PinInstrument.h"
 #include "Cache.h"
-
-#include "INIReader.h"
 
 using namespace PIMProf;
 
@@ -32,8 +31,10 @@ CACHE MemoryLatency::cache;
 MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
 std::stack<BBLID> PinInstrument::bblidstack;
+const std::string CostSolver::SiteName[MAX_COST_SITE] = { "CPU", "PIM" };
 CostSolver PinInstrument::solver;
-std::vector<CostSolver::CostTerm> CostSolver::BBLCostList;
+BBLID CostSolver::BBLSize;
+std::vector<CostSolver::CostTerm> CostSolver::CostTermList;
 
 /* ===================================================================== */
 /* InstructionLatency */
@@ -162,7 +163,7 @@ VOID InstructionLatency::ReadConfig(const std::string filename)
     for (UINT32 i = 0; i < MAX_INDEX; i++) {
         std::string opcodestr = OPCODE_StringShort(i);
         if (opcodestr != "LAST") {
-            long latency = reader.GetInteger("InstructionLatency", opcodestr, -1);
+            COST latency = reader.GetReal("InstructionLatency", opcodestr, -1);
             if (latency >= 0) {
                 latencytable[i] = latency;
             }
@@ -282,54 +283,70 @@ VOID MemoryLatency::WriteConfig(const std::string filename)
 /* ===================================================================== */
 /* CostSolver */
 /* ===================================================================== */
+CostSolver::CostSolver()
+{
+    memset(unitcontrolcost, 0, sizeof(unitcontrolcost));
+    BBLSize = 0; 
+}
 
 CostSolver::CostSolver(const std::string filename)
 {
+    CostSolver();
     AddControlCost(filename);
+}
+
+COST CostSolver::Cost(CostSolver::DECISION &decision)
+{
+    std::vector<CostTerm>::iterator it = CostTermList.begin();
+    std::vector<CostTerm>::iterator eit = CostTermList.end();
+    COST result = 0;
+    for (; it != eit; it++) {
+        result += it->Cost(decision);
+    }
+    return result;
+}
+
+VOID CostSolver::ReadConfig(const std::string filename)
+{
+    INIReader reader(filename);
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        for (UINT32 j = 0; j < MAX_COST_SITE; j++) {
+            std::string coststr = SiteName[i] + "to" + SiteName[j];
+            COST cost = reader.GetReal("UnitControlCost", coststr, -1);
+            if (cost >= 0) {
+                unitcontrolcost[i][j] = cost;
+            }
+        }
+    }
+    
 }
 
 VOID CostSolver::AddControlCost(const std::string filename)
 {
-    // NodeList.clear();
-    // EdgeList.clear();
+    CostTermList.clear();
 
-    // std::ifstream ifs;
-    // ifs.open(filename.c_str());
-    // std::string curline;
+    std::ifstream ifs;
+    ifs.open(filename.c_str());
+    std::string curline;
 
-    // BBLID MAX_NODE;
-    // getline(ifs, curline);
-    // std::stringstream ss(curline);
-    // ss >> MAX_NODE;
+    getline(ifs, curline);
+    std::stringstream ss(curline);
+    ss >> BBLSize;
+    BBLSize++; // BBLSize = Largest BBLID + 1
 
-    // // create node according to maximum number of nodes
-    // for (BBLID i = 0; i <= MAX_NODE; i++) {
-    //     NodeList.push_back(Node(i));
-    // }
+    // The control cost of BBL i -> BBL j depends on the offloading decision of BBL i and BBL j
 
-    // // create edges
-    // while(getline(ifs, curline)) {
-    //     std::stringstream ss(curline);
-    //     BBLID head, tail;
-    //     ss >> head;
-    //     while(ss >> tail) {
-    //         CreateEdgeIfNotExist(&NodeList[head], &NodeList[tail]);
-    //     }
-    // }
-
-    // for (UINT32 i = 0; i < NodeList.size(); i++) {
-    //     Node *n = &NodeList[i];
-        
-    //     for (EdgeMap::iterator it=n->outEdge.begin(); it!=n->outEdge.end(); it++) {
-    //         it->second->print(std::cout);
-    //         std::cout << std::endl;
-    //     }
-    // }
 }
 
 COST CostSolver::CostTerm::Cost(DECISION &decision)
 {
-    
+    std::vector<BBLID>::iterator it = varproduct.begin();
+    std::vector<BBLID>::iterator eit = varproduct.end();
+    COST result = coefficient;
+    for (; it != eit; it++) {
+        result *= decision[*it];
+    }
+    return result;
 }
 
 

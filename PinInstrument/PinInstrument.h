@@ -15,6 +15,7 @@
 #include <map>
 #include "pin.H"
 
+#include "PinUtil.h"
 #include "Cache.h"
 
 namespace PIMProf {
@@ -107,27 +108,42 @@ class InstructionLatency {
 
 class CostSolver {
   public:
-    class CostTerm;
-    typedef std::vector<BOOL> DECISION;
-
-  public:
-    typedef FLT64 COST;
     static const UINT32 MAX_COST_SITE = 2;
     enum Site {
-        PIM, CPU
+        CPU = 0,
+        PIM = 1
     };
+    static const std::string SiteName[MAX_COST_SITE];
     static const UINT32 MAX_EDGE_TYPE = 2;
     enum EdgeType {
         CONTROL, DATA
     };
 
+  public:
+    class CostTerm;
+    /// A DECISION is a vector that represents a certain offloading decision, for example:
+    /// A DECISION vector (PIM, CPU, CPU, PIM) means:
+    /// put the 1st and 4th BBL on PIM and 2nd and 3rd on CPU for execution
+    /// The target of CostSolver is to figure out the decision that will lead to the minimum total cost.
+    typedef std::vector<Site> DECISION;
+
   private:
-    /// All costs that are attributed to a certain BBL is stored in the corresponding CostTerm node
-    static std::vector<CostTerm> BBLCostList;
+    static COST unitcontrolcost[MAX_COST_SITE][MAX_COST_SITE];
+
+  private:
+    static BBLID BBLSize;
+
+    /// Based on the structure of the program, the total cost can be expressed as a polynomial, where each term is the product of some decisions,
+    /// when the desision is given, the corresponding cost is determined, for example:
+    /// Let "DECISION dec" be an arbitrary decision vector, the total cost may have an expression in this form:
+    /// cost = coeff[0] + coeff[1] * dec[2] * dec[4] + coeff[2] * dec[0] * dec[1] * dec[2] * dec[3] + ...
+    static std::vector<CostTerm> CostTermList;
 
   public:
-    CostSolver() {};
+    CostSolver();
     CostSolver(const std::string filename);
+    static COST Cost(DECISION &decision);
+    static VOID ReadConfig(const std::string filename);
 
     /// Read the Control Flow Graph from LLVM pass
     /// Attribute the control cost to the tail node
@@ -141,7 +157,7 @@ class CostSolver::CostTerm {
     friend class CostSolver;
   private:
     COST coefficient;
-    std::vector<BBLID> variables;
+    std::vector<BBLID> varproduct;
     
   public:
     COST Cost(DECISION &decision);

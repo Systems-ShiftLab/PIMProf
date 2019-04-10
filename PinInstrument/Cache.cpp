@@ -292,7 +292,6 @@ VOID CACHE::WriteConfig(const std::string filename)
 
 std::ostream& CACHE::WriteStats(std::ostream& out)
 {
-    std::cout << 1 <<std::endl;
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
         _cache[i]->StatsLong(out);
     }

@@ -76,13 +76,19 @@ int main(int argc, CHAR *argv[])
     {
         ASSERTX(0);
     }
-    
-    IMG_AddInstrumentFunction(PinInstrument::Image, 0);
 
+    InstructionLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultinstructionlatency.ini");
     MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcache.ini");
+    CostSolver::clear();
+    CostSolver::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcost.ini");
     CostSolver::AddControlCost("/home/warsier/Documents/PIMProf/TestCase/merged.out");
-    INS_AddInstrumentFunction(MemoryLatency::Instruction, 0);
-    PIN_AddFiniFunction(MemoryLatency::Fini, 0);
+
+    IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);
+
+    INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);
+
+    PIN_AddFiniFunction(MemoryLatency::FinishInstrument, 0);
+    PIN_AddFiniFunction(PinInstrument::FinishInstrument, 0);
 
     // Never returns
     PIN_StartProgram();

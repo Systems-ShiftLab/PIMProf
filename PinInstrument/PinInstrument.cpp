@@ -23,7 +23,6 @@ using namespace PIMProf;
 /* ===================================================================== */
 /* Static data structure */
 /* ===================================================================== */
-const std::string CostSiteName[MAX_COST_SITE] = { "CPU", "PIM" };
 
 MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
@@ -49,12 +48,12 @@ VOID MemoryLatency::InsRef(ADDRINT addr)
     cache.InsRef(addr);
 }
 
-VOID MemoryLatency::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+VOID MemoryLatency::MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     cache.MemRefMulti(addr, size, accessType);
 }
 
-VOID MemoryLatency::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+VOID MemoryLatency::MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     cache.MemRefSingle(addr, size, accessType);
 }
@@ -76,7 +75,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *v)
             ins, IPOINT_BEFORE, countFun,
             IARG_MEMORYREAD_EA,
             IARG_MEMORYREAD_SIZE,
-            IARG_UINT32, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD,
+            IARG_UINT32, ACCESS_TYPE_LOAD,
             IARG_END);
     }
     if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins))
@@ -89,7 +88,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *v)
             ins, IPOINT_BEFORE, countFun,
             IARG_MEMORYWRITE_EA,
             IARG_MEMORYWRITE_SIZE,
-            IARG_UINT32, CACHE_LEVEL_BASE::ACCESS_TYPE_STORE,
+            IARG_UINT32, ACCESS_TYPE_STORE,
             IARG_END);
     }
 }
@@ -151,15 +150,16 @@ VOID InstructionLatency::SetBBLSize(BBLID _BBL_size) {
 
 VOID InstructionLatency::InstructionInstrument(INS ins, VOID *v)
 {
+    BBLID bblid = PinInstrument::GetCurrentBBL();
+    if (bblid == GLOBALBBLID) return;
     // all instruction fetches access I-cache
     if (! (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)))
     {
         OPCODE opcode = INS_Opcode(ins);
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            CostSolver::_BBL_instruction_cost[i][PinInstrument::GetCurrentBBL()] += _instruction_latency[i][opcode];
+            CostSolver::_BBL_instruction_cost[i][bblid] += _instruction_latency[i][opcode];
         }
     }
-    
 }
 
 
@@ -186,12 +186,13 @@ std::ostream& InstructionLatency::WriteConfig(std::ostream& out)
             << "; <Instuction Name> = <Instruction Latency>" << std::endl;
         for (UINT32 j = 0; j < MAX_INDEX; j++)
         {
-            std::string opcodestr = OPCODE_StringShort(i);
+            std::string opcodestr = OPCODE_StringShort(j);
             if (opcodestr != "LAST") {
                 opcodestr = ljstr(opcodestr, 15);
                 out << opcodestr << "= " << _instruction_latency[i][j] << std::endl;
             }
         }
+        out << std::endl;
     }
     return out;
 }
@@ -263,7 +264,6 @@ VOID CostSolver::AddControlCost(const std::string filename)
     std::ifstream ifs;
     ifs.open(filename.c_str());
     std::string curline;
-    std::cout << _cost_term_set.size() << std::endl;
 
     getline(ifs, curline);
     std::stringstream ss(curline);
@@ -272,8 +272,11 @@ VOID CostSolver::AddControlCost(const std::string filename)
 
     InstructionLatency::SetBBLSize(_BBL_size);
 
-    // The control cost of BBL i -> BBL j depends on the offloading decision of BBL i and BBL j
-    // totalcost += cc[0][0]*(1-d[i])*(1-d[j]) + cc[0][1]*(1-d[i])*d[j] + cc[1][0]*d[i]*(1-dec[j]) + cc[1][1]*d[i]*d[j]
+    /****************************
+    The control cost of BBL i -> BBL j depends on the offloading decision of BBL i and BBL j
+    totalcost += cc[0][0]*(1-d[i])*(1-d[j]) + cc[0][1]*(1-d[i])*d[j] + cc[1][0]*d[i]*(1-dec[j]) + cc[1][1]*d[i]*d[j]
+    ****************************/
+
     while(getline(ifs, curline)) {
         std::stringstream ss(curline);
         BBLID head, tail;
@@ -292,9 +295,6 @@ VOID CostSolver::AddControlCost(const std::string filename)
             AddCostTerm(CostTerm(cost));
         }
     }
-    print(std::cout);
-    std::cout << std::endl;
-
 }
 
 VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE])
@@ -303,8 +303,10 @@ VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[M
         ASSERTX(_BBL_instruction_cost[i].size() == _BBL_size);
     }
 
-    // The instruction cost of BBL i depends solely on the offloading decision of BBL i
-    // totalcost += cc[0]*(1-d[i]) + cc[1]*d[i]
+    /****************************
+    The instruction cost of BBL i depends solely on the offloading decision of BBL i
+    totalcost += cc[0]*(1-d[i]) + cc[1]*d[i]
+    ****************************/
     for (BBLID i = 0; i < _BBL_size; i++) {
         COST cost = -_BBL_instruction_cost[0][i] + _BBL_instruction_cost[1][i];
         AddCostTerm(CostTerm(cost, i));
@@ -370,7 +372,10 @@ std::ostream &CostSolver::CostTerm::print(std::ostream &out) const
 {
     std::set<BBLID>::const_iterator it = _varproduct.begin();
     std::set<BBLID>::const_iterator eit = _varproduct.end();
-    out << _coefficient;
+    if (_coefficient < 0)
+        out << "(" << _coefficient << ")";
+    else
+        out << _coefficient;
 
     if (_varproduct.size() == 0) return out;
     out << " * d[" << *it << "]";
@@ -395,9 +400,7 @@ VOID PinInstrument::DoAtAnnotatorHead(BBLID bblid)
 VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid)
 {
     std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
-    if (bblidstack.top() != bblid) {
-        ASSERTX(0 && "Annotator head and tail does not match! This may be cause by exceptions or gotos in the original program.");
-    }
+    ASSERTX(bblidstack.top() == bblid);
     bblidstack.pop();
 }
 
@@ -438,4 +441,6 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
 {
     CostSolver::AddInstructionCost(CostSolver::_BBL_instruction_cost);
     CostSolver::print(std::cout);
+    std::cout << std::endl;
+    InstructionLatency::WriteConfig("template.ini");
 }

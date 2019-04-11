@@ -174,9 +174,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
         UINT32 setIndex;
 
         SplitAddress(addr, tag, setIndex);
-        tag.SetBBLID(PinInstrument::GetCurrentBBL());
-        tag.SetDirty(accessType == ACCESS_TYPE_STORE);
-
+        tag.InsertOperation(PinInstrument::GetCurrentBBL(), accessType);
 
         CACHE_SET *set = _sets[setIndex];
 
@@ -305,7 +303,7 @@ VOID CACHE::WriteStats(const std::string filename)
     out.close();
 }
 
-VOID CACHE::Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+VOID CACHE::Ul2Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     // second level unified cache
     const BOOL ul2Hit = _cache[UL2]->Access(addr, size, accessType);
@@ -317,7 +315,7 @@ VOID CACHE::Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE a
 VOID CACHE::InsRef(ADDRINT addr)
 {
     const UINT32 size = 1; // assuming access does not cross cache lines
-    const CACHE_LEVEL_BASE::ACCESS_TYPE accessType = CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD;
+    const ACCESS_TYPE accessType = ACCESS_TYPE_LOAD;
 
     // ITLB
     _cache[ITLB]->AccessSingleLine(addr, accessType);
@@ -330,10 +328,10 @@ VOID CACHE::InsRef(ADDRINT addr)
 }
 
 
-VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     // DTLB
-    _cache[DTLB]->AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
+    _cache[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     const BOOL dl1Hit = _cache[DL1]->Access(addr, size, accessType);
@@ -342,10 +340,10 @@ VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE
     if ( ! dl1Hit) Ul2Access(addr, size, accessType);
 }
 
-VOID CACHE::MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType)
+VOID CACHE::MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     // DTLB
-    _cache[DTLB]->AccessSingleLine(addr, CACHE_LEVEL_BASE::ACCESS_TYPE_LOAD);
+    _cache[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     const BOOL dl1Hit = _cache[DL1]->AccessSingleLine(addr, accessType);

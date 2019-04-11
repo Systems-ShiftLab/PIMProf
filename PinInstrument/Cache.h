@@ -76,20 +76,23 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
-    BBLID _bblid;
-    BOOL _dirty;
+    std::vector<BBLID> _bblid;
+    std::vector<ACCESS_TYPE> _op;
 
   public:
-    CACHE_TAG(ADDRINT tag = 0, BBLID bblid = -1, BOOL dirty = false) 
+    CACHE_TAG(ADDRINT tag = 0) 
     {
        _tag = tag;
-       _bblid = bblid;
-       _dirty = dirty;
     }
+
     bool operator==(const CACHE_TAG &right) const { return _tag == right._tag; }
     operator ADDRINT() const { return _tag; }
-    inline VOID SetBBLID(BBLID bblid) { _bblid = bblid; }
-    inline VOID SetDirty(BOOL dirty) { _dirty = dirty; }
+
+    inline VOID InsertOperation(BBLID bblid, ACCESS_TYPE op) 
+    {
+        _bblid.push_back(bblid);
+        _op.push_back(op);
+    }
 };
 
 
@@ -272,15 +275,6 @@ enum STORE_ALLOCATION
 /// @brief Generic cache base class; no allocate specialization, no cache set specialization
 class CACHE_LEVEL_BASE
 {
-  public:
-    // types, constants
-    enum ACCESS_TYPE
-    {
-        ACCESS_TYPE_LOAD,
-        ACCESS_TYPE_STORE,
-        ACCESS_TYPE_NUM
-    };
-
   protected:
     static const UINT32 HIT_MISS_NUM = 2;
     CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
@@ -428,16 +422,16 @@ class CACHE
     std::ostream& WriteStats(std::ostream& out);
     VOID WriteStats(const std::string filename);
 
-    VOID Ul2Access(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    VOID Ul2Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// Do on instruction cache reference
     VOID InsRef(ADDRINT addr);
 
     /// Do on multi-line data cache references
-    VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    VOID MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// Do on a single-line data cache reference
-    VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    VOID MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 };
 
 std::string StringInt(UINT64 val, UINT32 width = 0, CHAR padding = ' ');

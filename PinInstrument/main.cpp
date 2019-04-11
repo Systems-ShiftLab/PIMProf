@@ -86,6 +86,7 @@ int main(int argc, CHAR *argv[])
     IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);
 
     INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);
+    INS_AddInstrumentFunction(InstructionLatency::InstructionInstrument, 0);
 
     PIN_AddFiniFunction(MemoryLatency::FinishInstrument, 0);
     PIN_AddFiniFunction(PinInstrument::FinishInstrument, 0);

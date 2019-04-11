@@ -33,10 +33,10 @@ class MemoryLatency {
     static VOID InsRef(ADDRINT addr);
 
     /// Do on multi-line data cache references
-    static VOID MemRefMulti(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    static VOID MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// Do on a single-line data cache reference
-    static VOID MemRefSingle(ADDRINT addr, UINT32 size, CACHE_LEVEL_BASE::ACCESS_TYPE accessType);
+    static VOID MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// The instrumentation function for memory instructions
     static VOID InstructionInstrument(INS ins, VOID *v);
@@ -78,7 +78,7 @@ class InstructionLatency {
     static VOID SetBBLSize(BBLID _BBL_size);
 
     /// The instrumentation function for normal instructions
-    VOID InstructionInstrument(INS ins, VOID *v);
+    static VOID InstructionInstrument(INS ins, VOID *v);
 
   public:
     /// Read instruction latency config to _instruction_latency from ofstream or file.
@@ -175,8 +175,6 @@ class PinInstrument {
     static std::stack<BBLID> bblidstack;
     static CostSolver solver;
 
-  public:
-    static const BBLID GLOBALBBLID = -1;
   public:
     PinInstrument() {};
 

@@ -8,6 +8,7 @@ namespace PIMProf {
     typedef UINT32 CACHE_STATS;
     typedef FLT64 COST;
     typedef UINT32 BBLID;
+    
 
     static const UINT32 MAX_COST_SITE = 2;
     enum CostSite {
@@ -24,6 +25,8 @@ namespace PIMProf {
         ACCESS_TYPE_STORE,
         ACCESS_TYPE_NUM
     };
+
+    typedef std::pair<BBLID, ACCESS_TYPE> BBLOP;
 }
 
 #endif // __PINUTIL_H__

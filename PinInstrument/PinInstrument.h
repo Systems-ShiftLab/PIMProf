@@ -135,6 +135,8 @@ class CostSolver {
     /// Read the Instruction Cost from InstructionLatency instrumentation result
     static VOID AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE]);
 
+    static VOID AddDataReuseCost(std::vector<BBLOP> *op);
+
     static std::ostream &print(std::ostream &out);
 };
 

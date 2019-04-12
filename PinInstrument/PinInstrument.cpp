@@ -315,6 +315,16 @@ VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[M
     }
 }
 
+VOID CostSolver::AddDataReuseCost(std::vector<BBLOP> *op)
+{
+    std::vector<BBLOP>::iterator it = op->begin();
+    std::vector<BBLOP>::iterator eit = op->end();
+    for (; it != eit; it++) {
+        std::cout << it->first << "," << it->second << " -> ";
+    }
+    std::cout << std::endl;
+}
+
 std::ostream &CostSolver::print(std::ostream &out)
 {
     std::set<CostTerm>::iterator it = _cost_term_set.begin();

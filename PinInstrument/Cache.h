@@ -78,20 +78,17 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
-    std::vector<BBLID> *_bblid;
-    std::vector<ACCESS_TYPE> *_op;
+    std::vector<BBLOP> *_op;
 
   public:
     CACHE_TAG(ADDRINT tagaddr = 0)
     {
         _tag = tagaddr;
-        _bblid = new std::vector<BBLID>;
-        _op = new std::vector<ACCESS_TYPE>;
+        _op = new std::vector<BBLOP>;
     }
 
     ~CACHE_TAG() 
     {
-        delete _bblid;
         delete _op;
     }
 
@@ -99,17 +96,27 @@ class CACHE_TAG
 
     inline VOID SetTag(ADDRINT tagaddr) {
        _tag = tagaddr;
-       _bblid->clear();
-       _op->clear();
     }
     inline ADDRINT GetTag() const { return _tag; }
 
-    inline VOID InsertOperation(BBLID bblid, ACCESS_TYPE op) 
+    inline VOID InsertBBLOperation(BBLID bblid, ACCESS_TYPE op) 
     {
         if (bblid != GLOBALBBLID) {
-            _bblid->push_back(bblid);
-            _op->push_back(op);
+            BBLOP temp = std::make_pair(bblid, op);
+            if (_op->empty() || temp != _op->back()) {
+                _op->push_back();
+            }
         }
+    }
+
+    inline std::vector<BBLOP> *GetBBLOperation()
+    {
+        return _op;
+    }
+
+    inline VOID ClearBBLOperation()
+    {
+        _op->clear();
     }
 };
 

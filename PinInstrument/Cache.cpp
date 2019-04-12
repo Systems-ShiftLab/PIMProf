@@ -188,6 +188,14 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
         if ((!localhit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
         {
             tag = set->Replace(tagaddr);
+            CostSolver::AddDataReuseCost(tag->GetBBLOperation());
+            tag->ClearBBLOperation();
+        }
+
+        // tag == NULL means that accessType is STORE and STORE_ALLOCATION is NO ALLOCATE
+        if (tag != NULL) {
+            std::cout << tag->GetTag() << std::endl;
+            tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
         }
 
         addr = (addr & notLineMask) + lineSize; // start of next cache line
@@ -215,6 +223,11 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
         tag = set->Replace(tagaddr);
+        CostSolver::AddDataReuseCost(tag->GetBBLOperation());
+        tag->ClearBBLOperation();
+    }
+    if (tag != NULL) {
+        tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
     }
 
     _access[accessType][hit]++;

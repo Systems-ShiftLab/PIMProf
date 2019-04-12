@@ -51,6 +51,10 @@ std::string PIMProf::StringString(std::string val, UINT32 width, CHAR padding)
 }
 
 /* ===================================================================== */
+/* Cache tag */
+/* ===================================================================== */
+
+/* ===================================================================== */
 /* Base class for cache level */
 /* ===================================================================== */
 
@@ -170,21 +174,20 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
     const ADDRINT notLineMask = ~(lineSize - 1);
     do
     {
-        CACHE_TAG tag;
+        ADDRINT tagaddr;
         UINT32 setIndex;
 
-        SplitAddress(addr, tag, setIndex);
-        tag.InsertOperation(PinInstrument::GetCurrentBBL(), accessType);
+        SplitAddress(addr, tagaddr, setIndex);
 
         CACHE_SET *set = _sets[setIndex];
-
-        BOOL localHit = set->Find(tag);
-        allHit &= localHit;
+        CACHE_TAG *tag = set->Find(tagaddr);
+        BOOL localhit = (tag != NULL);
+        allHit &= localhit;
 
         // on miss, loads always allocate, stores optionally
-        if ((!localHit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
+        if ((!localhit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
         {
-            set->Replace(tag);
+            tag = set->Replace(tagaddr);
         }
 
         addr = (addr & notLineMask) + lineSize; // start of next cache line
@@ -198,19 +201,20 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 
 BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 {
-    CACHE_TAG tag;
+    ADDRINT tagaddr;
     UINT32 setIndex;
 
-    SplitAddress(addr, tag, setIndex);
+    SplitAddress(addr, tagaddr, setIndex);
 
     CACHE_SET *set = _sets[setIndex];
 
-    BOOL hit = set->Find(tag);
+    CACHE_TAG *tag = set->Find(tagaddr);
+    BOOL hit = (tag != NULL);
 
     // on miss, loads always allocate, stores optionally
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
-        set->Replace(tag);
+        tag = set->Replace(tagaddr);
     }
 
     _access[accessType][hit]++;

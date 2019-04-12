@@ -71,27 +71,45 @@ static inline INT32 CeilLog2(UINT32 n)
 
 
 namespace PIMProf {
-/// @brief Cache tag - self clearing on creation
+/// @brief Cache tag
+/// dynamic data structure should only be allocated on construction
+/// and deleted on destruction
 class CACHE_TAG
 {
   private:
     ADDRINT _tag;
-    std::vector<BBLID> _bblid;
-    std::vector<ACCESS_TYPE> _op;
+    std::vector<BBLID> *_bblid;
+    std::vector<ACCESS_TYPE> *_op;
 
   public:
-    CACHE_TAG(ADDRINT tag = 0) 
+    CACHE_TAG(ADDRINT tagaddr = 0)
     {
-       _tag = tag;
+        _tag = tagaddr;
+        _bblid = new std::vector<BBLID>;
+        _op = new std::vector<ACCESS_TYPE>;
     }
 
-    bool operator==(const CACHE_TAG &right) const { return _tag == right._tag; }
-    operator ADDRINT() const { return _tag; }
+    ~CACHE_TAG() 
+    {
+        delete _bblid;
+        delete _op;
+    }
+
+    inline bool operator == (const ADDRINT &rhs) const { return _tag == rhs; }
+
+    inline VOID SetTag(ADDRINT tagaddr) {
+       _tag = tagaddr;
+       _bblid->clear();
+       _op->clear();
+    }
+    inline ADDRINT GetTag() const { return _tag; }
 
     inline VOID InsertOperation(BBLID bblid, ACCESS_TYPE op) 
     {
-        _bblid.push_back(bblid);
-        _op.push_back(op);
+        if (bblid != GLOBALBBLID) {
+            _bblid->push_back(bblid);
+            _op->push_back(op);
+        }
     }
 };
 
@@ -104,8 +122,8 @@ class CACHE_SET
     virtual ~CACHE_SET() {};
     virtual VOID SetAssociativity(UINT32 associativity) = 0;
     virtual UINT32 GetAssociativity(UINT32 associativity) = 0;
-    virtual UINT32 Find(CACHE_TAG tag) = 0;
-    virtual VOID Replace(CACHE_TAG tag) = 0;
+    virtual CACHE_TAG *Find(ADDRINT tagaddr) = 0;
+    virtual CACHE_TAG *Replace(ADDRINT tagaddr) = 0;
     virtual VOID Flush() = 0;
 };
 
@@ -113,24 +131,43 @@ class CACHE_SET
 class DIRECT_MAPPED : public CACHE_SET
 {
   private:
-    CACHE_TAG _tag;
+    CACHE_TAG *_tag;
 
   public:
-    inline DIRECT_MAPPED(UINT32 associativity = 1) { ASSERTX(associativity == 1); }
+    inline DIRECT_MAPPED(UINT32 associativity = 1) 
+    {
+        ASSERTX(associativity == 1);
+        _tag = new CACHE_TAG(0);
+    }
+
+    inline ~DIRECT_MAPPED()
+    {
+        delete _tag;
+    }
 
     inline VOID SetAssociativity(UINT32 associativity) { ASSERTX(associativity == 1); }
     inline UINT32 GetAssociativity(UINT32 associativity) { return 1; }
 
-    inline UINT32 Find(CACHE_TAG tag) { return (_tag == tag); }
-    inline VOID Replace(CACHE_TAG tag) { _tag = tag; }
-    inline VOID Flush() { _tag = 0; }
+    inline CACHE_TAG *Find(ADDRINT tagaddr) 
+    {
+        if (*_tag == tagaddr) {
+            return _tag;
+        }
+        return NULL;
+    }
+    inline CACHE_TAG *Replace(ADDRINT tagaddr) 
+    {
+        _tag->SetTag(tagaddr);
+        return _tag;
+    }
+    inline VOID Flush() { _tag->SetTag(0); }
 };
 
 /// @brief Cache set with round robin replacement
 class ROUND_ROBIN : public CACHE_SET
 {
   private:
-    CACHE_TAG _tags[MAX_ASSOCIATIVITY];
+    CACHE_TAG *_tags[MAX_ASSOCIATIVITY];
     UINT32 _tagsLastIndex;
     UINT32 _nextReplaceIndex;
 
@@ -144,7 +181,15 @@ class ROUND_ROBIN : public CACHE_SET
 
         for (INT32 index = _tagsLastIndex; index >= 0; index--)
         {
-            _tags[index] = CACHE_TAG(0);
+            _tags[index] = new CACHE_TAG(0);
+        }
+    }
+
+    inline ~ROUND_ROBIN()
+    {
+        for (INT32 index = _tagsLastIndex; index >= 0; index--)
+        {
+            delete _tags[index];
         }
     }
 
@@ -157,37 +202,32 @@ class ROUND_ROBIN : public CACHE_SET
 
     inline UINT32 GetAssociativity(UINT32 associativity) { return _tagsLastIndex + 1; }
 
-    inline UINT32 Find(CACHE_TAG tag)
+    inline CACHE_TAG *Find(ADDRINT tagaddr)
     {
-        bool result = true;
-
         for (INT32 index = _tagsLastIndex; index >= 0; index--)
         {
-            // this is an ugly micro-optimization, but it does cause a
-            // tighter assembly loop for ARM that way ...
-            if (_tags[index] == tag)
-                goto end;
+            if (*_tags[index] == tagaddr)
+                return _tags[index];
         }
-        result = false;
-
-    end:
-        return result;
+        return NULL;
     }
 
-    inline VOID Replace(CACHE_TAG tag)
+    inline CACHE_TAG *Replace(ADDRINT tagaddr)
     {
         // g++ -O3 too dumb to do CSE on following lines?!
         const UINT32 index = _nextReplaceIndex;
 
-        _tags[index] = tag;
+        _tags[index]->SetTag(tagaddr);
         // condition typically faster than modulo
         _nextReplaceIndex = (index == 0 ? _tagsLastIndex : index - 1);
+        return _tags[index];
     }
+
     inline VOID Flush()
     {
         for (INT32 index = _tagsLastIndex; index >= 0; index--)
         {
-            _tags[index] = 0;
+            _tags[index]->SetTag(0);
         }
         _nextReplaceIndex = _tagsLastIndex;
     }
@@ -196,7 +236,7 @@ class ROUND_ROBIN : public CACHE_SET
 class LRU : public CACHE_SET
 {
   public:
-    typedef std::list<CACHE_TAG> CacheTagList;
+    typedef std::list<CACHE_TAG *> CacheTagList;
 
   private:
     // this is a fixed-size list where the size is the current associativity
@@ -209,17 +249,35 @@ class LRU : public CACHE_SET
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
         for (UINT32 i = 0; i < associativity; i++)
         {
-            _tags.push_back(CACHE_TAG(0));
+            CACHE_TAG *tag = new CACHE_TAG(0);
+            tag->SetTag(0);
+            _tags.push_back(tag);
+        }
+    }
+
+    inline ~LRU()
+    {
+        while (!_tags.empty())
+        {
+            CACHE_TAG *tag = _tags.back();
+            delete tag;
+            _tags.pop_back();
         }
     }
 
     inline VOID SetAssociativity(UINT32 associativity)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
-        _tags.clear();
+        while (!_tags.empty())
+        {
+            CACHE_TAG *tag = _tags.back();
+            delete tag;
+            _tags.pop_back();
+        }
         for (UINT32 i = 0; i < associativity; i++)
         {
-            _tags.push_back(CACHE_TAG(0));
+            CACHE_TAG *tag = new CACHE_TAG(0);
+            _tags.push_back(tag);
         }
     }
 
@@ -228,36 +286,46 @@ class LRU : public CACHE_SET
         return _tags.size();
     }
 
-    inline UINT32 Find(CACHE_TAG tag)
+    inline CACHE_TAG *Find(ADDRINT tagaddr)
     {
         CacheTagList::iterator it = _tags.begin();
         CacheTagList::iterator eit = _tags.end();
         for (; it != eit; it++)
         {
+            CACHE_TAG *tag = *it;
             // promote the accessed cache line to the front
-            if (*it == tag)
+            if (*tag == tagaddr)
             {
                 _tags.erase(it);
                 _tags.push_front(tag);
-                return true;
+                return _tags.front();
             }
         }
-        return false;
+        return NULL;
     }
 
-    inline VOID Replace(CACHE_TAG tag)
+    inline CACHE_TAG *Replace(ADDRINT tagaddr)
     {
+        CACHE_TAG *tag = _tags.back();
         _tags.pop_back();
+        tag->SetTag(tagaddr);
         _tags.push_front(tag);
+        return tag;
     }
 
     inline VOID Flush()
     {
         UINT32 associativity = _tags.size();
-        _tags.clear();
+        while (!_tags.empty())
+        {
+            CACHE_TAG *tag = _tags.back();
+            delete tag;
+            _tags.pop_back();
+        }
         for (UINT32 i = 0; i < associativity; i++)
         {
-            _tags.push_back(CACHE_TAG(0));
+            CACHE_TAG *tag = new CACHE_TAG(0);
+            _tags.push_back(tag);
         }
     }
 };
@@ -326,17 +394,17 @@ class CACHE_LEVEL_BASE
     CACHE_STATS Flushes() const { return _numberOfFlushes; }
     CACHE_STATS Resets() const { return _numberOfResets; }
 
-    VOID SplitAddress(const ADDRINT addr, CACHE_TAG &tag, UINT32 &setIndex) const
+    VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex) const
     {
-        tag = addr >> _lineShift;
-        setIndex = tag & _setIndexMask;
+        tagaddr = addr >> _lineShift;
+        setIndex = tagaddr & _setIndexMask;
     }
 
-    VOID SplitAddress(const ADDRINT addr, CACHE_TAG &tag, UINT32 &setIndex, UINT32 &lineIndex) const
+    VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex, UINT32 &lineIndex) const
     {
         const UINT32 lineMask = _lineSize - 1;
         lineIndex = addr & lineMask;
-        SplitAddress(addr, tag, setIndex);
+        SplitAddress(addr, tagaddr, setIndex);
     }
 
     VOID IncFlushCounter()

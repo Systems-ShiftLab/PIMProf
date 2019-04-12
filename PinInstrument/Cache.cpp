@@ -194,7 +194,6 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 
         // tag == NULL means that accessType is STORE and STORE_ALLOCATION is NO ALLOCATE
         if (tag != NULL) {
-            std::cout << tag->GetTag() << std::endl;
             tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
         }
 

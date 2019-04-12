@@ -99,12 +99,12 @@ class CACHE_TAG
     }
     inline ADDRINT GetTag() const { return _tag; }
 
-    inline VOID InsertBBLOperation(BBLID bblid, ACCESS_TYPE op) 
+    inline VOID InsertBBLOperation(BBLID bblid, ACCESS_TYPE accessType) 
     {
         if (bblid != GLOBALBBLID) {
-            BBLOP temp = std::make_pair(bblid, op);
+            BBLOP temp = std::make_pair(bblid, accessType);
             if (_op->empty() || temp != _op->back()) {
-                _op->push_back();
+                _op->push_back(temp);
             }
         }
     }

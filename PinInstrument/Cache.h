@@ -103,7 +103,13 @@ class CACHE_TAG
     {
         if (bblid != GLOBALBBLID) {
             BBLOP temp = std::make_pair(bblid, accessType);
-            if (_op->empty() || temp != _op->back()) {
+            if (_op->empty()) {
+                _op->push_back(temp);
+                return;
+            }
+            BBLOP back = _op->back();
+            if (temp != back) {
+                if (accessType == ACCESS_TYPE_LOAD && back.second == ACCESS_TYPE_STORE) return;
                 _op->push_back(temp);
             }
         }

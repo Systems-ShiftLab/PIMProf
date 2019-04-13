@@ -88,7 +88,7 @@ namespace {
 
         virtual bool runOnModule(Module &M) {
             // assign unique id to each basic block
-            int bblid = 0;
+            int bblid = BBLStartingID;
 
             // inject annotator function to each basic block
             // attach basic block id to terminator

@@ -108,6 +108,9 @@ class CostSolver {
   private:
     static COST _control_latency[MAX_COST_SITE][MAX_COST_SITE];
     static std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
+    static COST _clwb_cost;
+    static COST _invalidate_cost;
+    static COST _fetch_cost;
 
   private:
     static BBLID _BBL_size;
@@ -122,6 +125,9 @@ class CostSolver {
     CostSolver();
     CostSolver(const std::string filename);
     static inline VOID clear() { _cost_term_set.clear(); }
+
+    static COST Minimize();
+
     static COST Cost(DECISION &decision);
 
     static VOID ReadConfig(const std::string filename);
@@ -146,18 +152,21 @@ class CostSolver::CostTerm {
     typedef std::vector<BBLID> BBLIDList; 
   private:
     mutable COST _coefficient;
-    std::set<BBLID> _varproduct;
+
+    // A positive BBLID i represents d[i] in term
+    // A negative BBLID -i represents (1-d[i]) in term
+    std::set<INT32> _varproduct;
     
   public:
     inline CostTerm(COST c = 0) : _coefficient(c) {}
-    CostTerm(COST c, BBLID id);
-    CostTerm(COST c, std::vector<BBLID> &v);
+    CostTerm(COST c, INT32 id);
+    CostTerm(COST c, std::vector<INT32> &v);
 
     COST Cost(DECISION &decision) const;
 
     inline VOID AddCoefficient(COST c) { _coefficient += c; }
-    inline VOID AddVar(BBLID id);
-    inline VOID AddVar(std::vector<BBLID> &v);
+    inline VOID AddVar(INT32 id);
+    inline VOID AddVar(std::vector<INT32> &v);
 
     /// use this comparator for _cost_term_set comparison
     bool operator < (const CostTerm &rhs) const 

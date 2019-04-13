@@ -17,7 +17,7 @@ namespace PIMProf {
     };
     static const std::string CostSiteName[MAX_COST_SITE] = { "CPU", "PIM" };
 
-    static const BBLID GLOBALBBLID = -1;
+    static const BBLID GLOBALBBLID = 0x7FFFFFFF;
 
     enum ACCESS_TYPE
     {

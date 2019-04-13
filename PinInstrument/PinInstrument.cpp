@@ -35,6 +35,9 @@ COST InstructionLatency::_instruction_latency[MAX_COST_SITE][MAX_INDEX];
 
 COST CostSolver::_control_latency[MAX_COST_SITE][MAX_COST_SITE];
 std::vector<COST> CostSolver::_BBL_instruction_cost[MAX_COST_SITE];
+COST CostSolver::_clwb_cost;
+COST CostSolver::_invalidate_cost;
+COST CostSolver::_fetch_cost;
 BBLID CostSolver::_BBL_size;
 std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
 
@@ -211,13 +214,47 @@ VOID InstructionLatency::WriteConfig(const std::string filename)
 CostSolver::CostSolver()
 {
     memset(_control_latency, 0, sizeof(_control_latency));
-    _BBL_size = 0; 
+    _BBL_size = 0;
+    _clwb_cost = 0;
+    _invalidate_cost = 0;
+    _fetch_cost = 0;
 }
 
 CostSolver::CostSolver(const std::string filename)
 {
     CostSolver();
     AddControlCost(filename);
+}
+
+COST CostSolver::Minimize()
+{
+    ASSERTX(_BBL_size <= 62);
+    UINT64 i = (1 << _BBL_size) - 1;
+    CostSolver::DECISION decision;
+    CostSolver::DECISION best;
+    COST mincost = FLT_MAX;
+    for (UINT32 j = 0; j <= _BBL_size; j++) {
+        decision.push_back(PIM);
+    }
+    
+    for (; i != (UINT64)(-1); i--) {
+        for (UINT32 j = 1; j <= _BBL_size; j++) {
+            if ((i >> (j - 1)) & 1)
+                decision[j] = PIM;
+            else
+                decision[j] = CPU;
+        }
+        COST cost = Cost(decision);
+        if (cost < mincost) {
+            mincost = cost;
+            best = decision;
+        }
+    }
+    for (UINT32 j = 1; j <= _BBL_size; j++)
+        std::cout << best[j];
+    std::cout << std::endl;
+    std::cout << mincost << std::endl;
+    return 0;
 }
 
 COST CostSolver::Cost(CostSolver::DECISION &decision)
@@ -241,9 +278,20 @@ VOID CostSolver::ReadConfig(const std::string filename)
             if (cost >= 0) {
                 _control_latency[i][j] = cost;
             }
+            cost = reader.GetReal("UnitReuseCost", "clwb", -1);
+            if (cost >= 0) {
+                _clwb_cost = cost;
+            }
+            cost = reader.GetReal("UnitReuseCost", "invalidate", -1);
+            if (cost >= 0) {
+                _invalidate_cost = cost;
+            }
+            cost = reader.GetReal("UnitReuseCost", "fetch", -1);
+            if (cost >= 0) {
+                _fetch_cost = cost;
+            }
         }
     }
-    
 }
 
 VOID CostSolver::AddCostTerm(const CostTerm &cost) {
@@ -282,17 +330,22 @@ VOID CostSolver::AddControlCost(const std::string filename)
         BBLID head, tail;
         ss >> head;
         while (ss >> tail) {
-            COST cost = _control_latency[0][0] - _control_latency[0][1] - _control_latency[1][0] + _control_latency[1][1];
-            CostTerm::BBLIDList list;
+            std::vector<INT32> list;
+            list.push_back(-head);
+            list.push_back(-tail);
+            AddCostTerm(CostTerm(_control_latency[0][0], list));
+            list.clear();
+            list.push_back(-head);
+            list.push_back(tail);
+            AddCostTerm(CostTerm(_control_latency[0][1], list));
+            list.clear();
+            list.push_back(head);
+            list.push_back(-tail);
+            AddCostTerm(CostTerm(_control_latency[1][0], list));
+            list.clear();
             list.push_back(head);
             list.push_back(tail);
-            AddCostTerm(CostTerm(cost, list));
-            cost = -_control_latency[0][0] + _control_latency[1][0];
-            AddCostTerm(CostTerm(cost, head));
-            cost = -_control_latency[0][0] + _control_latency[0][1];
-            AddCostTerm(CostTerm(cost, tail));
-            cost = _control_latency[0][0];
-            AddCostTerm(CostTerm(cost));
+            AddCostTerm(CostTerm(_control_latency[1][1], list));
         }
     }
 }
@@ -305,7 +358,8 @@ VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[M
 
     /****************************
     The instruction cost of BBL i depends solely on the offloading decision of BBL i
-    totalcost += cc[0]*(1-d[i]) + cc[1]*d[i]
+    totalcost += cc[0]*(1-d[i]) + cc[1]*d[i] or
+    totalcost += (-cc[0]+cc[1])*d[i] + cc[0]
     ****************************/
     for (BBLID i = 0; i < _BBL_size; i++) {
         COST cost = -_BBL_instruction_cost[0][i] + _BBL_instruction_cost[1][i];
@@ -319,10 +373,90 @@ VOID CostSolver::AddDataReuseCost(std::vector<BBLOP> *op)
 {
     std::vector<BBLOP>::iterator it = op->begin();
     std::vector<BBLOP>::iterator eit = op->end();
+    std::vector<INT32> origin;
+    std::vector<INT32> flipped;
     for (; it != eit; it++) {
-        std::cout << it->first << "," << it->second << " -> ";
+        // std::cout << it->first << "," << it->second << " -> ";
+        BBLID curid = it->first;
+        ACCESS_TYPE curtype = it->second;
+
+        /****************************
+        The data reuse cost of a LOAD is dependent on the offloading decision of all operations between itself and the most recent STORE. 
+        A PIM LOAD needs to pay the FLUSH cost when the LOADs and the most recent STORE are all on CPU.
+        A CPU LOAD needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
+
+        Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
+        totalcost += clwb*d[j]*(1-d[i])*(1-d[i+1])*...*(1-d[j-1])
+                   + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
+
+        If there is no STORE before it,
+        A PIM LOAD does not need to pay any cost.
+        A CPU LOAD needs to pay the FETCH cost.
+
+        So:
+        totalcost += fetch*(1-d[j])
+        ****************************/
+        if (curtype == ACCESS_TYPE_LOAD) {
+            if (origin.empty()) { // no STORE
+                AddCostTerm(CostTerm(_fetch_cost, -curid));
+                origin.push_back(curid);
+                flipped.push_back(-curid);
+            }
+            else {
+                flipped.push_back(curid);
+                AddCostTerm(CostTerm(_clwb_cost, flipped));
+                flipped.pop_back();
+                flipped.push_back(-curid);
+
+                origin.push_back(-curid);
+                AddCostTerm(CostTerm(_fetch_cost, origin));
+                origin.pop_back();
+                origin.push_back(curid);
+            }
+        }
+        /****************************
+        The data reuse cost of a STORE is dependent on the offloading decision of all operations between itself and the most recent STORE besides itself. 
+        A PIM STORE needs to pay the INVALIDATE cost when any one among the LOADs and the most recent STORE is on CPU.
+        A CPU STORE needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
+
+        Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
+        totalcost += invalidate*d[j]*(1-d[i]*d[i+1]*...*d[j-1])
+                   + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
+
+        If there is no STORE before it,
+        A PIM STORE does not need to pay any cost.
+        A CPU STORE needs to pay the FETCH cost.
+
+        So:
+        totalcost += fetch*(1-d[j])
+        ****************************/
+        if (curtype == ACCESS_TYPE_STORE) {
+            if (origin.empty()) { // no STORE
+                AddCostTerm(CostTerm(_fetch_cost, -curid));
+                origin.push_back(curid);
+                flipped.push_back(-curid);
+            }
+            else {
+                AddCostTerm(CostTerm(_invalidate_cost, curid));
+                origin.push_back(curid);
+                AddCostTerm(CostTerm(-_invalidate_cost, origin));
+                origin.pop_back();
+
+                origin.push_back(-curid);
+                AddCostTerm(CostTerm(_fetch_cost, origin));
+
+                origin.clear();
+                origin.push_back(curid);
+                flipped.clear();
+                flipped.push_back(-curid);
+            }
+        }
+        if (curtype == ACCESS_TYPE_NUM) {
+            ASSERTX(0);
+        }
+
     }
-    std::cout << std::endl;
+    // std::cout << std::endl;
 }
 
 std::ostream &CostSolver::print(std::ostream &out)
@@ -343,55 +477,72 @@ std::ostream &CostSolver::print(std::ostream &out)
 /* CostSolver::CostTerm */
 /* ===================================================================== */
 
-CostSolver::CostTerm::CostTerm(COST c, BBLID id) : _coefficient(c)
+CostSolver::CostTerm::CostTerm(COST c, INT32 id) : _coefficient(c)
 {
     AddVar(id);
 }
 
-CostSolver::CostTerm::CostTerm(COST c, std::vector<BBLID> &v) : _coefficient(c)
+CostSolver::CostTerm::CostTerm(COST c, std::vector<INT32> &v) : _coefficient(c)
 {
     AddVar(v);
 }
 
 COST CostSolver::CostTerm::Cost(DECISION &decision) const
 {
-    std::set<BBLID>::const_iterator it = _varproduct.begin();
-    std::set<BBLID>::const_iterator eit = _varproduct.end();
-    COST result = _coefficient;
+    std::set<INT32>::const_iterator it = _varproduct.begin();
+    std::set<INT32>::const_iterator eit = _varproduct.end();
+    BOOL result = true;
     for (; it != eit; it++) {
-        result *= decision[*it];
+        if (*it > 0)
+            result &= decision[*it];
+        else
+            result &= (!decision[-(*it)]);
     }
-    return result;
+    return (_coefficient * result);
 }
 
-VOID CostSolver::CostTerm::AddVar(BBLID id)
+VOID CostSolver::CostTerm::AddVar(INT32 id)
 {
-    _varproduct.insert(id); 
+    if (_varproduct.find(-id) != _varproduct.end())
+        _coefficient = 0;
+    if (_coefficient != 0)
+        _varproduct.insert(id);
 }
 
-VOID CostSolver::CostTerm::AddVar(std::vector<BBLID> &v)
+VOID CostSolver::CostTerm::AddVar(std::vector<INT32> &v)
 {
-    std::vector<BBLID>::iterator it = v.begin();
-    std::vector<BBLID>::iterator eit = v.end();
-    for (; it != eit; it++) {
-        _varproduct.insert(*it);
+    std::vector<INT32>::iterator vit = v.begin();
+    std::vector<INT32>::iterator evit = v.end();
+    for (; vit != evit; vit++) {
+        if (_varproduct.find(-(*vit)) != _varproduct.end())
+            _coefficient = 0;
+        if (_coefficient != 0)
+            _varproduct.insert(*vit);
     }
 }
 
 std::ostream &CostSolver::CostTerm::print(std::ostream &out) const
 {
-    std::set<BBLID>::const_iterator it = _varproduct.begin();
-    std::set<BBLID>::const_iterator eit = _varproduct.end();
+    std::set<INT32>::const_iterator it = _varproduct.begin();
+    std::set<INT32>::const_iterator eit = _varproduct.end();
     if (_coefficient < 0)
         out << "(" << _coefficient << ")";
-    else
+    else if (_coefficient > 0)
         out << _coefficient;
+    else
+        return out;
 
     if (_varproduct.size() == 0) return out;
-    out << " * d[" << *it << "]";
+    if (*it > 0)
+        out << " * d[" << *it << "]";
+    else
+        out << " * (1 - d[" << -(*it) << "])";
     if (_varproduct.size() == 1) return out;
     for (it++; it != eit; it++) {
+        if (*it > 0)
         out << " * d[" << *it << "]";
+        else 
+            out << " * (1 - d[" << -(*it) << "])";
     }
     return out;
 }
@@ -452,5 +603,6 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     CostSolver::AddInstructionCost(CostSolver::_BBL_instruction_cost);
     CostSolver::print(std::cout);
     std::cout << std::endl;
-    InstructionLatency::WriteConfig("template.ini");
+    // InstructionLatency::WriteConfig("template.ini");
+    CostSolver::Minimize();
 }

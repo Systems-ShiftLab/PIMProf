@@ -12,7 +12,7 @@ INCLUDE          :=
 ANNOTATOR_DIR := ../LLVMAnalysis
 ANNOTATOR_BC  := PIMProfAnnotator.bc
 
-EXTERNAL_SRC  := print4.cpp test.cpp
+EXTERNAL_SRC  := armtest_matrix.cpp
 EXTERNAL_OBJ  := $(EXTERNAL_SRC:%.cpp=%.o)
 EXTERNAL_BC   := $(EXTERNAL_SRC:%.cpp=%.bc)
 

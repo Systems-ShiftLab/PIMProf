@@ -35,6 +35,7 @@ COST InstructionLatency::_instruction_latency[MAX_COST_SITE][MAX_INDEX];
 
 COST CostSolver::_control_latency[MAX_COST_SITE][MAX_COST_SITE];
 std::vector<COST> CostSolver::_BBL_instruction_cost[MAX_COST_SITE];
+COST CostSolver::_instruction_multiplier[MAX_COST_SITE];
 COST CostSolver::_clwb_cost;
 COST CostSolver::_invalidate_cost;
 COST CostSolver::_fetch_cost;
@@ -214,7 +215,11 @@ VOID InstructionLatency::WriteConfig(const std::string filename)
 CostSolver::CostSolver()
 {
     memset(_control_latency, 0, sizeof(_control_latency));
+    
     _BBL_size = 0;
+
+    _instruction_multiplier[PIM] = 1;
+    _instruction_multiplier[CPU] = 1;
     _clwb_cost = 0;
     _invalidate_cost = 0;
     _fetch_cost = 0;
@@ -278,18 +283,24 @@ VOID CostSolver::ReadConfig(const std::string filename)
             if (cost >= 0) {
                 _control_latency[i][j] = cost;
             }
-            cost = reader.GetReal("UnitReuseCost", "clwb", -1);
-            if (cost >= 0) {
-                _clwb_cost = cost;
-            }
-            cost = reader.GetReal("UnitReuseCost", "invalidate", -1);
-            if (cost >= 0) {
-                _invalidate_cost = cost;
-            }
-            cost = reader.GetReal("UnitReuseCost", "fetch", -1);
-            if (cost >= 0) {
-                _fetch_cost = cost;
-            }
+        }
+    }
+    COST cost = reader.GetReal("UnitReuseCost", "clwb", -1);
+    if (cost >= 0) {
+        _clwb_cost = cost;
+    }
+    cost = reader.GetReal("UnitReuseCost", "invalidate", -1);
+    if (cost >= 0) {
+        _invalidate_cost = cost;
+    }
+    cost = reader.GetReal("UnitReuseCost", "fetch", -1);
+    if (cost >= 0) {
+        _fetch_cost = cost;
+    }
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        COST cost = reader.GetReal("UnitInstructionCost", CostSiteName[i], -1);
+        if (cost >= 0) {
+            _instruction_multiplier[i] = cost;
         }
     }
 }
@@ -358,13 +369,13 @@ VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[M
 
     /****************************
     The instruction cost of BBL i depends solely on the offloading decision of BBL i
-    totalcost += cc[0]*(1-d[i]) + cc[1]*d[i] or
-    totalcost += (-cc[0]+cc[1])*d[i] + cc[0]
+    totalcost += cc[0]*multiplier[0]*(1-d[i]) + cc[1]*multiplier[1]*d[i] or
+    totalcost += (-cc[0]*multiplier[0]+cc[1]*multiplier[1])*d[i] + cc[0]*multiplier[0]
     ****************************/
     for (BBLID i = 0; i < _BBL_size; i++) {
-        COST cost = -_BBL_instruction_cost[0][i] + _BBL_instruction_cost[1][i];
+        COST cost = -_BBL_instruction_cost[0][i] * _instruction_multiplier[0] + _BBL_instruction_cost[1][i] * _instruction_multiplier[1];
         AddCostTerm(CostTerm(cost, i));
-        cost = _BBL_instruction_cost[0][i];
+        cost = _BBL_instruction_cost[0][i] * _instruction_multiplier[0];
         AddCostTerm(CostTerm(cost));
     }
 }

@@ -108,6 +108,8 @@ class CostSolver {
   private:
     static COST _control_latency[MAX_COST_SITE][MAX_COST_SITE];
     static std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
+    static COST _instruction_multiplier[MAX_COST_SITE];
+
     static COST _clwb_cost;
     static COST _invalidate_cost;
     static COST _fetch_cost;

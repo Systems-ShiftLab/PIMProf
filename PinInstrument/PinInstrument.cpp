@@ -380,6 +380,25 @@ VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[M
     }
 }
 
+VOID CostSolver::AddMemoryCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE])
+{
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        ASSERTX(_BBL_instruction_cost[i].size() == _BBL_size);
+    }
+
+    /****************************
+    The instruction cost of BBL i depends solely on the offloading decision of BBL i
+    totalcost += cc[0]*multiplier[0]*(1-d[i]) + cc[1]*multiplier[1]*d[i] or
+    totalcost += (-cc[0]*multiplier[0]+cc[1]*multiplier[1])*d[i] + cc[0]*multiplier[0]
+    ****************************/
+    for (BBLID i = 0; i < _BBL_size; i++) {
+        COST cost = -_BBL_instruction_cost[0][i] * _instruction_multiplier[0] + _BBL_instruction_cost[1][i] * _instruction_multiplier[1];
+        AddCostTerm(CostTerm(cost, i));
+        cost = _BBL_instruction_cost[0][i] * _instruction_multiplier[0];
+        AddCostTerm(CostTerm(cost));
+    }
+}
+
 VOID CostSolver::AddDataReuseCost(std::vector<BBLOP> *op)
 {
     std::vector<BBLOP>::iterator it = op->begin();

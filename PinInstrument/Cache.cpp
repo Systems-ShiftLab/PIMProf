@@ -120,6 +120,7 @@ std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
     return out;
 }
 
+
 /* ===================================================================== */
 /* Cache level */
 /* ===================================================================== */
@@ -198,7 +199,37 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
         }
 
         addr = (addr & notLineMask) + lineSize; // start of next cache line
+
+        if (localhit) {
+            BBLID bblid = PinInstrument::GetCurrentBBL();
+            if (bblid != GLOBALBBLID) {
+                if (this->_name == "IL1") {
+                    CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                }
+                else if (this->_name == "DL1") {
+                    CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                }
+                else if (this->_name == "UL2") {
+                    CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
+                }
+                else if (this->_name == "UL3") {
+                    CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
+                }
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+            }
+        }
+        else {
+            BBLID bblid = PinInstrument::GetCurrentBBL();
+            if (bblid != GLOBALBBLID) {
+                if (this->_name == "UL3") {
+                    CostSolver::_BBL_memory_cost[CPU][bblid] += 200;
+                    CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+                }
+            }
+        }
+
     } while (addr < highAddr);
+
 
     _access[accessType][allHit]++;
 
@@ -227,6 +258,34 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     }
     if (tag != NULL) {
         tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
+    }
+
+    if (hit) {
+        BBLID bblid = PinInstrument::GetCurrentBBL();
+        if (bblid != GLOBALBBLID) {
+            if (this->_name == "IL1") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+            }
+            else if (this->_name == "DL1") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+            }
+            else if (this->_name == "UL2") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
+            }
+            else if (this->_name == "UL3") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
+            }
+            CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+        }
+    }
+    else {
+        BBLID bblid = PinInstrument::GetCurrentBBL();
+        if (bblid != GLOBALBBLID) {
+            if (this->_name == "UL3") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 200;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+            }
+        }
     }
 
     _access[accessType][hit]++;
@@ -325,7 +384,8 @@ VOID CACHE::Ul2Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
     const BOOL ul2Hit = _cache[UL2]->Access(addr, size, accessType);
 
     // third level unified cache
-    if ( ! ul2Hit) _cache[UL3]->Access(addr, size, accessType);
+    if (! ul2Hit)
+        _cache[UL3]->Access(addr, size, accessType);
 }
 
 VOID CACHE::InsRef(ADDRINT addr)

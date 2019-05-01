@@ -35,6 +35,7 @@ COST InstructionLatency::_instruction_latency[MAX_COST_SITE][MAX_INDEX];
 
 COST CostSolver::_control_latency[MAX_COST_SITE][MAX_COST_SITE];
 std::vector<COST> CostSolver::_BBL_instruction_cost[MAX_COST_SITE];
+std::vector<COST> CostSolver::_BBL_memory_cost[MAX_COST_SITE];
 COST CostSolver::_instruction_multiplier[MAX_COST_SITE];
 COST CostSolver::_clwb_cost;
 COST CostSolver::_invalidate_cost;
@@ -149,6 +150,13 @@ VOID InstructionLatency::SetBBLSize(BBLID _BBL_size) {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         CostSolver::_BBL_instruction_cost[i].resize(_BBL_size);
         memset(&CostSolver::_BBL_instruction_cost[i][0], 0, _BBL_size * sizeof CostSolver::_BBL_instruction_cost[i][0]);
+    }
+}
+
+VOID MemoryLatency::SetBBLSize(BBLID _BBL_size) {
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        CostSolver::_BBL_memory_cost[i].resize(_BBL_size);
+        memset(&CostSolver::_BBL_memory_cost[i][0], 0, _BBL_size * sizeof CostSolver::_BBL_memory_cost[i][0]);
     }
 }
 
@@ -330,6 +338,7 @@ VOID CostSolver::AddControlCost(const std::string filename)
     _BBL_size++; // _BBL_size = Largest BBLID + 1
 
     InstructionLatency::SetBBLSize(_BBL_size);
+    MemoryLatency::SetBBLSize(_BBL_size);
 
     /****************************
     The control cost of BBL i -> BBL j depends on the offloading decision of BBL i and BBL j
@@ -362,25 +371,6 @@ VOID CostSolver::AddControlCost(const std::string filename)
 }
 
 VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE])
-{
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        ASSERTX(_BBL_instruction_cost[i].size() == _BBL_size);
-    }
-
-    /****************************
-    The instruction cost of BBL i depends solely on the offloading decision of BBL i
-    totalcost += cc[0]*multiplier[0]*(1-d[i]) + cc[1]*multiplier[1]*d[i] or
-    totalcost += (-cc[0]*multiplier[0]+cc[1]*multiplier[1])*d[i] + cc[0]*multiplier[0]
-    ****************************/
-    for (BBLID i = 0; i < _BBL_size; i++) {
-        COST cost = -_BBL_instruction_cost[0][i] * _instruction_multiplier[0] + _BBL_instruction_cost[1][i] * _instruction_multiplier[1];
-        AddCostTerm(CostTerm(cost, i));
-        cost = _BBL_instruction_cost[0][i] * _instruction_multiplier[0];
-        AddCostTerm(CostTerm(cost));
-    }
-}
-
-VOID CostSolver::AddMemoryCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE])
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         ASSERTX(_BBL_instruction_cost[i].size() == _BBL_size);
@@ -584,13 +574,13 @@ std::ostream &CostSolver::CostTerm::print(std::ostream &out) const
 
 VOID PinInstrument::DoAtAnnotatorHead(BBLID bblid)
 {
-    std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
+    // std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
     bblidstack.push(bblid);
 }
 
 VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid)
 {
-    std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
+    // std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
     ASSERTX(bblidstack.top() == bblid);
     bblidstack.pop();
 }
@@ -630,9 +620,24 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
 
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
 {
-    CostSolver::AddInstructionCost(CostSolver::_BBL_instruction_cost);
-    CostSolver::print(std::cout);
-    std::cout << std::endl;
+    // CostSolver::AddInstructionCost(CostSolver::_BBL_instruction_cost);
+    // CostSolver::print(std::cout);
+    // std::cout << std::endl;
     // InstructionLatency::WriteConfig("template.ini");
-    CostSolver::Minimize();
+    printf("wow\n");
+    std::cout << "BBL\t"
+    << "CPUIns\t\t" << "PIMIns\t\t"
+    << "CPUMem\t\t" << "PIMMem\t\t"
+    << "difference" << std::endl;
+    for (UINT32 i = 1; i < CostSolver::_BBL_size; i++) {
+        std::cout << i << "\t"
+        << CostSolver::_BBL_instruction_cost[CPU][i] << "\t\t"
+        << CostSolver::_BBL_instruction_cost[PIM][i] * 10 << "\t\t"
+        << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
+        << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
+        std::cout << (CostSolver::_BBL_instruction_cost[CPU][i] 
+        - CostSolver::_BBL_instruction_cost[PIM][i] * 10
+        + CostSolver::_BBL_memory_cost[CPU][i] 
+        - CostSolver::_BBL_memory_cost[PIM][i]) << std::endl;
+    }
 }

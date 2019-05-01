@@ -360,7 +360,7 @@ class CACHE_LEVEL_BASE
     static const UINT32 HIT_MISS_NUM = 2;
     CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
 
-  private:
+  protected:
     // input params
     const std::string _name;
     const UINT32 _cacheSize;
@@ -432,6 +432,9 @@ class CACHE_LEVEL_BASE
 
     /// @brief Stats output method
     std::ostream &StatsLong(std::ostream &out) const;
+    VOID CountMemoryCost(std::vector<COST> (&_BBL_cost)[MAX_COST_SITE], int cache_level) const;
+
+    
 };
 
 
@@ -474,6 +477,7 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
 
 class CACHE 
 {
+  friend class CostSolver;
   public:
     static const UINT32 MAX_LEVEL = 6;
     enum {

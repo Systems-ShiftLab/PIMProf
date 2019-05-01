@@ -29,6 +29,8 @@ class MemoryLatency {
 
   public:
 
+    static VOID SetBBLSize(BBLID _BBL_size);
+
     /// Do on instruction cache reference
     static VOID InsRef(ADDRINT addr);
 
@@ -96,6 +98,7 @@ class CostSolver {
     friend class InstructionLatency;
     friend class MemoryLatency;
     friend class PinInstrument;
+    friend class CACHE_LEVEL;
 
   public:
     class CostTerm;
@@ -108,6 +111,7 @@ class CostSolver {
   private:
     static COST _control_latency[MAX_COST_SITE][MAX_COST_SITE];
     static std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
+    static std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
     static COST _instruction_multiplier[MAX_COST_SITE];
 
     static COST _clwb_cost;
@@ -144,7 +148,7 @@ class CostSolver {
     static VOID AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE]);
 
     /// Read the memory cost from MemoryLatency instrumentation result
-    static VOID AddMemoryCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE]);
+    static VOID AddMemoryCost();
 
     static VOID AddDataReuseCost(std::vector<BBLOP> *op);
 

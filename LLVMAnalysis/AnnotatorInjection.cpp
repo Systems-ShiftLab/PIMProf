@@ -55,10 +55,14 @@ namespace {
         // insert instruction
         Value *bblid = ConstantInt::get(
             IntegerType::get(M.getContext(),32), BBLID);
+
+        // need to skip all PHIs and LandingPad instructions
+        // check the declaration of getFirstInsertionPt()
+        Instruction *beginning = &(*BB.getFirstInsertionPt());
         
         CallInst *head_instr = CallInst::Create(
             annotator_head, ArrayRef<Value *>(bblid), "",
-            BB.getFirstNonPHIOrDbgOrLifetime());
+            beginning);
 
         CallInst *tail_instr = CallInst::Create(
             annotator_tail, ArrayRef<Value *>(bblid), "",

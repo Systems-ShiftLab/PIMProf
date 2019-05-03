@@ -81,7 +81,7 @@ int main(int argc, CHAR *argv[])
     MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcache.ini");
     CostSolver::clear();
     CostSolver::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcost.ini");
-    CostSolver::AddControlCost("/home/warsier/Documents/PIMProf/TestCase/merged.out");
+    CostSolver::AddControlCost("/home/warsier/Documents/gapbs/basicblock.out");
 
     IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);
 

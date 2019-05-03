@@ -624,20 +624,23 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     // CostSolver::print(std::cout);
     // std::cout << std::endl;
     // InstructionLatency::WriteConfig("template.ini");
-    printf("wow\n");
+    // printf("wow\n");
     std::cout << "BBL\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
     << "difference" << std::endl;
     for (UINT32 i = 1; i < CostSolver::_BBL_size; i++) {
-        std::cout << i << "\t"
-        << CostSolver::_BBL_instruction_cost[CPU][i] << "\t\t"
-        << CostSolver::_BBL_instruction_cost[PIM][i] * 10 << "\t\t"
-        << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
-        << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
-        std::cout << (CostSolver::_BBL_instruction_cost[CPU][i] 
-        - CostSolver::_BBL_instruction_cost[PIM][i] * 10
-        + CostSolver::_BBL_memory_cost[CPU][i] 
-        - CostSolver::_BBL_memory_cost[PIM][i]) << std::endl;
+        COST difference = (CostSolver::_BBL_instruction_cost[CPU][i] 
+            - CostSolver::_BBL_instruction_cost[PIM][i] * 10
+            + CostSolver::_BBL_memory_cost[CPU][i] 
+            - CostSolver::_BBL_memory_cost[PIM][i]);
+        if (difference != 0) {
+            std::cout << i << "\t"
+            << CostSolver::_BBL_instruction_cost[CPU][i] << "\t\t"
+            << CostSolver::_BBL_instruction_cost[PIM][i] * 10 << "\t\t"
+            << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
+            << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
+            std::cout << difference << std::endl;
+        }
     }
 }

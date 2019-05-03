@@ -189,7 +189,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
         if ((!localhit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
         {
             tag = set->Replace(tagaddr);
-            CostSolver::AddDataReuseCost(tag->GetBBLOperation());
+            // CostSolver::AddDataReuseCost(tag->GetBBLOperation());
             tag->ClearBBLOperation();
         }
 
@@ -205,17 +205,20 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
             if (bblid != GLOBALBBLID) {
                 if (this->_name == "IL1") {
                     CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                    CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
                 }
                 else if (this->_name == "DL1") {
                     CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                    CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
                 }
                 else if (this->_name == "UL2") {
                     CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
+                    CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
                 }
                 else if (this->_name == "UL3") {
                     CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
+                    CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
                 }
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
             }
         }
         else {
@@ -253,7 +256,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
         tag = set->Replace(tagaddr);
-        CostSolver::AddDataReuseCost(tag->GetBBLOperation());
+        // CostSolver::AddDataReuseCost(tag->GetBBLOperation());
         tag->ClearBBLOperation();
     }
     if (tag != NULL) {

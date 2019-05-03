@@ -213,7 +213,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
                 }
                 else if (this->_name == "UL2") {
                     CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
-                    CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+                    CostSolver::_BBL_memory_cost[PIM][bblid] += 12;
                 }
                 else if (this->_name == "UL3") {
                     CostSolver::_BBL_memory_cost[CPU][bblid] += 40;

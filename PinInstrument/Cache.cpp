@@ -268,15 +268,19 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         if (bblid != GLOBALBBLID) {
             if (this->_name == "IL1") {
                 CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
             }
             else if (this->_name == "DL1") {
                 CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
             }
             else if (this->_name == "UL2") {
                 CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 12;
             }
             else if (this->_name == "UL3") {
                 CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
             }
             CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
         }

@@ -634,13 +634,13 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
             - CostSolver::_BBL_instruction_cost[PIM][i] * 10
             + CostSolver::_BBL_memory_cost[CPU][i] 
             - CostSolver::_BBL_memory_cost[PIM][i]);
-        if (difference != 0) {
+        // if (difference != 0) {
             std::cout << i << "\t"
             << CostSolver::_BBL_instruction_cost[CPU][i] << "\t\t"
             << CostSolver::_BBL_instruction_cost[PIM][i] * 10 << "\t\t"
             << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
             << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
             std::cout << difference << std::endl;
-        }
+        // }
     }
 }

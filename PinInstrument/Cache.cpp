@@ -282,7 +282,6 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
                 CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
                 CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
             }
-            CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
         }
     }
     else {

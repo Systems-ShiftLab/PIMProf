@@ -51,7 +51,6 @@ namespace {
         //     errs() << "\n";
         // }
         // errs() << "\n";
-
         // insert instruction
         Value *bblid = ConstantInt::get(
             IntegerType::get(M.getContext(),32), BBLID);
@@ -59,7 +58,6 @@ namespace {
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
-        
         CallInst *head_instr = CallInst::Create(
             annotator_head, ArrayRef<Value *>(bblid), "",
             beginning);
@@ -67,7 +65,6 @@ namespace {
         CallInst *tail_instr = CallInst::Create(
             annotator_tail, ArrayRef<Value *>(bblid), "",
             BB.getTerminator());
-        
         // insert instruction metadata
         MDNode* md = MDNode::get(
             ctx, 
@@ -77,7 +74,6 @@ namespace {
             )
         );
         BB.getTerminator()->setMetadata(PIMProfBBLIDMetadata, md);
-            
         // errs() << "After injection: " << BB.getName() << "\n";
         // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
         //     (*i).print(errs());

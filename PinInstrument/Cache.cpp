@@ -410,3 +410,4 @@ VOID CACHE::MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
     // second level unified Cache
     if ( ! dl1Hit) Ul2Access(addr, size, accessType);
 }
+

@@ -3,7 +3,7 @@ OPT              := opt-7
 LLC              := llc-7
 LINK             := llvm-link-7
 DIS              := llvm-dis-7
-PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 -g # -O3 -pedantic-errors -Wall -Wextra -Werror
+PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 # -O3 -pedantic-errors -Wall -Wextra -Werror
 POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -O3
 PASSFLAGS        := -Xclang -load -Xclang ../build/LLVMAnalysis/libAnnotatorInjection.so
 LDFLAGS          := 

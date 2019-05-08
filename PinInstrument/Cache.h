@@ -459,6 +459,8 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
 
     // modifiers
     
+    VOID addmemcost(BOOL hit, CACHE_LEVEL *lvl);
+
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
     BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);

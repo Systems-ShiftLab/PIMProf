@@ -166,6 +166,41 @@ CACHE_LEVEL::~CACHE_LEVEL()
 }
 
 
+VOID CACHE_LEVEL::addmemcost(BOOL hit, CACHE_LEVEL *lvl)
+{
+    if (hit) {
+        BBLID bblid = PinInstrument::GetCurrentBBL();
+        if (bblid != GLOBALBBLID) {
+            if (lvl->_name == "IL1") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
+            }
+            else if (lvl->_name == "DL1") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
+            }
+            else if (lvl->_name == "UL2") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+            }
+            else if (lvl->_name == "UL3") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+            }
+        }
+    }
+    else {
+        BBLID bblid = PinInstrument::GetCurrentBBL();
+        if (bblid != GLOBALBBLID) {
+            if (lvl->_name == "UL3") {
+                CostSolver::_BBL_memory_cost[CPU][bblid] += 200;
+                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+            }
+        }
+    }
+} 
+
+
 BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     const ADDRINT highAddr = addr + size;
@@ -200,36 +235,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 
         addr = (addr & notLineMask) + lineSize; // start of next cache line
 
-        if (localhit) {
-            BBLID bblid = PinInstrument::GetCurrentBBL();
-            if (bblid != GLOBALBBLID) {
-                if (this->_name == "IL1") {
-                    CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
-                    CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
-                }
-                else if (this->_name == "DL1") {
-                    CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
-                    CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
-                }
-                else if (this->_name == "UL2") {
-                    CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
-                    CostSolver::_BBL_memory_cost[PIM][bblid] += 12;
-                }
-                else if (this->_name == "UL3") {
-                    CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
-                    CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
-                }
-            }
-        }
-        else {
-            BBLID bblid = PinInstrument::GetCurrentBBL();
-            if (bblid != GLOBALBBLID) {
-                if (this->_name == "UL3") {
-                    CostSolver::_BBL_memory_cost[CPU][bblid] += 200;
-                    CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
-                }
-            }
-        }
+        CACHE_LEVEL::addmemcost(localhit, this);
 
     } while (addr < highAddr);
 
@@ -263,36 +269,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
     }
 
-    if (hit) {
-        BBLID bblid = PinInstrument::GetCurrentBBL();
-        if (bblid != GLOBALBBLID) {
-            if (this->_name == "IL1") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
-            }
-            else if (this->_name == "DL1") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
-            }
-            else if (this->_name == "UL2") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 12;
-            }
-            else if (this->_name == "UL3") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
-            }
-        }
-    }
-    else {
-        BBLID bblid = PinInstrument::GetCurrentBBL();
-        if (bblid != GLOBALBBLID) {
-            if (this->_name == "UL3") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 200;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
-            }
-        }
-    }
+    CACHE_LEVEL::addmemcost(hit, this);
 
     _access[accessType][hit]++;
 

@@ -395,8 +395,11 @@ VOID CostSolver::AddDataReuseCost(std::vector<BBLOP> *op)
     std::vector<BBLOP>::iterator eit = op->end();
     std::vector<INT32> origin;
     std::vector<INT32> flipped;
+    std::ofstream ofs("output.txt", std::ofstream::app);
+    bool printflag = false;
     for (; it != eit; it++) {
-        // std::cout << it->first << "," << it->second << " -> ";
+        ofs << it->first << "," << it->second << " -> ";
+        printflag = true;
         BBLID curid = it->first;
         ACCESS_TYPE curtype = it->second;
 
@@ -476,7 +479,8 @@ VOID CostSolver::AddDataReuseCost(std::vector<BBLOP> *op)
         }
 
     }
-    // std::cout << std::endl;
+    if (printflag)
+        ofs << std::endl;
 }
 
 std::ostream &CostSolver::print(std::ostream &out)

@@ -27,6 +27,29 @@ namespace PIMProf {
     };
 
     typedef std::pair<BBLID, ACCESS_TYPE> BBLOP;
+
+    inline INT32 INIErrorMsg(INT32 error, const string &filename, std::ostream &out) 
+    {
+        if (error == 0)
+            return error;
+        out << "################################################################################\n";
+        out << "## ";
+        if (error == -1) {
+            out << "PIMProf: .ini file open error." << std::endl;
+        }
+        else if (error == -2) {
+            out << "PIMProf: .ini file memory allocation for parsing error." << std::endl;
+        } 
+        
+        else if (error > 0) {
+            out << "PIMProf: .ini file parsing failure on line "
+                << error 
+                << "." << std::endl;
+        }
+        out << "## Filename: " << filename << std::endl;
+        out << "################################################################################\n";
+        return error;
+    }
 }
 
 #endif // __PINUTIL_H__

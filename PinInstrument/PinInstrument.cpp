@@ -178,6 +178,8 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *v)
 VOID InstructionLatency::ReadConfig(const std::string filename)
 {
     INIReader reader(filename);
+    ASSERTX(!INIErrorMsg(reader.ParseError(), filename, std::cerr));
+    
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_INDEX; j++) {
             std::string opcodestr = OPCODE_StringShort(j);
@@ -284,6 +286,7 @@ COST CostSolver::Cost(CostSolver::DECISION &decision)
 VOID CostSolver::ReadConfig(const std::string filename)
 {
     INIReader reader(filename);
+    ASSERTX(!INIErrorMsg(reader.ParseError(), filename, std::cerr));
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_COST_SITE; j++) {
             std::string coststr = CostSiteName[i] + "to" + CostSiteName[j];

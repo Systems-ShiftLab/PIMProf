@@ -320,6 +320,7 @@ CACHE::~CACHE()
 VOID CACHE::ReadConfig(std::string filename)
 {
     INIReader reader(filename);
+    ASSERTX(!INIErrorMsg(reader.ParseError(), filename, std::cerr));
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
         
         std::string name = _name[i];

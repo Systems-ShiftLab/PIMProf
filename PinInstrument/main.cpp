@@ -49,24 +49,25 @@ using namespace PIMProf;
 /* Commandline Switches */
 /* ===================================================================== */
 
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE,         "pintool",
-    "o", "opcodemix.out", "specify profile file name");
-KNOB<BOOL>   KnobPid(KNOB_MODE_WRITEONCE,                "pintool",
-    "i", "0", "append pid to output");
-KNOB<BOOL>   KnobProfilePredicated(KNOB_MODE_WRITEONCE,  "pintool",
-    "p", "0", "enable accurate profiling for predicated instructions");
-KNOB<BOOL>   KnobProfileStaticOnly(KNOB_MODE_WRITEONCE,  "pintool",
-    "s", "0", "terminate after collection of static profile for main image");
-#ifndef TARGET_WINDOWS
-KNOB<BOOL>   KnobProfileDynamicOnly(KNOB_MODE_WRITEONCE, "pintool",
-    "d", "0", "Only collect dynamic profile");
-#else
-KNOB<BOOL>   KnobProfileDynamicOnly(KNOB_MODE_WRITEONCE, "pintool",
-    "d", "1", "Only collect dynamic profile");
-#endif
-KNOB<BOOL>   KnobNoSharedLibs(KNOB_MODE_WRITEONCE,       "pintool",
-    "no_shared_libs", "0", "do not instrument shared libraries");
+KNOB<string> KnobConfig(
+    KNOB_MODE_WRITEONCE,
+    "pintool",
+    "f", "",
+    "specify config file name");
+KNOB<string> KnobOutput(
+    KNOB_MODE_WRITEONCE,
+    "pintool",
+    "o", "opcodemix.out",
+    "specify profile file name");
 
+
+INT32 Usage(std::ostream &out) {
+    out << "This pin tool estimates the performance of the given program on a CPU-PIM configuration."
+        << std::endl
+        << KNOB_BASE::StringKnobSummary()
+        << std::endl;
+    return -1;
+}
 
 int main(int argc, CHAR *argv[])
 {
@@ -74,13 +75,26 @@ int main(int argc, CHAR *argv[])
 
     if( PIN_Init(argc,argv) )
     {
-        ASSERTX(0);
+        return Usage(std::cerr);
     }
 
-    InstructionLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultconfig.ini");
-    MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultconfig.ini");
+    if (std::getenv("PIMPROF_ROOT") == NULL) {
+        ASSERT(0, "Environment variable PIMPROF_ROOT not set.");
+    }
+    string rootdir = std::getenv("PIMPROF_ROOT");
+    string configfile = KnobConfig.Value();
+
+    if (configfile == "") {
+        configfile = rootdir + "/PinInstrument/defaultconfig.ini";
+        std::cerr << "################################################################################ \n"
+            << "## PIMProf: No config file provided. Using default config file.\n"
+            << "################################################################################\n";
+    }
+    
+    InstructionLatency::ReadConfig(configfile);
+    MemoryLatency::ReadConfig(configfile);
     CostSolver::clear();
-    CostSolver::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultconfig.ini");
+    CostSolver::ReadConfig(configfile);
     CostSolver::AddControlCost("/home/warsier/Documents/gapbs/basicblock.out");
 
     IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);

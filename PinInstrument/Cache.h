@@ -489,6 +489,7 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
     std::string _replacement_policy;
     std::vector<CACHE_SET *> _sets;
     UINT32 STORE_ALLOCATION;
+    COST _hitcost[MAX_COST_SITE];
   
   // forbid copy constructor
   private:
@@ -496,7 +497,7 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation);
+    CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
     ~CACHE_LEVEL();
 
     // modifiers

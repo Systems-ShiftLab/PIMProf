@@ -40,6 +40,7 @@ COST CostSolver::_instruction_multiplier[MAX_COST_SITE];
 COST CostSolver::_clwb_cost;
 COST CostSolver::_invalidate_cost;
 COST CostSolver::_fetch_cost;
+COST CostSolver::_memory_cost[MAX_COST_SITE];
 BBLID CostSolver::_BBL_size;
 std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
 
@@ -106,6 +107,15 @@ VOID MemoryLatency::FinishInstrument(INT32 code, VOID *v)
 VOID MemoryLatency::ReadConfig(const std::string filename)
 {
     cache.ReadConfig(filename);
+    
+    INIReader reader(filename);
+    ASSERTX(!INIErrorMsg(reader.ParseError(), filename, std::cerr));
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        COST cost = reader.GetReal("Memory", CostSiteName[i] + "memorycost", -1);
+        if (cost >= 0) {
+            CostSolver::_memory_cost[i] = cost;
+        }
+    }
 }
 
 std::ostream& MemoryLatency::WriteConfig(std::ostream& out)

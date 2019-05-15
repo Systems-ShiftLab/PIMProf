@@ -125,7 +125,7 @@ std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
 /* Cache level */
 /* ===================================================================== */
 
-CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation)
+CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
     : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity), _replacement_policy(policy), STORE_ALLOCATION(allocation)
 {
     // NumSets = cacheSize / (associativity * lineSize)
@@ -153,6 +153,9 @@ CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize,
     else {
         ASSERTX(0 && "Invalid cache replacement policy name!");
     }
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        _hitcost[i] = hitcost[i];
+    }
 }
 
 CACHE_LEVEL::~CACHE_LEVEL()
@@ -171,21 +174,8 @@ VOID CACHE_LEVEL::addmemcost(BOOL hit, CACHE_LEVEL *lvl)
     if (hit) {
         BBLID bblid = PinInstrument::GetCurrentBBL();
         if (bblid != GLOBALBBLID) {
-            if (lvl->_name == "IL1") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
-            }
-            else if (lvl->_name == "DL1") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 4;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 4;
-            }
-            else if (lvl->_name == "UL2") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 12;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
-            }
-            else if (lvl->_name == "UL3") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 40;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+            for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+                CostSolver::_BBL_memory_cost[i][bblid] += lvl->_hitcost[i];
             }
         }
     }
@@ -193,8 +183,9 @@ VOID CACHE_LEVEL::addmemcost(BOOL hit, CACHE_LEVEL *lvl)
         BBLID bblid = PinInstrument::GetCurrentBBL();
         if (bblid != GLOBALBBLID) {
             if (lvl->_name == "UL3") {
-                CostSolver::_BBL_memory_cost[CPU][bblid] += 200;
-                CostSolver::_BBL_memory_cost[PIM][bblid] += 135;
+                for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+                    CostSolver::_BBL_memory_cost[i][bblid] += CostSolver::_memory_cost[i];
+                }
             }
         }
     }
@@ -322,14 +313,24 @@ VOID CACHE::ReadConfig(std::string filename)
     INIReader reader(filename);
     ASSERTX(!INIErrorMsg(reader.ParseError(), filename, std::cerr));
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
-        
         std::string name = _name[i];
         UINT32 linesize = reader.GetInteger(name, "linesize", -1);
         UINT32 cachesize = reader.GetInteger(name, "cachesize", -1);
         UINT32 associativity = reader.GetInteger(name, "associativity", -1);
         UINT32 allocation = reader.GetInteger(name, "allocation", -1);
         std::string policy = reader.Get(name, "policy", "");
-        _cache[i] = new CACHE_LEVEL(name, policy, cachesize, linesize, associativity, allocation);
+
+        COST hitcost[MAX_COST_SITE];
+        for (UINT32 j = 0; j < MAX_COST_SITE; j++) {
+            COST cost = reader.GetReal(name, CostSiteName[j] + "hitcost", -1);
+            if (cost >= 0) {
+                hitcost[j] = cost;
+            }
+            else {
+                hitcost[j] = 0;
+            }
+        }
+        _cache[i] = new CACHE_LEVEL(name, policy, cachesize, linesize, associativity, allocation, hitcost);
     }
 }
 

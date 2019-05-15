@@ -224,7 +224,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
         if ((!localhit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
         {
             tag = set->Replace(tagaddr);
-            CostSolver::AddDataReuseCost(tag->GetBBLOperation());
+            // CostSolver::AddDataReuseCost(tag->GetBBLOperation());
             tag->ClearBBLOperation();
         }
 
@@ -262,7 +262,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
         tag = set->Replace(tagaddr);
-        CostSolver::AddDataReuseCost(tag->GetBBLOperation());
+        // CostSolver::AddDataReuseCost(tag->GetBBLOperation());
         tag->ClearBBLOperation();
     }
     if (tag != NULL) {

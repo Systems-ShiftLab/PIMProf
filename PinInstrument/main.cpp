@@ -77,10 +77,10 @@ int main(int argc, CHAR *argv[])
         ASSERTX(0);
     }
 
-    InstructionLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultinstructionlatency.ini");
-    MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcache.ini");
+    InstructionLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultconfig.ini");
+    MemoryLatency::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultconfig.ini");
     CostSolver::clear();
-    CostSolver::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultcost.ini");
+    CostSolver::ReadConfig("/home/warsier/Documents/PIMProf/PinInstrument/defaultconfig.ini");
     CostSolver::AddControlCost("/home/warsier/Documents/gapbs/basicblock.out");
 
     IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);

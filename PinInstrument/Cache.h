@@ -12,6 +12,7 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <set>
 
 #include "PinUtil.h"
 #include "pin.H"
@@ -71,6 +72,55 @@ static inline INT32 CeilLog2(UINT32 n)
 
 
 namespace PIMProf {
+
+class BBLOPList {
+    class BBLOPSegment {
+      private:
+        std::vector<BBLID> _vec;
+        std::set<BBLID> _set;
+        ACCESS_TYPE _type;
+
+      public:
+        inline void push_back(BBLID elem) {
+            if (_set.find(elem) == _set.end()) {
+                _set.insert(elem);
+                _vec.push_back(elem);
+            }
+        }
+
+        inline void clear() {
+            _vec.clear();
+            _set.clear();
+        }
+
+        inline void SetType(ACCESS_TYPE t) {
+            _type = t;
+        }
+
+        inline ACCESS_TYPE GetType() {
+            return _type;
+        }
+    };
+  private:
+    std::vector<BBLOPSegment> _vec;
+  public:
+    inline void push_back(BBLOP elem) {
+        if (_vec.empty() || elem.second != _vec.back().GetType()) {
+            _vec.push_back(BBLOPSegment());
+            _vec.back().SetType(elem.second);
+            _vec.back().push_back(elem.first);
+        }
+        else {
+            _vec.back().push_back(elem.first);
+        }
+
+    }
+
+    inline void clear() {
+        _vec.clear();
+    }
+};
+
 /// @brief Cache tag
 /// dynamic data structure should only be allocated on construction
 /// and deleted on destruction
@@ -78,13 +128,13 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
-    std::vector<BBLOP> *_op;
+    BBLOPList *_op;
 
   public:
     CACHE_TAG(ADDRINT tagaddr = 0)
     {
         _tag = tagaddr;
-        _op = new std::vector<BBLOP>;
+        _op = new BBLOPList;
     }
 
     ~CACHE_TAG() 
@@ -103,19 +153,11 @@ class CACHE_TAG
     {
         if (bblid != GLOBALBBLID) {
             BBLOP temp = std::make_pair(bblid, accessType);
-            if (_op->empty()) {
-                _op->push_back(temp);
-                return;
-            }
-            BBLOP back = _op->back();
-            if (temp != back) {
-                if (accessType == ACCESS_TYPE_LOAD && back.second == ACCESS_TYPE_STORE) return;
-                _op->push_back(temp);
-            }
+            _op->push_back(temp);
         }
     }
 
-    inline std::vector<BBLOP> *GetBBLOperation()
+    inline BBLOPList *GetBBLOperation()
     {
         return _op;
     }

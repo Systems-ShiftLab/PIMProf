@@ -400,83 +400,83 @@ VOID CostSolver::AddDataReuseCost(std::vector<BBLOP> *op)
     for (; it != eit; it++) {
         ofs << it->first << "," << it->second << " -> ";
         printflag = true;
-        BBLID curid = it->first;
-        ACCESS_TYPE curtype = it->second;
+        // BBLID curid = it->first;
+        // ACCESS_TYPE curtype = it->second;
 
-        /****************************
-        The data reuse cost of a LOAD is dependent on the offloading decision of all operations between itself and the most recent STORE. 
-        A PIM LOAD needs to pay the FLUSH cost when the LOADs and the most recent STORE are all on CPU.
-        A CPU LOAD needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
+        // /****************************
+        // The data reuse cost of a LOAD is dependent on the offloading decision of all operations between itself and the most recent STORE. 
+        // A PIM LOAD needs to pay the FLUSH cost when the LOADs and the most recent STORE are all on CPU.
+        // A CPU LOAD needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
 
-        Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
-        totalcost += clwb*d[j]*(1-d[i])*(1-d[i+1])*...*(1-d[j-1])
-                   + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
+        // Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
+        // totalcost += clwb*d[j]*(1-d[i])*(1-d[i+1])*...*(1-d[j-1])
+        //            + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
 
-        If there is no STORE before it,
-        A PIM LOAD does not need to pay any cost.
-        A CPU LOAD needs to pay the FETCH cost.
+        // If there is no STORE before it,
+        // A PIM LOAD does not need to pay any cost.
+        // A CPU LOAD needs to pay the FETCH cost.
 
-        So:
-        totalcost += fetch*(1-d[j])
-        ****************************/
-        if (curtype == ACCESS_TYPE_LOAD) {
-            if (origin.empty()) { // no STORE
-                AddCostTerm(CostTerm(_fetch_cost, -curid));
-                origin.push_back(curid);
-                flipped.push_back(-curid);
-            }
-            else {
-                flipped.push_back(curid);
-                AddCostTerm(CostTerm(_clwb_cost, flipped));
-                flipped.pop_back();
-                flipped.push_back(-curid);
+        // So:
+        // totalcost += fetch*(1-d[j])
+        // ****************************/
+        // if (curtype == ACCESS_TYPE_LOAD) {
+        //     if (origin.empty()) { // no STORE
+        //         AddCostTerm(CostTerm(_fetch_cost, -curid));
+        //         origin.push_back(curid);
+        //         flipped.push_back(-curid);
+        //     }
+        //     else {
+        //         flipped.push_back(curid);
+        //         AddCostTerm(CostTerm(_clwb_cost, flipped));
+        //         flipped.pop_back();
+        //         flipped.push_back(-curid);
 
-                origin.push_back(-curid);
-                AddCostTerm(CostTerm(_fetch_cost, origin));
-                origin.pop_back();
-                origin.push_back(curid);
-            }
-        }
-        /****************************
-        The data reuse cost of a STORE is dependent on the offloading decision of all operations between itself and the most recent STORE besides itself. 
-        A PIM STORE needs to pay the INVALIDATE cost when any one among the LOADs and the most recent STORE is on CPU.
-        A CPU STORE needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
+        //         origin.push_back(-curid);
+        //         AddCostTerm(CostTerm(_fetch_cost, origin));
+        //         origin.pop_back();
+        //         origin.push_back(curid);
+        //     }
+        // }
+        // /****************************
+        // The data reuse cost of a STORE is dependent on the offloading decision of all operations between itself and the most recent STORE besides itself. 
+        // A PIM STORE needs to pay the INVALIDATE cost when any one among the LOADs and the most recent STORE is on CPU.
+        // A CPU STORE needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
 
-        Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
-        totalcost += invalidate*d[j]*(1-d[i]*d[i+1]*...*d[j-1])
-                   + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
+        // Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
+        // totalcost += invalidate*d[j]*(1-d[i]*d[i+1]*...*d[j-1])
+        //            + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
 
-        If there is no STORE before it,
-        A PIM STORE does not need to pay any cost.
-        A CPU STORE needs to pay the FETCH cost.
+        // If there is no STORE before it,
+        // A PIM STORE does not need to pay any cost.
+        // A CPU STORE needs to pay the FETCH cost.
 
-        So:
-        totalcost += fetch*(1-d[j])
-        ****************************/
-        if (curtype == ACCESS_TYPE_STORE) {
-            if (origin.empty()) { // no STORE
-                AddCostTerm(CostTerm(_fetch_cost, -curid));
-                origin.push_back(curid);
-                flipped.push_back(-curid);
-            }
-            else {
-                AddCostTerm(CostTerm(_invalidate_cost, curid));
-                origin.push_back(curid);
-                AddCostTerm(CostTerm(-_invalidate_cost, origin));
-                origin.pop_back();
+        // So:
+        // totalcost += fetch*(1-d[j])
+        // ****************************/
+        // if (curtype == ACCESS_TYPE_STORE) {
+        //     if (origin.empty()) { // no STORE
+        //         AddCostTerm(CostTerm(_fetch_cost, -curid));
+        //         origin.push_back(curid);
+        //         flipped.push_back(-curid);
+        //     }
+        //     else {
+        //         AddCostTerm(CostTerm(_invalidate_cost, curid));
+        //         origin.push_back(curid);
+        //         AddCostTerm(CostTerm(-_invalidate_cost, origin));
+        //         origin.pop_back();
 
-                origin.push_back(-curid);
-                AddCostTerm(CostTerm(_fetch_cost, origin));
+        //         origin.push_back(-curid);
+        //         AddCostTerm(CostTerm(_fetch_cost, origin));
 
-                origin.clear();
-                origin.push_back(curid);
-                flipped.clear();
-                flipped.push_back(-curid);
-            }
-        }
-        if (curtype == ACCESS_TYPE_NUM) {
-            ASSERTX(0);
-        }
+        //         origin.clear();
+        //         origin.push_back(curid);
+        //         flipped.clear();
+        //         flipped.push_back(-curid);
+        //     }
+        // }
+        // if (curtype == ACCESS_TYPE_NUM) {
+        //     ASSERTX(0);
+        // }
 
     }
     if (printflag)

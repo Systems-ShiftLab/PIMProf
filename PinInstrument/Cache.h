@@ -73,47 +73,46 @@ static inline INT32 CeilLog2(UINT32 n)
 
 namespace PIMProf {
 
-class BBLOPList {
-    class BBLOPSegment {
+class ReuseChain {
+    class ReuseChainSegment {
       private:
-        std::vector<BBLID> _vec;
+        BBLID _head;
         std::set<BBLID> _set;
-        ACCESS_TYPE _type;
 
       public:
-        inline void push_back(BBLID elem) {
-            if (_set.find(elem) == _set.end()) {
-                _set.insert(elem);
-                _vec.push_back(elem);
-            }
+        inline void insert(BBLID elem) {
+            if (_set.empty())
+                _head = elem;
+            _set.insert(elem);
         }
 
         inline void clear() {
-            _vec.clear();
             _set.clear();
         }
 
-        inline void SetType(ACCESS_TYPE t) {
-            _type = t;
+
+        inline void setHead(BBLID head) {
+            _head = head;
         }
 
-        inline ACCESS_TYPE GetType() {
-            return _type;
+        inline BBLID getHead() {
+            return _head;
         }
     };
   private:
-    std::vector<BBLOPSegment> _vec;
+    std::vector<ReuseChainSegment> _vec;
   public:
-    inline void push_back(BBLOP elem) {
-        if (_vec.empty() || elem.second != _vec.back().GetType()) {
-            _vec.push_back(BBLOPSegment());
-            _vec.back().SetType(elem.second);
-            _vec.back().push_back(elem.first);
-        }
-        else {
-            _vec.back().push_back(elem.first);
-        }
+    
+    inline ReuseChain() {
+        _vec.push_back(ReuseChainSegment());
+    }
 
+    inline void insert(BBLOP elem) {
+        _vec.back().insert(elem.first);
+        if (elem.second == ACCESS_TYPE::ACCESS_TYPE_STORE) {
+            _vec.push_back(ReuseChainSegment());
+            _vec.back().insert(elem.first);
+        }
     }
 
     inline void clear() {
@@ -128,13 +127,13 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
-    BBLOPList *_op;
+    ReuseChain *_op;
 
   public:
     CACHE_TAG(ADDRINT tagaddr = 0)
     {
         _tag = tagaddr;
-        _op = new BBLOPList;
+        _op = new ReuseChain;
     }
 
     ~CACHE_TAG() 
@@ -153,11 +152,11 @@ class CACHE_TAG
     {
         if (bblid != GLOBALBBLID) {
             BBLOP temp = std::make_pair(bblid, accessType);
-            _op->push_back(temp);
+            _op->insert(temp);
         }
     }
 
-    inline BBLOPList *GetBBLOperation()
+    inline ReuseChain *GetBBLOperation()
     {
         return _op;
     }
@@ -502,7 +501,7 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
 
     // modifiers
     
-    VOID addmemcost(BOOL hit, CACHE_LEVEL *lvl);
+    VOID AddMemCost(BOOL hit, CACHE_LEVEL *lvl);
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
@@ -512,7 +511,6 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
     /// @return true if accessed cache line hits
     BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
 
-    // @return true if accessed cache line hits
     VOID Flush();
     VOID ResetStats();
     inline std::string getReplacementPolicy() {

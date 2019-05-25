@@ -169,7 +169,7 @@ CACHE_LEVEL::~CACHE_LEVEL()
 }
 
 
-VOID CACHE_LEVEL::addmemcost(BOOL hit, CACHE_LEVEL *lvl)
+VOID CACHE_LEVEL::AddMemCost(BOOL hit, CACHE_LEVEL *lvl)
 {
     if (hit) {
         BBLID bblid = PinInstrument::GetCurrentBBL();
@@ -201,37 +201,10 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
     const ADDRINT notLineMask = ~(lineSize - 1);
     do
     {
-        ADDRINT tagaddr;
-        UINT32 setIndex;
-
-        SplitAddress(addr, tagaddr, setIndex);
-
-        CACHE_SET *set = _sets[setIndex];
-        CACHE_TAG *tag = set->Find(tagaddr);
-        BOOL localhit = (tag != NULL);
-        allHit &= localhit;
-
-        // on miss, loads always allocate, stores optionally
-        if ((!localhit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
-        {
-            tag = set->Replace(tagaddr);
-            // CostSolver::AddDataReuseCost(tag->GetBBLOperation());
-            tag->ClearBBLOperation();
-        }
-
-        // tag == NULL means that accessType is STORE and STORE_ALLOCATION is NO ALLOCATE
-        if (tag != NULL) {
-            tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
-        }
-
+        allHit &= AccessSingleLine(addr, accessType);
         addr = (addr & notLineMask) + lineSize; // start of next cache line
 
-        CACHE_LEVEL::addmemcost(localhit, this);
-
     } while (addr < highAddr);
-
-
-    _access[accessType][allHit]++;
 
     return allHit;
 }
@@ -260,7 +233,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
     }
 
-    CACHE_LEVEL::addmemcost(hit, this);
+    CACHE_LEVEL::AddMemCost(hit, this);
 
     _access[accessType][hit]++;
 

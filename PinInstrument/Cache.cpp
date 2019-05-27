@@ -226,11 +226,12 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
         tag = set->Replace(tagaddr);
-        // CostSolver::AddDataReuseCost(tag->GetBBLOperation());
-        tag->ClearBBLOperation();
+        // CostSolver::AddDataReuseCost(tag->GetReuseChain());
+        tag->GetReuseChain()->print(std::cout);
+        tag->ClearReuseChain();
     }
-    if (tag != NULL) {
-        tag->InsertBBLOperation(PinInstrument::GetCurrentBBL(), accessType);
+    if (hit) {
+        tag->InsertReuseChain(PinInstrument::GetCurrentBBL(), accessType);
     }
 
     CACHE_LEVEL::AddMemCost(hit, this);

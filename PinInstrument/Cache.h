@@ -76,10 +76,20 @@ namespace PIMProf {
 class ReuseChain {
     class ReuseChainSegment {
       private:
+        int _count;
         BBLID _head;
         std::set<BBLID> _set;
 
       public:
+
+        inline ReuseChainSegment() {
+            _count = 1;
+        }
+
+        inline size_t size() {
+            return _set.size();
+        }
+
         inline void insert(BBLID elem) {
             if (_set.empty())
                 _head = elem;
@@ -98,18 +108,50 @@ class ReuseChain {
         inline BBLID getHead() {
             return _head;
         }
+
+        inline bool operator == (ReuseChainSegment &rhs) {
+            return (_head == rhs._head && _set == rhs._set);
+        }
+
+        inline void merge(ReuseChainSegment &rhs) {
+            _count += rhs._count;
+        }
+
+        inline std::ostream &print(std::ostream &out) {
+            out << "{ ";
+            out << _count << ", " << _head << " | ";
+            for (auto it = _set.begin(); it != _set.end(); it++) {
+                out << *it << ", ";
+            }
+            out << "}";
+            return out;
+        }
     };
   private:
     std::vector<ReuseChainSegment> _vec;
-  public:
-    
-    inline ReuseChain() {
-        _vec.push_back(ReuseChainSegment());
-    }
 
+  public:
+
+    inline size_t size() {
+        return _vec.size();
+    }
+    
     inline void insert(BBLOP elem) {
+        if (_vec.empty()) {
+            _vec.push_back(ReuseChainSegment());
+        }
         _vec.back().insert(elem.first);
         if (elem.second == ACCESS_TYPE::ACCESS_TYPE_STORE) {
+            // A reuse chain segment of size 1 can be removed
+            // Two reuse chains that are equal can be merged
+            if (_vec.back().size() == 1) {
+                _vec.pop_back();
+            }
+
+            auto rit = _vec.rbegin();
+            if (_vec.size() > 1 && rit[0] == rit[1]) {
+                rit[0].merge(rit[1]);
+            }
             _vec.push_back(ReuseChainSegment());
             _vec.back().insert(elem.first);
         }
@@ -117,6 +159,24 @@ class ReuseChain {
 
     inline void clear() {
         _vec.clear();
+    }
+
+    inline void simplify() {
+        // A reuse chain segment of size 1 can be removed
+        if (!_vec.empty() && _vec.back().size() == 1) {
+            _vec.pop_back();
+        }
+    }
+
+    inline std::ostream &print(std::ostream &out) {
+        bool flag = false;
+        for (auto it = _vec.begin(); it != _vec.end(); it++) {
+            flag = true;
+            it->print(out);
+        }
+        if (flag)
+            out << std::endl;
+        return out;
     }
 };
 
@@ -133,7 +193,7 @@ class CACHE_TAG
     CACHE_TAG(ADDRINT tagaddr = 0)
     {
         _tag = tagaddr;
-        _op = new ReuseChain;
+        _op = new ReuseChain();
     }
 
     ~CACHE_TAG() 
@@ -148,7 +208,7 @@ class CACHE_TAG
     }
     inline ADDRINT GetTag() const { return _tag; }
 
-    inline VOID InsertBBLOperation(BBLID bblid, ACCESS_TYPE accessType) 
+    inline VOID InsertReuseChain(BBLID bblid, ACCESS_TYPE accessType) 
     {
         if (bblid != GLOBALBBLID) {
             BBLOP temp = std::make_pair(bblid, accessType);
@@ -156,12 +216,14 @@ class CACHE_TAG
         }
     }
 
-    inline ReuseChain *GetBBLOperation()
+    inline ReuseChain *GetReuseChain()
     {
+        // simplify reuse chain before using it
+        _op->simplify();
         return _op;
     }
 
-    inline VOID ClearBBLOperation()
+    inline VOID ClearReuseChain()
     {
         _op->clear();
     }

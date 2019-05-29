@@ -1,4 +1,4 @@
-#### Folder `LLVMAnalysis/` is distributer under the Apache 2.0 License with LLVM exceptions.
+#### Folder `LLVMAnalysis/` is distributed under the Apache 2.0 License with LLVM exceptions.
 
 ```
 Copyright (c) 2019 Yizhou Wei.
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-#### File `PinInstrument/INIReader.h` is distributed underthe New BSD license.
+#### File `PinInstrument/INIReader.h` is distributed under the New BSD license.
 
 ```
 The "inih" library is distributed under the New BSD license:

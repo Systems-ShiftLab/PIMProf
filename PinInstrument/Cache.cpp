@@ -54,6 +54,22 @@ std::string PIMProf::StringString(std::string val, UINT32 width, CHAR padding)
 /* Cache tag */
 /* ===================================================================== */
 
+VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
+    if (bblid != GLOBALBBLID) {
+        _seg.insert(bblid);
+        if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
+            DataReuse::UpdateTrie(_seg);
+            _seg.clear();
+            _seg.insert(bblid);
+        }
+    }
+}
+
+VOID CACHE_TAG::SplitOnMiss() {
+    DataReuse::UpdateTrie(_seg);
+    _seg.clear();
+}
+
 /* ===================================================================== */
 /* Base class for cache level */
 /* ===================================================================== */
@@ -226,10 +242,10 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
         tag = set->Replace(tagaddr);
-        DataReuse::Split();
+        tag->SplitOnMiss();
     }
     if (hit) {
-        DataReuse::Insert(PinInstrument::GetCurrentBBL(), accessType);
+        tag->InsertOnHit(PinInstrument::GetCurrentBBL(), accessType);
     }
 
     CACHE_LEVEL::AddMemCost(hit, this);

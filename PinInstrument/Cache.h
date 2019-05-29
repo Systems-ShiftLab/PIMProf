@@ -81,6 +81,7 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
+    DataReuseSegment _seg;
 
   public:
     CACHE_TAG(ADDRINT tagaddr = 0)
@@ -94,6 +95,10 @@ class CACHE_TAG
        _tag = tagaddr;
     }
     inline ADDRINT GetTag() const { return _tag; }
+
+    inline VOID InsertOnHit(BBLID bblid, ACCESS_TYPE accessType);
+
+    inline VOID SplitOnMiss();
 };
 
 

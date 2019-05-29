@@ -30,8 +30,7 @@ DataReuse PinInstrument::data_reuse;
 std::stack<BBLID> PinInstrument::bblidstack;
 CostSolver PinInstrument::solver;
 
-DataReuse::DataReuseSegment DataReuse::_seg;
-DataReuse::TrieNode* DataReuse::_root;
+TrieNode* DataReuse::_root;
 
 CACHE MemoryLatency::cache;
 
@@ -51,41 +50,53 @@ std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
 /* ===================================================================== */
 /* DataReuse */
 /* ===================================================================== */
-size_t DataReuse::DataReuseSegment::size() {
-    return _set.size();
-}
+// DataReuse::DataReuseSegment::DataReuseSegment() {
+//     _headID = GLOBALBBLID;
+// }
 
-VOID DataReuse::DataReuseSegment::insert(BBLID bblid) {
-    if (_set.empty())
-        _headID = bblid;
-    _set.insert(bblid);
-}
+// size_t DataReuse::DataReuseSegment::size() {
+//     return _set.size();
+// }
 
-VOID DataReuse::DataReuseSegment::clear() {
-    _set.clear();
-}
+// VOID DataReuse::DataReuseSegment::insert(BBLID bblid) {
+//     if (_set.empty())
+//         _headID = bblid;
+//     _set.insert(bblid);
+// }
 
-VOID DataReuse::DataReuseSegment::setHead(BBLID head) {
-    _headID = head;
-}
+// VOID DataReuse::DataReuseSegment::clear() {
+//     _headID = GLOBALBBLID;
+//     _set.clear();
+// }
 
-BBLID DataReuse::DataReuseSegment::getHead() {
-    return _headID;
-}
+// VOID DataReuse::DataReuseSegment::setHead(BBLID head) {
+//     _headID = head;
+// }
 
-BOOL DataReuse::DataReuseSegment::operator == (DataReuseSegment &rhs) {
-    return (_headID == rhs._headID && _set == rhs._set);
-}
+// BBLID DataReuse::DataReuseSegment::getHead() {
+//     return _headID;
+// }
 
-std::ostream &print(std::ostream &out) {
-    return out;
-}
+// BOOL DataReuse::DataReuseSegment::operator == (DataReuseSegment &rhs) {
+//     return (_headID == rhs._headID && _set == rhs._set);
+// }
 
-DataReuse::TrieNode::TrieNode()
-{
-    _isLeaf = false;
-    _count = 0;
-}
+// std::ostream &DataReuse::DataReuseSegment::print(std::ostream &out) {
+//     out << "{ ";
+//     out << _headID << " | ";
+//     for (auto it = _set.begin(); it != _set.end(); it++) {
+//         out << *it << ", ";
+//     }
+//     out << "}";
+//     out << std::endl;
+//     return out;
+// }
+
+// DataReuse::TrieNode::TrieNode()
+// {
+//     _isLeaf = false;
+//     _count = 0;
+// }
 
 DataReuse::DataReuse()
 {
@@ -97,8 +108,13 @@ DataReuse::~DataReuse()
     DeleteTrie(_root);
 }
 
-VOID DataReuse::UpdateTrie(DataReuse::DataReuseSegment &seg)
+VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
 {
+    // A reuse chain segment of size 1 can be removed
+    if (seg.size() <= 1) return;
+
+    seg.print(std::cout);
+
     TrieNode *curNode = _root;
     std::set<BBLID>::iterator it = seg._set.begin();
     std::set<BBLID>::iterator eit = seg._set.end();
@@ -135,14 +151,14 @@ VOID DataReuse::DeleteTrie(TrieNode *root)
 VOID DataReuse::PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count)
 {
     if (root->_isLeaf) {
-        out << "V_" << count << "[shape=box, label=\"" << bblid << "," << root->_count << "\"];" << std::endl;
-        out << "V_" << parent << " -> V_" << count << ";" << std::endl;
+        out << "    V_" << count << " [shape=box, label=\"head = " << bblid << "\n cnt = " << root->_count << "\"];" << std::endl;
+        out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
         parent = count;
         count++;
     }
     else {
-        out << "V_" << count << "[label=\"" << bblid << "," << root->_count << "\"];" << std::endl;
-        out << "V_" << parent << " -> V_" << count << ";" << std::endl;
+        out << "    V_" << count << " [label=\"" << bblid << "\"];" << std::endl;
+        out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
         parent = count;
         count++;
         std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
@@ -154,34 +170,17 @@ VOID DataReuse::PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int pa
 }
 
 std::ostream &DataReuse::print(std::ostream &out) {
-    int count = 0;
     int parent = 0;
+    int count = 1;
     out << "digraph trie {" << std::endl;
     std::map<BBLID, TrieNode *>::iterator it = _root->_children.begin();
     std::map<BBLID, TrieNode *>::iterator eit = _root->_children.end();
-    out << "V_" << count << " [label=\"root\"];" << std::endl;
+    out << "    V_0" << " [label=\"root\"];" << std::endl;
     for (; it != eit; it++) {
         DataReuse::PrintTrie(out, it->first, it->second, parent, count);
     }
     out << "}" << std::endl;
     return out;
-}
-
-VOID DataReuse::Insert(BBLID bblid, ACCESS_TYPE accessType)
-{
-    _seg.insert(bblid);
-    if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-        DataReuse::UpdateTrie(_seg);
-        _seg.clear();
-        _seg.insert(bblid);
-    }
-}
-
-
-VOID DataReuse::Split()
-{
-    DataReuse::UpdateTrie(_seg);
-    _seg.clear();
 }
 
 /* ===================================================================== */

@@ -28,6 +28,73 @@ namespace PIMProf {
 
     typedef std::pair<BBLID, ACCESS_TYPE> BBLOP;
 
+    class DataReuseSegment {
+      friend class DataReuse;
+      private:
+        BBLID _headID;
+        std::set<BBLID> _set;
+
+      public:
+        inline DataReuseSegment() {
+            _headID = GLOBALBBLID;
+        }
+
+        inline size_t size() {
+            return _set.size();
+        }
+
+        inline VOID insert(BBLID bblid) {
+            if (_set.empty())
+                _headID = bblid;
+            _set.insert(bblid);
+        }
+
+        inline VOID clear() {
+            _headID = GLOBALBBLID;
+            _set.clear();
+        }
+
+
+        inline VOID setHead(BBLID head) {
+            _headID = head;
+        }
+
+        inline BBLID getHead() {
+            return _headID;
+        }
+
+        inline BOOL operator == (DataReuseSegment &rhs) {
+            return (_headID == rhs._headID && _set == rhs._set);
+        }
+
+        inline std::ostream &print(std::ostream &out) {
+            out << "{ ";
+            out << _headID << " | ";
+            for (auto it = _set.begin(); it != _set.end(); it++) {
+                out << *it << ", ";
+            }
+            out << "}";
+            out << std::endl;
+            return out;
+        }
+
+        
+    };
+
+    class TrieNode {
+      public:
+        bool _isLeaf;
+        std::map<BBLID, TrieNode *> _children;
+        INT64 _count;
+      public:
+        inline TrieNode() {
+            _isLeaf = false;
+            _count = 0;
+        }
+
+        
+    };
+
     inline INT32 INIErrorMsg(INT32 error, const string &filename, std::ostream &out) 
     {
         if (error == 0)

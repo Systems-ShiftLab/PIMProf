@@ -13,3 +13,21 @@ To track data reuse, we need to keep a record of how many times a cache line is 
 
 ### Memory cost
 To track memory cost, we take a different approach. We take the memory hit and miss cost into consideration.
+
+
+### reference output
+BBL	CPUIns		PIMIns		CPUMem		PIMMem		difference
+1	1797		17970		713264		688974		8117
+2	6		60		4152		4087		11
+3	5		50		712		582		85
+4	848		8480		137524		132239		-2347
+5	137		1370		5136		4746		-843
+6	5		50		4144		4079		20
+7	5		50		4112		4047		20
+8	5		50		4112		4047		20
+9	3		30		108		108		-27
+10	0		0		0		0		0
+11	5		50		20164		20034		85
+12	2		20		248		248		-18
+13	1		10		36		36		-9
+14	4		40		276		211		29

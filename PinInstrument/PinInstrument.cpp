@@ -26,8 +26,12 @@ using namespace PIMProf;
 
 MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
+DataReuse PinInstrument::data_reuse;
 std::stack<BBLID> PinInstrument::bblidstack;
 CostSolver PinInstrument::solver;
+
+DataReuse::DataReuseSegment DataReuse::_seg;
+DataReuse::TrieNode* DataReuse::_root;
 
 CACHE MemoryLatency::cache;
 
@@ -44,6 +48,140 @@ COST CostSolver::_memory_cost[MAX_COST_SITE];
 BBLID CostSolver::_BBL_size;
 std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
 
+/* ===================================================================== */
+/* DataReuse */
+/* ===================================================================== */
+size_t DataReuse::DataReuseSegment::size() {
+    return _set.size();
+}
+
+VOID DataReuse::DataReuseSegment::insert(BBLID bblid) {
+    if (_set.empty())
+        _headID = bblid;
+    _set.insert(bblid);
+}
+
+VOID DataReuse::DataReuseSegment::clear() {
+    _set.clear();
+}
+
+VOID DataReuse::DataReuseSegment::setHead(BBLID head) {
+    _headID = head;
+}
+
+BBLID DataReuse::DataReuseSegment::getHead() {
+    return _headID;
+}
+
+BOOL DataReuse::DataReuseSegment::operator == (DataReuseSegment &rhs) {
+    return (_headID == rhs._headID && _set == rhs._set);
+}
+
+std::ostream &print(std::ostream &out) {
+    return out;
+}
+
+DataReuse::TrieNode::TrieNode()
+{
+    _isLeaf = false;
+    _count = 0;
+}
+
+DataReuse::DataReuse()
+{
+    _root = new TrieNode();
+}
+
+DataReuse::~DataReuse()
+{
+    DeleteTrie(_root);
+}
+
+VOID DataReuse::UpdateTrie(DataReuse::DataReuseSegment &seg)
+{
+    TrieNode *curNode = _root;
+    std::set<BBLID>::iterator it = seg._set.begin();
+    std::set<BBLID>::iterator eit = seg._set.end();
+    for (; it != eit; it++) {
+        BBLID curID = *it;
+        TrieNode *temp = curNode->_children[curID];
+        if (temp == NULL) {
+            temp = new TrieNode();
+            curNode->_children[curID] = temp;
+        }
+        curNode = temp;
+    }
+    TrieNode *temp = curNode->_children[seg._headID];
+    if (temp == NULL) {
+        temp = new TrieNode();
+        curNode->_children[seg._headID] = temp;
+    }
+    temp->_isLeaf = true;
+    temp->_count += 1;
+}
+
+VOID DataReuse::DeleteTrie(TrieNode *root)
+{
+    if (!root->_isLeaf) {
+        std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
+        std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
+        for (; it != eit; it++) {
+            DataReuse::DeleteTrie(it->second);
+        }
+    }
+    delete root;
+}
+
+static VOID DataReuse::PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count)
+{
+    if (root->_isLeaf) {
+        out << "V_" << count << "[shape=box, label=\"" << bblid << "," << root->_count << "\"];" << std::endl;
+        out << "V_" << parent << " -> V_" << count << ";" << std::endl;
+        parent = count;
+        count++;
+    }
+    else {
+        out << "V_" << count << "[label=\"" << bblid << "," << root->_count << "\"];" << std::endl;
+        out << "V_" << parent << " -> V_" << count << ";" << std::endl;
+        parent = count;
+        count++;
+        std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
+        std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
+        for (; it != eit; it++) {
+            DataReuse::PrintTrie(out, it->first, it->second, parent, count);
+        }
+    }
+}
+
+std::ostream &DataReuse::print(std::ostream &out) {
+    int count = 0;
+    int parent = 0;
+    out << "digraph trie {" << std::endl;
+    std::map<BBLID, TrieNode *>::iterator it = _root->_children.begin();
+    std::map<BBLID, TrieNode *>::iterator eit = _root->_children.end();
+    out << "V_" << count << " [label=\"root\"];" << std::endl;
+    for (; it != eit; it++) {
+        DataReuse::PrintTrie(out, it->first, it->second, parent, count);
+    }
+    out << "}" << std::endl;
+}
+
+VOID DataReuse::Insert(BBLID bblid, ACCESS_TYPE accessType)
+{
+    _seg.insert(bblid);
+    if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
+        DataReuse::UpdateTrie(_seg);
+        _seg.clear();
+        _seg.insert(bblid);
+    }
+}
+
+
+VOID DataReuse::Split()
+{
+    DataReuse::UpdateTrie(_seg);
+    _seg.clear();
+}
 
 /* ===================================================================== */
 /* MemoryLatency */

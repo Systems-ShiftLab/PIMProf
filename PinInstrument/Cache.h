@@ -73,112 +73,6 @@ static inline INT32 CeilLog2(UINT32 n)
 
 namespace PIMProf {
 
-class ReuseChain {
-    class ReuseChainSegment {
-      private:
-        int _count;
-        BBLID _head;
-        std::set<BBLID> _set;
-
-      public:
-
-        inline ReuseChainSegment() {
-            _count = 1;
-        }
-
-        inline size_t size() {
-            return _set.size();
-        }
-
-        inline void insert(BBLID elem) {
-            if (_set.empty())
-                _head = elem;
-            _set.insert(elem);
-        }
-
-        inline void clear() {
-            _set.clear();
-        }
-
-
-        inline void setHead(BBLID head) {
-            _head = head;
-        }
-
-        inline BBLID getHead() {
-            return _head;
-        }
-
-        inline bool operator == (ReuseChainSegment &rhs) {
-            return (_head == rhs._head && _set == rhs._set);
-        }
-
-        inline void merge(ReuseChainSegment &rhs) {
-            _count += rhs._count;
-        }
-
-        inline std::ostream &print(std::ostream &out) {
-            out << "{ ";
-            out << _count << ", " << _head << " | ";
-            for (auto it = _set.begin(); it != _set.end(); it++) {
-                out << *it << ", ";
-            }
-            out << "}";
-            return out;
-        }
-    };
-  private:
-    std::vector<ReuseChainSegment> _vec;
-
-  public:
-
-    inline size_t size() {
-        return _vec.size();
-    }
-    
-    inline void insert(BBLOP elem) {
-        if (_vec.empty()) {
-            _vec.push_back(ReuseChainSegment());
-        }
-        _vec.back().insert(elem.first);
-        if (elem.second == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-            // A reuse chain segment of size 1 can be removed
-            // Two reuse chains that are equal can be merged
-            if (_vec.back().size() == 1) {
-                _vec.pop_back();
-            }
-
-            auto rit = _vec.rbegin();
-            if (_vec.size() > 1 && rit[0] == rit[1]) {
-                rit[0].merge(rit[1]);
-            }
-            _vec.push_back(ReuseChainSegment());
-            _vec.back().insert(elem.first);
-        }
-    }
-
-    inline void clear() {
-        _vec.clear();
-    }
-
-    inline void simplify() {
-        // A reuse chain segment of size 1 can be removed
-        if (!_vec.empty() && _vec.back().size() == 1) {
-            _vec.pop_back();
-        }
-    }
-
-    inline std::ostream &print(std::ostream &out) {
-        bool flag = false;
-        for (auto it = _vec.begin(); it != _vec.end(); it++) {
-            flag = true;
-            it->print(out);
-        }
-        if (flag)
-            out << std::endl;
-        return out;
-    }
-};
 
 /// @brief Cache tag
 /// dynamic data structure should only be allocated on construction
@@ -187,18 +81,11 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
-    ReuseChain *_op;
 
   public:
     CACHE_TAG(ADDRINT tagaddr = 0)
     {
         _tag = tagaddr;
-        _op = new ReuseChain();
-    }
-
-    ~CACHE_TAG() 
-    {
-        delete _op;
     }
 
     inline bool operator == (const ADDRINT &rhs) const { return _tag == rhs; }
@@ -207,26 +94,6 @@ class CACHE_TAG
        _tag = tagaddr;
     }
     inline ADDRINT GetTag() const { return _tag; }
-
-    inline VOID InsertReuseChain(BBLID bblid, ACCESS_TYPE accessType) 
-    {
-        if (bblid != GLOBALBBLID) {
-            BBLOP temp = std::make_pair(bblid, accessType);
-            _op->insert(temp);
-        }
-    }
-
-    inline ReuseChain *GetReuseChain()
-    {
-        // simplify reuse chain before using it
-        _op->simplify();
-        return _op;
-    }
-
-    inline VOID ClearReuseChain()
-    {
-        _op->clear();
-    }
 };
 
 

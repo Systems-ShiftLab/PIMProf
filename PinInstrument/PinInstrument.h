@@ -20,6 +20,118 @@
 
 namespace PIMProf {
 
+/// We split a reuse chain into multiple segments that starts
+/// with a W and ends with a W, for example:
+/// A reuse chain: R W R R R R W R W W R R W R
+/// can be splitted into: R W | R R R R W | R W | W | R R W | R
+/// this is stored as segments that starts with a W and ends with a W:
+/// R W; W R R R R W; W R W; W W; W R R W; W R
+
+/// If all BB in a segment are executed in the same place,
+/// then there is no reuse cost;
+/// If the initial W is on PIM and there are subsequent R/W on CPU,
+/// then this segment contributes to a fetch cost;
+/// If the initial W is on CPU and there are subsequent R/W on PIM,
+/// then this segment contributes to a flush cost.
+class DataReuse {
+    
+    class DataReuseSegment {
+      friend class DataReuse;
+      private:
+        BBLID _headID;
+        std::set<BBLID> _set;
+
+      public:
+        size_t size();
+        VOID insert(BBLID bblid);
+        VOID clear();
+
+
+        VOID setHead(BBLID head);
+
+        BBLID getHead();
+
+        BOOL operator == (DataReuseSegment &rhs);
+
+        std::ostream &print(std::ostream &out);
+
+        
+    };
+
+    class TrieNode {
+      public:
+        bool _isLeaf;
+        std::map<BBLID, TrieNode *> _children;
+        INT64 _count;
+      public:
+        TrieNode();
+        
+    };
+
+  private:
+    static DataReuseSegment _seg;
+    static TrieNode* _root;
+
+  public:
+    DataReuse();
+    ~DataReuse();
+    static VOID UpdateTrie(DataReuseSegment &seg);
+    static VOID DeleteTrie(TrieNode *root);
+    static VOID PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count);
+    std::ostream &print(std::ostream &out);
+    static VOID Insert(BBLID bblid, ACCESS_TYPE accessType);
+    static VOID Split();
+
+
+    // inline size_t size() {
+    //     return _vec.size();
+    // }
+    
+    // inline void insert(BBLOP elem) {
+    //     if (_vec.empty()) {
+    //         _vec.push_back(DataReuseSegment());
+    //     }
+    //     _vec.back().insert(elem.first);
+    //     if (elem.second == ACCESS_TYPE::ACCESS_TYPE_STORE) {
+    //         // A reuse chain segment of size 1 can be removed
+    //         // Two reuse chains that are equal can be merged
+    //         if (_vec.back().size() == 1) {
+    //             _vec.pop_back();
+    //         }
+
+    //         auto rit = _vec.rbegin();
+    //         if (_vec.size() > 1 && rit[0] == rit[1]) {
+    //             rit[0].merge(rit[1]);
+    //             _vec.pop_back();
+    //         }
+    //         _vec.push_back(DataReuseSegment());
+    //         _vec.back().insert(elem.first);
+    //     }
+    // }
+
+    // inline void clear() {
+    //     _vec.clear();
+    // }
+
+    // inline void simplify() {
+    //     // A reuse chain segment of size 1 can be removed
+    //     if (!_vec.empty() && _vec.back().size() == 1) {
+    //         _vec.pop_back();
+    //     }
+    // }
+
+    // inline std::ostream &print(std::ostream &out) {
+    //     bool flag = false;
+    //     for (auto it = _vec.begin(); it != _vec.end(); it++) {
+    //         flag = true;
+    //         it->print(out);
+    //     }
+    //     if (flag)
+    //         out << std::endl;
+    //     return out;
+    // }
+};
+
 
 class MemoryLatency {
     friend class PinInstrument;
@@ -193,6 +305,7 @@ class PinInstrument {
   private:
     static MemoryLatency memory_latency;
     static InstructionLatency instruction_latency;
+    static DataReuse data_reuse;
     static std::stack<BBLID> bblidstack;
     static CostSolver solver;
 

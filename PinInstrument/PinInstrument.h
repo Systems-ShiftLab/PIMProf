@@ -78,58 +78,10 @@ class DataReuse {
     static VOID UpdateTrie(DataReuseSegment &seg);
     static VOID DeleteTrie(TrieNode *root);
     static VOID PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count);
-    std::ostream &print(std::ostream &out);
+    static std::ostream &print(std::ostream &out);
     static VOID Insert(BBLID bblid, ACCESS_TYPE accessType);
     static VOID Split();
 
-
-    // inline size_t size() {
-    //     return _vec.size();
-    // }
-    
-    // inline void insert(BBLOP elem) {
-    //     if (_vec.empty()) {
-    //         _vec.push_back(DataReuseSegment());
-    //     }
-    //     _vec.back().insert(elem.first);
-    //     if (elem.second == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-    //         // A reuse chain segment of size 1 can be removed
-    //         // Two reuse chains that are equal can be merged
-    //         if (_vec.back().size() == 1) {
-    //             _vec.pop_back();
-    //         }
-
-    //         auto rit = _vec.rbegin();
-    //         if (_vec.size() > 1 && rit[0] == rit[1]) {
-    //             rit[0].merge(rit[1]);
-    //             _vec.pop_back();
-    //         }
-    //         _vec.push_back(DataReuseSegment());
-    //         _vec.back().insert(elem.first);
-    //     }
-    // }
-
-    // inline void clear() {
-    //     _vec.clear();
-    // }
-
-    // inline void simplify() {
-    //     // A reuse chain segment of size 1 can be removed
-    //     if (!_vec.empty() && _vec.back().size() == 1) {
-    //         _vec.pop_back();
-    //     }
-    // }
-
-    // inline std::ostream &print(std::ostream &out) {
-    //     bool flag = false;
-    //     for (auto it = _vec.begin(); it != _vec.end(); it++) {
-    //         flag = true;
-    //         it->print(out);
-    //     }
-    //     if (flag)
-    //         out << std::endl;
-    //     return out;
-    // }
 };
 
 

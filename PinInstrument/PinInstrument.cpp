@@ -132,7 +132,7 @@ VOID DataReuse::DeleteTrie(TrieNode *root)
     delete root;
 }
 
-static VOID DataReuse::PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count)
+VOID DataReuse::PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count)
 {
     if (root->_isLeaf) {
         out << "V_" << count << "[shape=box, label=\"" << bblid << "," << root->_count << "\"];" << std::endl;
@@ -164,6 +164,7 @@ std::ostream &DataReuse::print(std::ostream &out) {
         DataReuse::PrintTrie(out, it->first, it->second, parent, count);
     }
     out << "}" << std::endl;
+    return out;
 }
 
 VOID DataReuse::Insert(BBLID bblid, ACCESS_TYPE accessType)
@@ -798,4 +799,6 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
             std::cout << difference << std::endl;
         // }
     }
+    std::ofstream ofs("output.dot", std::ofstream::out);
+    DataReuse::print(ofs);
 }

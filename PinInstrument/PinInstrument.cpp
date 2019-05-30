@@ -39,6 +39,7 @@ COST InstructionLatency::_instruction_latency[MAX_COST_SITE][MAX_INDEX];
 COST CostSolver::_control_latency[MAX_COST_SITE][MAX_COST_SITE];
 std::vector<COST> CostSolver::_BBL_instruction_cost[MAX_COST_SITE];
 std::vector<COST> CostSolver::_BBL_memory_cost[MAX_COST_SITE];
+std::vector<COST> CostSolver::_BBL_difference;
 COST CostSolver::_instruction_multiplier[MAX_COST_SITE];
 COST CostSolver::_clwb_cost;
 COST CostSolver::_invalidate_cost;
@@ -50,53 +51,6 @@ BBLID CostSolver::_BBL_size;
 /* ===================================================================== */
 /* DataReuse */
 /* ===================================================================== */
-// DataReuse::DataReuseSegment::DataReuseSegment() {
-//     _headID = GLOBALBBLID;
-// }
-
-// size_t DataReuse::DataReuseSegment::size() {
-//     return _set.size();
-// }
-
-// VOID DataReuse::DataReuseSegment::insert(BBLID bblid) {
-//     if (_set.empty())
-//         _headID = bblid;
-//     _set.insert(bblid);
-// }
-
-// VOID DataReuse::DataReuseSegment::clear() {
-//     _headID = GLOBALBBLID;
-//     _set.clear();
-// }
-
-// VOID DataReuse::DataReuseSegment::setHead(BBLID head) {
-//     _headID = head;
-// }
-
-// BBLID DataReuse::DataReuseSegment::getHead() {
-//     return _headID;
-// }
-
-// BOOL DataReuse::DataReuseSegment::operator == (DataReuseSegment &rhs) {
-//     return (_headID == rhs._headID && _set == rhs._set);
-// }
-
-// std::ostream &DataReuse::DataReuseSegment::print(std::ostream &out) {
-//     out << "{ ";
-//     out << _headID << " | ";
-//     for (auto it = _set.begin(); it != _set.end(); it++) {
-//         out << *it << ", ";
-//     }
-//     out << "}";
-//     out << std::endl;
-//     return out;
-// }
-
-// DataReuse::TrieNode::TrieNode()
-// {
-//     _isLeaf = false;
-//     _count = 0;
-// }
 
 DataReuse::DataReuse()
 {
@@ -386,37 +340,18 @@ CostSolver::CostSolver()
 CostSolver::CostSolver(const std::string filename)
 {
     CostSolver();
-    AddControlCost(filename);
+    ReadControlFlowGraph(filename);
 }
 
 COST CostSolver::Minimize()
 {
-    ASSERTX(_BBL_size <= 62);
-    UINT64 i = (1 << _BBL_size) - 1;
-    CostSolver::DECISION decision;
-    CostSolver::DECISION best;
-    COST mincost = FLT_MAX;
-    for (UINT32 j = 0; j <= _BBL_size; j++) {
-        decision.push_back(PIM);
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        _BBL_difference[i]
+            = CostSolver::_BBL_instruction_cost[CPU][i] * _instruction_multiplier[CPU]
+            - CostSolver::_BBL_instruction_cost[PIM][i] * _instruction_multiplier[PIM]
+            + CostSolver::_BBL_memory_cost[CPU][i] 
+            - CostSolver::_BBL_memory_cost[PIM][i];
     }
-    
-    for (; i != (UINT64)(-1); i--) {
-        for (UINT32 j = 1; j <= _BBL_size; j++) {
-            if ((i >> (j - 1)) & 1)
-                decision[j] = PIM;
-            else
-                decision[j] = CPU;
-        }
-        COST cost = Cost(decision);
-        if (cost < mincost) {
-            mincost = cost;
-            best = decision;
-        }
-    }
-    for (UINT32 j = 1; j <= _BBL_size; j++)
-        std::cout << best[j];
-    std::cout << std::endl;
-    std::cout << mincost << std::endl;
     return 0;
 }
 
@@ -465,6 +400,11 @@ VOID CostSolver::ReadConfig(const std::string filename)
     }
 }
 
+VOID CostSolver::SetBBLSize(BBLID _BBL_size) {
+    CostSolver::_BBL_difference.resize(_BBL_size);
+    memset(&CostSolver::_BBL_difference[0], 0, _BBL_size * sizeof CostSolver::_BBL_difference[0]);
+}
+
 // VOID CostSolver::AddCostTerm(const CostTerm &cost) {
 //     if (cost._coefficient == 0) {
 //         return;
@@ -478,7 +418,7 @@ VOID CostSolver::ReadConfig(const std::string filename)
 //     }
 // }
 
-VOID CostSolver::AddControlCost(const std::string filename)
+VOID CostSolver::ReadControlFlowGraph(const std::string filename)
 {
     std::ifstream ifs;
     ifs.open(filename.c_str());
@@ -487,10 +427,11 @@ VOID CostSolver::AddControlCost(const std::string filename)
     getline(ifs, curline);
     std::stringstream ss(curline);
     ss >> _BBL_size;
-    _BBL_size++; // _BBL_size = Largest BBLID + 1
+    // _BBL_size++; // _BBL_size = Largest BBLID + 1
 
     InstructionLatency::SetBBLSize(_BBL_size);
     MemoryLatency::SetBBLSize(_BBL_size);
+    CostSolver::SetBBLSize(_BBL_size);
 
     // /****************************
     // The control cost of BBL i -> BBL j depends on the offloading decision of BBL i and BBL j
@@ -781,23 +722,22 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     // std::cout << std::endl;
     // InstructionLatency::WriteConfig("template.ini");
     // printf("wow\n");
+    CostSolver::Minimize();
     std::cout << "BBL\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
     << "difference" << std::endl;
-    for (UINT32 i = 1; i < CostSolver::_BBL_size; i++) {
-        COST difference = (CostSolver::_BBL_instruction_cost[CPU][i] 
-            - CostSolver::_BBL_instruction_cost[PIM][i] * 10
-            + CostSolver::_BBL_memory_cost[CPU][i] 
-            - CostSolver::_BBL_memory_cost[PIM][i]);
-        // if (difference != 0) {
-            std::cout << i << "\t"
-            << CostSolver::_BBL_instruction_cost[CPU][i] << "\t\t"
-            << CostSolver::_BBL_instruction_cost[PIM][i] * 10 << "\t\t"
-            << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
-            << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
-            std::cout << difference << std::endl;
-        // }
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        std::cout << i << "\t"
+        << CostSolver::_BBL_instruction_cost[CPU][i] *
+           CostSolver::_instruction_multiplier[CPU]
+        << "\t\t"
+        << CostSolver::_BBL_instruction_cost[PIM][i] * 
+           CostSolver::_instruction_multiplier[PIM]
+        << "\t\t"
+        << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
+        << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
+        std::cout << CostSolver::_BBL_difference[i] << std::endl;
     }
     std::ofstream ofs("output.dot", std::ofstream::out);
     DataReuse::print(ofs);

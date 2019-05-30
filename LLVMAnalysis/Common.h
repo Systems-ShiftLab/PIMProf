@@ -17,6 +17,6 @@ static const std::string PIMProfBBLIDMetadata = "basicblock.id";
 
 static const int PIMProfAnnotatorBBLID = -1;
 
-static const int BBLStartingID = 1;
+static const int BBLStartingID = 0;
 
 #endif // __COMMON_H__

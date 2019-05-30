@@ -52,13 +52,13 @@ using namespace PIMProf;
 KNOB<string> KnobConfig(
     KNOB_MODE_WRITEONCE,
     "pintool",
-    "f", "",
+    "c", "",
     "specify config file name");
-KNOB<string> KnobOutput(
+KNOB<string> KnobControlFlow(
     KNOB_MODE_WRITEONCE,
     "pintool",
-    "o", "opcodemix.out",
-    "specify profile file name");
+    "b", "",
+    "specify file name containing control flow graph information");
 
 
 INT32 Usage(std::ostream &out) {
@@ -86,15 +86,18 @@ int main(int argc, CHAR *argv[])
 
     if (configfile == "") {
         configfile = rootdir + "/PinInstrument/defaultconfig.ini";
-        std::cerr << "################################################################################ \n"
-            << "## PIMProf: No config file provided. Using default config file.\n"
-            << "################################################################################\n";
+        std::cerr << "## PIMProf: No config file provided. Using default config file.\n";
     }
     
     InstructionLatency::ReadConfig(configfile);
     MemoryLatency::ReadConfig(configfile);
     CostSolver::ReadConfig(configfile);
-    CostSolver::AddControlCost("/home/warsier/Documents/gapbs/basicblock.out");
+
+    string controlflowfile = KnobControlFlow.Value();
+    if (controlflowfile == "") {
+        ASSERT(0, "Control flow graph file correpsonding to the input program not provided.");
+    }
+    CostSolver::ReadControlFlowGraph(controlflowfile);
 
     IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);
 

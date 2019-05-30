@@ -143,6 +143,7 @@ class CostSolver {
     static std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
     static COST _instruction_multiplier[MAX_COST_SITE];
     static COST _memory_cost[MAX_COST_SITE];
+    static std::vector<COST> _BBL_difference;
 
     static COST _clwb_cost;
     static COST _invalidate_cost;
@@ -170,9 +171,11 @@ class CostSolver {
 
     // static VOID AddCostTerm(const CostTerm &cost);
 
+    static VOID SetBBLSize(BBLID _BBL_size);
+
     /// Read the Control Flow Graph from LLVM pass
     /// Attribute the control cost to the tail node
-    static VOID AddControlCost(const std::string filename);
+    static VOID ReadControlFlowGraph(const std::string filename);
 
     /// Read the Instruction Cost from InstructionLatency instrumentation result
     // static VOID AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE]);

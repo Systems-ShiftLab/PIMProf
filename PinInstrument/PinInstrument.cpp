@@ -24,7 +24,6 @@ using namespace PIMProf;
 /* Static data structure */
 /* ===================================================================== */
 
-MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
 DataReuse PinInstrument::data_reuse;
 std::stack<BBLID> PinInstrument::bblidstack;
@@ -740,6 +739,12 @@ VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid)
     bblidstack.pop();
 }
 
+VOID ReadConfig(const std::string filename)
+{
+    InstructionLatency::ReadConfig(filename);
+    pin_instrument.memory_latency.ReadConfig(filename);
+}
+
 VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
 {
     // push a fake bblid
@@ -775,11 +780,13 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
 
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
 {
+    memory_latency.FinishInstrument(0, NULL);
     // CostSolver::AddInstructionCost(CostSolver::_BBL_instruction_cost);
     // CostSolver::print(std::cout);
     // std::cout << std::endl;
     // InstructionLatency::WriteConfig("template.ini");
     // printf("wow\n");
+    /*
     std::cout << "BBL\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
@@ -797,7 +804,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
             << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
             std::cout << difference << std::endl;
         // }
-    }
+    } */
     std::ofstream ofs("output.dot", std::ofstream::out);
     DataReuse::print(ofs);
 }

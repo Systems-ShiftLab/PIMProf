@@ -219,7 +219,7 @@ class CostSolver::CostTerm {
 class PinInstrument {
 
   private:
-    static MemoryLatency memory_latency;
+    MemoryLatency memory_latency;
     static InstructionLatency instruction_latency;
     static DataReuse data_reuse;
     static std::stack<BBLID> bblidstack;
@@ -236,6 +236,8 @@ class PinInstrument {
     {
         return bblidstack.top();
     }
+
+    VOID ReadConfig(const std::string filename);
 
     /// The instrumentation function for an entire image
     static VOID ImageInstrument(IMG img, VOID *v);

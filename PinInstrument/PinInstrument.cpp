@@ -11,6 +11,7 @@
 #include <fstream>
 #include <string>
 #include <unistd.h>
+#include <cmath>
 
 
 #include "../LLVMAnalysis/Common.h"
@@ -352,6 +353,15 @@ COST CostSolver::Minimize()
             + CostSolver::_BBL_memory_cost[CPU][i] 
             - CostSolver::_BBL_memory_cost[PIM][i];
     }
+    std::vector<std::pair<COST, UINT32>> index;
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        index.push_back(std::make_pair(std::abs(_BBL_difference[i]), i));
+    }
+
+    std::sort(index.begin(), index.end());
+
+
+
     return 0;
 }
 
@@ -427,7 +437,7 @@ VOID CostSolver::ReadControlFlowGraph(const std::string filename)
     getline(ifs, curline);
     std::stringstream ss(curline);
     ss >> _BBL_size;
-    // _BBL_size++; // _BBL_size = Largest BBLID + 1
+    _BBL_size++; // _BBL_size = Largest BBLID + 1
 
     InstructionLatency::SetBBLSize(_BBL_size);
     MemoryLatency::SetBBLSize(_BBL_size);

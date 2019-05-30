@@ -90,18 +90,19 @@ int main(int argc, CHAR *argv[])
             << "## PIMProf: No config file provided. Using default config file.\n"
             << "################################################################################\n";
     }
-    PinInstrument pin_instrument;
     
-    pin_instrument.ReadConfig(configfile);
+    InstructionLatency::ReadConfig(configfile);
+    MemoryLatency::ReadConfig(configfile);
     CostSolver::clear();
     CostSolver::ReadConfig(configfile);
     CostSolver::AddControlCost("/home/warsier/Documents/gapbs/basicblock.out");
 
     IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);
 
-    INS_AddInstrumentFunction(pin_instrument.memory_latency.InstructionInstrument, 0);
+    INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);
     INS_AddInstrumentFunction(InstructionLatency::InstructionInstrument, 0);
 
+    PIN_AddFiniFunction(MemoryLatency::FinishInstrument, 0);
     PIN_AddFiniFunction(PinInstrument::FinishInstrument, 0);
 
     // Never returns

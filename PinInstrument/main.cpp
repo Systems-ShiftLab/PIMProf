@@ -93,7 +93,6 @@ int main(int argc, CHAR *argv[])
     
     InstructionLatency::ReadConfig(configfile);
     MemoryLatency::ReadConfig(configfile);
-    CostSolver::clear();
     CostSolver::ReadConfig(configfile);
     CostSolver::AddControlCost("/home/warsier/Documents/gapbs/basicblock.out");
 

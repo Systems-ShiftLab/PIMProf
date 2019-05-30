@@ -34,6 +34,7 @@ namespace PIMProf {
 /// If the initial W is on CPU and there are subsequent R/W on PIM,
 /// then this segment contributes to a flush cost.
 class DataReuse {
+    friend class CostSolver;
   private:
     static TrieNode* _root;
 
@@ -143,7 +144,7 @@ class CostSolver {
     static std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
     static COST _instruction_multiplier[MAX_COST_SITE];
     static COST _memory_cost[MAX_COST_SITE];
-    static std::vector<COST> _BBL_difference;
+    static std::vector<COST> _BBL_total_cost[MAX_COST_SITE];
 
     static COST _clwb_cost;
     static COST _invalidate_cost;

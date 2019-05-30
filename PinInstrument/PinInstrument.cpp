@@ -40,7 +40,7 @@ COST InstructionLatency::_instruction_latency[MAX_COST_SITE][MAX_INDEX];
 COST CostSolver::_control_latency[MAX_COST_SITE][MAX_COST_SITE];
 std::vector<COST> CostSolver::_BBL_instruction_cost[MAX_COST_SITE];
 std::vector<COST> CostSolver::_BBL_memory_cost[MAX_COST_SITE];
-std::vector<COST> CostSolver::_BBL_difference;
+std::vector<COST> CostSolver::_BBL_total_cost[MAX_COST_SITE];
 COST CostSolver::_instruction_multiplier[MAX_COST_SITE];
 COST CostSolver::_clwb_cost;
 COST CostSolver::_invalidate_cost;
@@ -346,21 +346,27 @@ CostSolver::CostSolver(const std::string filename)
 
 COST CostSolver::Minimize()
 {
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        _BBL_difference[i]
-            = CostSolver::_BBL_instruction_cost[CPU][i] * _instruction_multiplier[CPU]
-            - CostSolver::_BBL_instruction_cost[PIM][i] * _instruction_multiplier[PIM]
-            + CostSolver::_BBL_memory_cost[CPU][i] 
-            - CostSolver::_BBL_memory_cost[PIM][i];
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        for (UINT32 j = 0; j < CostSolver::_BBL_size; j++) {
+            _BBL_total_cost[i][j]
+                = CostSolver::_BBL_instruction_cost[i][j] * _instruction_multiplier[i]
+                + CostSolver::_BBL_memory_cost[i][j];
+        }
     }
     std::vector<std::pair<COST, UINT32>> index;
+    DECISION decision;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        index.push_back(std::make_pair(std::abs(_BBL_difference[i]), i));
+        COST diff = _BBL_total_cost[CPU][i] - _BBL_total_cost[PIM][i];
+        index.push_back(std::make_pair(std::abs(diff), i));
+        if (_BBL_total_cost[CPU][i] <= _BBL_total_cost[PIM][i]) {
+            decision.push_back(CPU);
+        }
+        else {
+            decision.push_back(PIM);
+        }
     }
 
     std::sort(index.begin(), index.end());
-
-
 
     return 0;
 }
@@ -411,8 +417,10 @@ VOID CostSolver::ReadConfig(const std::string filename)
 }
 
 VOID CostSolver::SetBBLSize(BBLID _BBL_size) {
-    CostSolver::_BBL_difference.resize(_BBL_size);
-    memset(&CostSolver::_BBL_difference[0], 0, _BBL_size * sizeof CostSolver::_BBL_difference[0]);
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        CostSolver::_BBL_total_cost[i].resize(_BBL_size);
+        memset(&CostSolver::_BBL_total_cost[i][0], 0, _BBL_size * sizeof CostSolver::_BBL_total_cost[i][0]);
+    }
 }
 
 // VOID CostSolver::AddCostTerm(const CostTerm &cost) {
@@ -746,8 +754,8 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
            CostSolver::_instruction_multiplier[PIM]
         << "\t\t"
         << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
-        << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t";
-        std::cout << CostSolver::_BBL_difference[i] << std::endl;
+        << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t"
+        << CostSolver::_BBL_total_cost[CPU][i] - CostSolver::_BBL_total_cost[PIM][i] << std::endl;
     }
     std::ofstream ofs("output.dot", std::ofstream::out);
     DataReuse::print(ofs);

@@ -355,26 +355,45 @@ COST CostSolver::Minimize()
     }
     std::vector<std::pair<COST, UINT32>> index;
     DECISION decision;
-    COST partial_sum = 0;
+    COST cur_partial_total = 0;
+    COST cur_data_reuse = Cost(decision);
+
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         COST diff = _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i];
         index.push_back(std::make_pair(std::abs(diff), i));
         if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
             decision.push_back(CPU);
-            partial_sum += _BBL_partial_total[CPU][i];
+            cur_partial_total += _BBL_partial_total[CPU][i];
         }
         else {
             decision.push_back(PIM);
-            partial_sum += _BBL_partial_total[PIM][i];
+            cur_partial_total += _BBL_partial_total[PIM][i];
         }
     }
 
     std::sort(index.begin(), index.end());
 
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        COST min_cost = Cost(decision);
+        COST diff = index[i].first;
+        BBLID id = index[i].second;
+        decision[id] = !decision[id];
+        COST temp_data_reuse = Cost(decision);
+        decision[id] = !decision[id];
+        if (decision[id] == CPU) {
+            if (cur_data_reuse - temp_data_reuse > -diff) {
+                decision[id] = !decision[id];
+                cur_partial_total -= diff;
+                cur_data_reuse = temp_data_reuse;
+            }
+        }
+        else {
+            if (cur_data_reuse - temp_data_reuse > diff) {
+                decision[id] = !decision[id];
+                cur_partial_total += diff;
+                cur_data_reuse = temp_data_reuse;
+            }
+        }
         
-        if ()
     }
 
     return 0;
@@ -382,13 +401,7 @@ COST CostSolver::Minimize()
 
 COST CostSolver::Cost(CostSolver::DECISION &decision)
 {
-    // std::set<CostTerm>::iterator it = _cost_term_set.begin();
-    // std::set<CostTerm>::iterator eit = _cost_term_set.end();
-    // COST result = 0;
-    // for (; it != eit; it++) {
-    //     result += it->Cost(decision);
-    // }
-    // return result;
+    Trienode *root = DataReuse::_root;
     return 0;
 }
 

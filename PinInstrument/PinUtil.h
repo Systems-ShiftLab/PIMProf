@@ -13,7 +13,8 @@ namespace PIMProf {
     static const UINT32 MAX_COST_SITE = 2;
     enum CostSite {
         CPU = 0,
-        PIM = 1
+        PIM = 1,
+        INVALID = 0x3fffffff // a placeholder that does not count as a cost site
     };
     static const std::string CostSiteName[MAX_COST_SITE] = { "CPU", "PIM" };
 

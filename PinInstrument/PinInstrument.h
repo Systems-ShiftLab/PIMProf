@@ -166,6 +166,8 @@ class CostSolver {
 
     static COST Minimize();
 
+    static VOID TrieBFS(COST &cost, CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
+
     static COST Cost(DECISION &decision);
 
     static VOID ReadConfig(const std::string filename);

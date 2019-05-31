@@ -376,19 +376,23 @@ COST CostSolver::Minimize()
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         COST diff = index[i].first;
         BBLID id = index[i].second;
-        decision[id] = !decision[id];
-        COST temp_data_reuse = Cost(decision);
-        decision[id] = !decision[id];
+        
         if (decision[id] == CPU) {
+            decision[id] = PIM;
+            COST temp_data_reuse = Cost(decision);
+            decision[id] = CPU;
             if (cur_data_reuse - temp_data_reuse > -diff) {
-                decision[id] = !decision[id];
+                decision[id] = PIM;
                 cur_partial_total -= diff;
                 cur_data_reuse = temp_data_reuse;
             }
         }
         else {
+            decision[id] = CPU;
+            COST temp_data_reuse = Cost(decision);
+            decision[id] = PIM;
             if (cur_data_reuse - temp_data_reuse > diff) {
-                decision[id] = !decision[id];
+                decision[id] = CPU;
                 cur_partial_total += diff;
                 cur_data_reuse = temp_data_reuse;
             }
@@ -399,10 +403,44 @@ COST CostSolver::Minimize()
     return 0;
 }
 
+VOID CostSolver::TrieBFS(COST &cost, CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
+{
+    if (root->_isLeaf) {
+        if (isDifferent) {
+            if (decision[bblid] == CPU) {
+                cost += root->_count * _clwb_cost;
+            }
+            else {
+                cost += root->_count * _fetch_cost;
+            }
+        }
+    }
+    else {
+        std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
+        std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
+        for (; it != eit; it++) {
+            if (isDifferent) {
+                TrieBFS(cost, decision, it->first, it->second, true);
+            }
+            else if (decision[bblid] != decision[it->first]) {
+                TrieBFS(cost, decision, it->first, it->second, true);
+            }
+            else {
+                TrieBFS(cost, decision, it->first, it->second, false);
+            }
+        }
+    }
+}
+
 COST CostSolver::Cost(CostSolver::DECISION &decision)
 {
-    Trienode *root = DataReuse::_root;
-    return 0;
+    COST cost = 0;
+    std::map<BBLID, TrieNode *>::iterator it = DataReuse::_root->_children.begin();
+    std::map<BBLID, TrieNode *>::iterator eit = DataReuse::_root->_children.end();
+    for (; it != eit; it++) {
+        TrieBFS(cost, decision, it->first, it->second, false);
+    }
+    return cost;
 }
 
 VOID CostSolver::ReadConfig(const std::string filename)

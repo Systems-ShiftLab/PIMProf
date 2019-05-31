@@ -144,7 +144,7 @@ class CostSolver {
     static std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
     static COST _instruction_multiplier[MAX_COST_SITE];
     static COST _memory_cost[MAX_COST_SITE];
-    static std::vector<COST> _BBL_total_cost[MAX_COST_SITE];
+    static std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
 
     static COST _clwb_cost;
     static COST _invalidate_cost;

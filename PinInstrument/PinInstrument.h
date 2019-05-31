@@ -188,7 +188,7 @@ class CostSolver {
 
     // static VOID AddDataReuseCost(std::vector<BBLOP> *op);
 
-    static std::ostream &print(std::ostream &out);
+    static std::ostream &PrintDecision(std::ostream &out, const DECISION &decision);
 };
 
 // class CostSolver::CostTerm {

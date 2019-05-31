@@ -356,7 +356,7 @@ COST CostSolver::Minimize()
     std::vector<std::pair<COST, UINT32>> index;
     DECISION decision;
     COST cur_partial_total = 0;
-    COST cur_data_reuse = Cost(decision);
+    
 
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         COST diff = _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i];
@@ -370,6 +370,11 @@ COST CostSolver::Minimize()
             cur_partial_total += _BBL_partial_total[PIM][i];
         }
     }
+    
+    COST cur_data_reuse = Cost(decision);
+
+    PrintDecision(std::cout, decision);
+    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
 
     std::sort(index.begin(), index.end());
 
@@ -381,24 +386,27 @@ COST CostSolver::Minimize()
             decision[id] = PIM;
             COST temp_data_reuse = Cost(decision);
             decision[id] = CPU;
-            if (cur_data_reuse - temp_data_reuse > -diff) {
+            std::cout << (cur_data_reuse - temp_data_reuse) << " " << diff << std::endl;
+            if (cur_data_reuse - temp_data_reuse > diff) {
                 decision[id] = PIM;
-                cur_partial_total -= diff;
+                cur_partial_total += diff;
                 cur_data_reuse = temp_data_reuse;
             }
         }
         else {
             decision[id] = CPU;
             COST temp_data_reuse = Cost(decision);
-            decision[id] = PIM;
+            decision[id] = PIM; 
+            std::cout << (cur_data_reuse - temp_data_reuse) << " " << diff << std::endl;
             if (cur_data_reuse - temp_data_reuse > diff) {
                 decision[id] = CPU;
                 cur_partial_total += diff;
                 cur_data_reuse = temp_data_reuse;
             }
         }
-        
     }
+    PrintDecision(std::cout, decision);
+    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
 
     return 0;
 }
@@ -416,6 +424,7 @@ VOID CostSolver::TrieBFS(COST &cost, CostSolver::DECISION &decision, BBLID bblid
         }
     }
     else {
+        
         std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
         std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
         for (; it != eit; it++) {
@@ -429,11 +438,13 @@ VOID CostSolver::TrieBFS(COST &cost, CostSolver::DECISION &decision, BBLID bblid
                 TrieBFS(cost, decision, it->first, it->second, false);
             }
         }
+        
     }
 }
 
 COST CostSolver::Cost(CostSolver::DECISION &decision)
 {
+
     COST cost = 0;
     std::map<BBLID, TrieNode *>::iterator it = DataReuse::_root->_children.begin();
     std::map<BBLID, TrieNode *>::iterator eit = DataReuse::_root->_children.end();
@@ -654,17 +665,19 @@ VOID CostSolver::ReadControlFlowGraph(const std::string filename)
 //         ofs << std::endl;
 // }
 
-std::ostream &CostSolver::print(std::ostream &out)
+std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision)
 {
-    // std::set<CostTerm>::iterator it = _cost_term_set.begin();
-    // std::set<CostTerm>::iterator eit = _cost_term_set.end();
-    // if (_cost_term_set.size() == 0) return out;
-    // it->print(out);
-    // if (_cost_term_set.size() == 1) return out;
-    // for (it++; it != eit; it++) {
-    //     out << " + ";
-    //     it->print(out);
-    // }
+    for (UINT32 i = 0; i < _BBL_size; i++) {
+        out << i << ":";
+        if (decision[i] == CPU) {
+            out << "C";
+        }
+        else {
+            out << "P";
+        }
+        out << " ";
+    }
+    out << std::endl;
     return out;
 }
 

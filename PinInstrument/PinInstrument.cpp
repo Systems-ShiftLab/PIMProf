@@ -68,7 +68,7 @@ VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
     // A reuse chain segment of size 1 can be removed
     if (seg.size() <= 1) return;
 
-    seg.print(std::cout);
+    // seg.print(std::cout);
 
     TrieNode *curNode = _root;
     std::set<BBLID>::iterator it = seg._set.begin();
@@ -386,7 +386,7 @@ COST CostSolver::Minimize()
             decision[id] = PIM;
             COST temp_data_reuse = Cost(decision);
             decision[id] = CPU;
-            std::cout << (cur_data_reuse - temp_data_reuse) << " " << diff << std::endl;
+            // std::cout << (cur_data_reuse - temp_data_reuse) << " " << diff << std::endl;
             if (cur_data_reuse - temp_data_reuse > diff) {
                 decision[id] = PIM;
                 cur_partial_total += diff;
@@ -397,7 +397,7 @@ COST CostSolver::Minimize()
             decision[id] = CPU;
             COST temp_data_reuse = Cost(decision);
             decision[id] = PIM; 
-            std::cout << (cur_data_reuse - temp_data_reuse) << " " << diff << std::endl;
+            // std::cout << (cur_data_reuse - temp_data_reuse) << " " << diff << std::endl;
             if (cur_data_reuse - temp_data_reuse > diff) {
                 decision[id] = CPU;
                 cur_partial_total += diff;
@@ -406,6 +406,24 @@ COST CostSolver::Minimize()
         }
     }
     PrintDecision(std::cout, decision);
+    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+
+    decision.clear();
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        decision.push_back(CPU);
+        cur_partial_total += _BBL_partial_total[CPU][i];
+    }
+    
+    cur_data_reuse = Cost(decision);
+    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+
+    decision.clear();
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        decision.push_back(PIM);
+        cur_partial_total += _BBL_partial_total[PIM][i];
+    }
+    
+    cur_data_reuse = Cost(decision);
     std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
 
     return 0;

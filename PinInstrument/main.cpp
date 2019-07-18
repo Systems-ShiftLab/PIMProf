@@ -49,6 +49,10 @@ using namespace PIMProf;
 /* Commandline Switches */
 /* ===================================================================== */
 
+const string REDCOLOR = "\033[0;31m";
+const string YELLOWCOLOR = "\033[0;33m";
+const string NOCOLOR = "\033[0m";
+
 KNOB<string> KnobConfig(
     KNOB_MODE_WRITEONCE,
     "pintool",
@@ -59,7 +63,11 @@ KNOB<string> KnobControlFlow(
     "pintool",
     "b", "",
     "specify file name containing control flow graph information");
-
+KNOB<string> KnobOutput(
+    KNOB_MODE_WRITEONCE,
+    "pintool",
+    "o", "",
+    "specify file name containing PIM offloading decision");
 
 INT32 Usage(std::ostream &out) {
     out << "This pin tool estimates the performance of the given program on a CPU-PIM configuration."
@@ -79,23 +87,30 @@ int main(int argc, CHAR *argv[])
     }
 
     if (std::getenv("PIMPROF_ROOT") == NULL) {
-        ASSERT(0, "Environment variable PIMPROF_ROOT not set.");
+        std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR << "Environment variable PIMPROF_ROOT not set.\n\n";
+        ASSERTX(0);
     }
     string rootdir = std::getenv("PIMPROF_ROOT");
     string configfile = KnobConfig.Value();
+    string outputfile = KnobOutput.Value();
 
     if (configfile == "") {
         configfile = rootdir + "/PinInstrument/defaultconfig.ini";
-        std::cerr << "## PIMProf: No config file provided. Using default config file.\n";
+        std::cerr << YELLOWCOLOR << "## PIMProf WARNING: " << NOCOLOR << "No config file provided. Using default config file.\n";
     }
-    
+    if (outputfile == "") {
+        outputfile = "offload_decision.txt";
+        std::cerr << YELLOWCOLOR << "## PIMProf WARNING: " << NOCOLOR << "No output file name specified. Printing output to file offload_decision.txt.\n";
+    }
+
     InstructionLatency::ReadConfig(configfile);
     MemoryLatency::ReadConfig(configfile);
     CostSolver::ReadConfig(configfile);
 
     string controlflowfile = KnobControlFlow.Value();
     if (controlflowfile == "") {
-        ASSERT(0, "Control flow graph file correpsonding to the input program not provided.");
+        std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR << "Control flow graph file correpsonding to the input program not provided.\n\n";
+        ASSERTX(0);
     }
     CostSolver::ReadControlFlowGraph(controlflowfile);
 
@@ -105,11 +120,13 @@ int main(int argc, CHAR *argv[])
     INS_AddInstrumentFunction(InstructionLatency::InstructionInstrument, 0);
 
     PIN_AddFiniFunction(MemoryLatency::FinishInstrument, 0);
-    PIN_AddFiniFunction(PinInstrument::FinishInstrument, 0);
+
+    char *outputfile_char = new char[outputfile.length() + 1];
+    strcpy (outputfile_char, outputfile.c_str());
+    PIN_AddFiniFunction(PinInstrument::FinishInstrument, (VOID *)(outputfile_char));
 
     // Never returns
     PIN_StartProgram();
-
     return 0;
 }
 

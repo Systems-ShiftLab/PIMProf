@@ -1,4 +1,4 @@
-//===- AnnotatorInjection.cpp - Pass that injects BB annotator --*- C++ -*-===//
+//===- OffloaderInjection.cpp - Pass that injects BB annotator --*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -19,14 +19,18 @@
 #include "llvm/IR/LLVMContext.h"
 
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #include "Common.h"
+#include "../PinInstrument/PinUtil.h"
 
 using namespace llvm;
 
+static cl::opt<std::string> InputFilename("decision", cl::desc("Specify filename of offloading decision for OffloaderInjection pass."), cl::value_desc("decision_file"));
+
 namespace {
-    void InjectAnnotatorCall(Module &M, BasicBlock &BB, int BBLID) {
+    void InjectOffloaderCall(Module &M, BasicBlock &BB, int BBLID) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
@@ -82,19 +86,18 @@ namespace {
         // errs() << "\n";
     }
 
-    struct AnnotatorInjection : public ModulePass {
+    struct OffloaderInjection : public ModulePass {
         static char ID;
-        AnnotatorInjection() : ModulePass(ID) {}
+        OffloaderInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            // assign unique id to each basic block
-            int bblid = BBLStartingID;
+            std::vector<PIMProf::CostSite> decision;
 
             // inject annotator function to each basic block
             // attach basic block id to terminator
             for (auto &func : M) {
                 for (auto &bb: func) {
-                    InjectAnnotatorCall(M, bb, bblid);
+                    InjectOffloaderCall(M, bb, bblid);
                     bblid++;
                 }
             }
@@ -104,6 +107,6 @@ namespace {
     };
 }
 
-char AnnotatorInjection::ID = 0;
-static RegisterPass<AnnotatorInjection> RegisterMyPass(
-    "AnnotatorInjection", "Inject annotators to uniquely identify each basic block.");
+char OffloaderInjection::ID = 0;
+static RegisterPass<OffloaderInjection> RegisterMyPass(
+    "OffloaderInjection", "Inject offloader when switching between CPU and PIM is required.");

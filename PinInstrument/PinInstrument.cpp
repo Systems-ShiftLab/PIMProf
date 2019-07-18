@@ -344,7 +344,7 @@ CostSolver::CostSolver(const std::string filename)
     ReadControlFlowGraph(filename);
 }
 
-COST CostSolver::Minimize()
+COST CostSolver::Minimize(std::ostream &out)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < CostSolver::_BBL_size; j++) {
@@ -373,8 +373,8 @@ COST CostSolver::Minimize()
     
     COST cur_data_reuse = Cost(decision);
 
-    PrintDecision(std::cout, decision);
-    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    PrintDecision(std::cout, decision, true);
+    std::cout << "Pure greedy: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
 
     std::sort(index.begin(), index.end());
 
@@ -405,9 +405,11 @@ COST CostSolver::Minimize()
             }
         }
     }
-    PrintDecision(std::cout, decision);
-    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    PrintDecision(std::cout, decision, true);
+    PrintDecision(out, decision, false);
+    std::cout << "PIMProf optimized: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
 
+    // figure out the cost of pure CPU
     decision.clear();
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         decision.push_back(CPU);
@@ -415,8 +417,10 @@ COST CostSolver::Minimize()
     }
     
     cur_data_reuse = Cost(decision);
-    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    std::cout << "Pure CPU: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
 
+
+     // figure out the cost of pure CPU
     decision.clear();
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         decision.push_back(PIM);
@@ -424,7 +428,7 @@ COST CostSolver::Minimize()
     }
     
     cur_data_reuse = Cost(decision);
-    std::cout << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    std::cout << "Pure PIM: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
 
     return 0;
 }
@@ -683,19 +687,33 @@ VOID CostSolver::ReadControlFlowGraph(const std::string filename)
 //         ofs << std::endl;
 // }
 
-std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision)
+std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
 {
-    for (UINT32 i = 0; i < _BBL_size; i++) {
-        out << i << ":";
-        if (decision[i] == CPU) {
-            out << "C";
+    if (toscreen == true) {
+        for (UINT32 i = 0; i < _BBL_size; i++) {
+            out << i << ":";
+            if (decision[i] == CPU) {
+                out << "C";
+            }
+            else {
+                out << "P";
+            }
+            out << " ";
         }
-        else {
-            out << "P";
-        }
-        out << " ";
+        out << std::endl;
     }
-    out << std::endl;
+    else {
+        for (UINT32 i = 0; i < _BBL_size; i++) {
+            out << i << " ";
+            if (decision[i] == CPU) {
+                out << "C";
+            }
+            else {
+                out << "P";
+            }
+            out << std::endl;
+        }
+    }
     return out;
 }
 
@@ -831,7 +849,11 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     // std::cout << std::endl;
     // InstructionLatency::WriteConfig("template.ini");
     // printf("wow\n");
-    CostSolver::Minimize();
+    char *outputfile = (char *)v;
+    std::ofstream ofs(outputfile, std::ofstream::out);
+    delete outputfile;
+    CostSolver::Minimize(ofs);
+    ofs.close();
     std::cout << "BBL\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
@@ -848,6 +870,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
         << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t"
         << CostSolver::_BBL_partial_total[CPU][i] - CostSolver::_BBL_partial_total[PIM][i] << std::endl;
     }
-    std::ofstream ofs("output.dot", std::ofstream::out);
+    ofs.open("output.dot", std::ofstream::out);
     DataReuse::print(ofs);
+    ofs.close();
 }

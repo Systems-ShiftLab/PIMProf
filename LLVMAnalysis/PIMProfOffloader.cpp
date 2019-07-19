@@ -7,6 +7,9 @@
 #include <sched.h>  // sched_setaffinity
 #include <unistd.h>
 
+const unsigned PIMCoreIdBegin = 1;
+const unsigned PIMCoreIdEnd = 2;
+
 void print_affinity() {
     cpu_set_t mask;
     long nproc, i;
@@ -24,16 +27,26 @@ void print_affinity() {
     }
 }
 
-void cpu_set(unsigned cpu) {
+void PIMProfOffloader(int site) {
     cpu_set_t mask;
     int status;
 
     CPU_ZERO(&mask);
-    CPU_SET(cpu, &mask);
+    if (site == 0) {
+        for (int i = 0; i < PIMCoreIdBegin; i++) {
+            CPU_SET(i, &mask);
+        }
+    }
+    else if (site == 1) {
+        for (int i = PIMCoreIdBegin; i < PIMCoreIdEnd; i++) {
+            CPU_SET(i, &mask);
+        }
+    }
+    else {
+        assert(0);
+    }
     status = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
-    print_affinity();
-}
+    assert(status != -1);
 
-void PIMProfOffloader() {
-    
+    print_affinity();
 }

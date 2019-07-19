@@ -22,68 +22,60 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
+#include <iostream>
+#include <assert.h>
+#include <fstream>
+
 #include "Common.h"
-#include "../PinInstrument/PinUtil.h"
 
 using namespace llvm;
 
-static cl::opt<std::string> InputFilename("decision", cl::desc("Specify filename of offloading decision for OffloaderInjection pass."), cl::value_desc("decision_file"));
 
 namespace {
-    void InjectOffloaderCall(Module &M, BasicBlock &BB, int BBLID) {
+    enum CallSite {
+        CPU = 0,
+        PIM = 1,
+        INVALID = 0x3fffffff // a placeholder that does not count as a cost site
+    };
+
+    static cl::opt<CallSite> StayOn(
+        cl::desc("Instead of specifying a filename, specify that the entire program will stay in the same place"),
+        cl::values(
+            clEnumVal(CPU, "Entire program will stay on CPU"),
+            clEnumVal(PIM, "Entire program will stay on PIM")
+        ),
+        cl::init(INVALID)
+    );
+
+    static cl::opt<std::string> InputFilename(
+        "decision",
+        cl::desc("Specify filename of offloading decision for OffloaderInjection pass."),
+        cl::value_desc("decision_file"),
+        cl::init("")
+    );
+
+    void InjectOffloaderCall(Module &M, BasicBlock &BB, int DECISION) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
-        Function *annotator_head = dyn_cast<Function>(
+        Function *offloader = dyn_cast<Function>(
             M.getOrInsertFunction(
-                PIMProfAnnotatorHead, 
+                PIMProfOffloader, 
                 FunctionType::getInt32Ty(ctx), 
-                Type::getInt32Ty(ctx)
-            )
-        );
-        Function *annotator_tail = dyn_cast<Function>(
-            M.getOrInsertFunction(
-                PIMProfAnnotatorTail, 
-                FunctionType::getInt32Ty(ctx), 
-                Type::getInt32Ty(ctx)
+                Type::getVoidTy(ctx)
             )
         );
 
-        // errs() << "Before injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
-        // insert instruction
-        Value *bblid = ConstantInt::get(
-            IntegerType::get(M.getContext(),32), BBLID);
+        Value *decision = ConstantInt::get(
+            IntegerType::get(M.getContext(),32), DECISION);
 
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
         CallInst *head_instr = CallInst::Create(
-            annotator_head, ArrayRef<Value *>(bblid), "",
+            offloader, ArrayRef<Value *>(decision), "",
             beginning);
 
-        CallInst *tail_instr = CallInst::Create(
-            annotator_tail, ArrayRef<Value *>(bblid), "",
-            BB.getTerminator());
-        // insert instruction metadata
-        MDNode* md = MDNode::get(
-            ctx, 
-            ConstantAsMetadata::get(
-                ConstantInt::get(
-                    IntegerType::get(M.getContext(),32), BBLID)
-            )
-        );
-        BB.getTerminator()->setMetadata(PIMProfBBLIDMetadata, md);
-        // errs() << "After injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
     }
 
     struct OffloaderInjection : public ModulePass {
@@ -91,16 +83,56 @@ namespace {
         OffloaderInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            std::vector<PIMProf::CostSite> decision;
-
-            // inject annotator function to each basic block
-            // attach basic block id to terminator
-            for (auto &func : M) {
-                for (auto &bb: func) {
-                    InjectOffloaderCall(M, bb, bblid);
-                    bblid++;
+            // assign unique id to each basic block
+            int bblid = BBLStartingID;
+            std::vector<int> decisions;
+            for (int i = 0; i < bblid; i++) {
+                decisions.push_back(-1);
+            }
+            
+            if (StayOn == INVALID && InputFilename == "") {
+                std::cerr << "Must specify either a place for the program to stay or give an input filename. Refer to -h.";
+                assert(false);
+            }
+            else if (StayOn == INVALID && InputFilename != "") {
+                // Read decisions from file
+                std::ifstream ifs(InputFilename.c_str(), std::ifstream::in);
+                int temp;
+                std::string tempdecision;
+                while(ifs >> temp >> tempdecision) {
+                    if (tempdecision == "C") {
+                        decisions.push_back(0);
+                    }
+                    else if (tempdecision == "P") {
+                        decisions.push_back(1);
+                    }
+                    else {
+                        assert(false);
+                    }
+                }
+                // inject offloader function to each basic block
+                // according to their basic block ID and corresponding decision
+                // simply assume that the input program is the same as the input in annotator injection pass
+                for (auto &func : M) {
+                    for (auto &bb: func) {
+                        InjectOffloaderCall(M, bb, decisions[bblid]);
+                        bblid++;
+                    }
                 }
             }
+            else if (StayOn != INVALID && InputFilename == "") {
+                for (auto &func : M) {
+                    for (auto &bb: func) {
+                        InjectOffloaderCall(M, bb, (int)StayOn);
+                        bblid++;
+                    }
+                }
+            }
+            else {
+                std::cerr << "Can only specify either the place for the program to stay or the input filename.";
+                assert(false);
+            }
+            
             // M.print(errs(), nullptr);
             return true;
         }

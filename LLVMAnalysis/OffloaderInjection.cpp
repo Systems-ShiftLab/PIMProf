@@ -50,7 +50,7 @@ namespace {
     static cl::opt<std::string> InputFilename(
         "decision",
         cl::desc("Specify filename of offloading decision for OffloaderInjection pass."),
-        cl::value_desc("decision_file"),
+        cl::value_desc("decision file"),
         cl::init("")
     );
 
@@ -61,8 +61,8 @@ namespace {
         Function *offloader = dyn_cast<Function>(
             M.getOrInsertFunction(
                 PIMProfOffloader, 
-                FunctionType::getInt32Ty(ctx), 
-                Type::getVoidTy(ctx)
+                FunctionType::getVoidTy(ctx), 
+                Type::getInt32Ty(ctx)
             )
         );
 
@@ -110,6 +110,7 @@ namespace {
                         assert(false);
                     }
                 }
+                ifs.close();
                 // inject offloader function to each basic block
                 // according to their basic block ID and corresponding decision
                 // simply assume that the input program is the same as the input in annotator injection pass

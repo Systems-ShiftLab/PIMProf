@@ -16,12 +16,15 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/CommandLine.h"
 
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 
+#include <iostream>
 #include <fstream>
 #include <sstream>
+#include "assert.h"
 
 #include "CFGDump.h"
 #include "Common.h"
@@ -29,6 +32,19 @@
 using namespace llvm;
 
 LLVMContext ctx;
+
+static cl::opt<std::string> InputFilename(
+    cl::Positional,
+    cl::desc("<input file>"),
+    cl::Required
+);
+
+static cl::opt<std::string> OutputFilename(
+    "o",
+    cl::desc("Specify output filename for dumping basic block information."),
+    cl::value_desc("output file"),
+    cl::init("basicblock.dump")
+);
 
 void BasicBlockDFS(BasicBlock *BB, int depth) {
     std::string blanks(depth * 2, ' ');
@@ -41,15 +57,15 @@ void BasicBlockDFS(BasicBlock *BB, int depth) {
     }
 }
 
-int PIMProf::CFGDump(const std::string &input, const std::string &output) {
+void PIMProf::CFGDump() {
     // Module Construction
     std::unique_ptr<Module> M;
     
     SMDiagnostic error;
-    M = parseIRFile(input, error, ctx);
+    M = parseIRFile(InputFilename, error, ctx);
     if (M == nullptr) {
         errs() << "CFGDump: Input filename read error.\n";
-        return -1;
+        assert(false);
     }
 
     std::stringstream cfgss;
@@ -94,21 +110,14 @@ int PIMProf::CFGDump(const std::string &input, const std::string &output) {
     }
 
     std::ofstream ofs;
-    ofs.open(output);
+    ofs.open(OutputFilename);
     ofs << maxbblid << std::endl;
     ofs << cfgss.rdbuf();
     ofs.close();
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        errs()  << "Incorrect number of arguments provided.\n"
-                << "Usage ./CFGDump.exe <inputfile> <outputfile>\n";
-        return -1;
-    }
-    else {
-        PIMProf::CFGDump(argv[1], argv[2]);
-    }
-    
+    cl::ParseCommandLineOptions(argc, argv);
+    PIMProf::CFGDump();
     return 0;
 }

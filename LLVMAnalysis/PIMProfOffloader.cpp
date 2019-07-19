@@ -48,5 +48,6 @@ void PIMProfOffloader(int site) {
     status = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
     assert(status != -1);
 
-    print_affinity();
+    // printf("%s\n", (site == 0 ? "C" : "P"));
+    // print_affinity();
 }

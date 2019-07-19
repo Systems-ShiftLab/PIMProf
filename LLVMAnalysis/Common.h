@@ -12,7 +12,9 @@ static const std::string PIMProfAnnotatorFileName = "PIMProfAnnotator.bc";
 
 static const std::string PIMProfAnnotatorHead = "PIMProfAnnotatorHead";
 static const std::string PIMProfAnnotatorTail = "PIMProfAnnotatorTail";
-static const std::string PIMProfOffloader = "PIMProfOffloader";
+
+// a hack for dealing with name mangling
+static const std::string PIMProfOffloader = "_Z16PIMProfOffloaderi";
 
 static const std::string PIMProfBBLIDMetadata = "basicblock.id";
 

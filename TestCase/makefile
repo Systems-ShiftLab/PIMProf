@@ -1,7 +1,7 @@
 BUILD_DIR           := ../build
 ANALYSIS_BUILD_DIR  := $(BUILD_DIR)/LLVMAnalysis
 
-CXX              := clang++-7
+CLANGXX          := clang++-7
 OPT              := opt-7
 LLC              := llc-7
 LINK             := llvm-link-7
@@ -19,24 +19,26 @@ OFFLOADER_SRC := PIMProfOffloader.cpp
 OFFLOADER_BC  := $(OFFLOADER_SRC:%.cpp=%.bc)
 
 EXTERNAL_SRC  := print4.cpp test.cpp
-EXTERNAL_OBJ  := $(EXTERNAL_SRC:%.cpp=%.o)
 EXTERNAL_BC   := $(EXTERNAL_SRC:%.cpp=%.bc)
+EXTERNAL_MERGED_BC := external_merged.bc
+EXTERNAL_OPT_BC    := $(EXTERNAL_MERGED_BC:%.bc=%.opt.bc)
 
 MERGED_BC     := merged.bc
 MERGED_LL     := $(MERGED_BC:%.bc=%.ll)
+MERGED_OPT_BC := $(MERGED_BC:%.bc=%.opt.bc)
 MERGED_DUMP   := $(MERGED_BC:%.bc=%.out)
 
 TEST_EXE      := test.exe
 
 DECISION      := decision.out
+DECISION_BC   := decision.bc
+
+FINAL_BC      := final.bc
+FINAL_LL      := $(FINAL_BC:%.bc=%.ll)
+FINAL_EXE     := $(FINAL_BC:%.bc=%.exe)
 
 # Process TestCase folder
-all: cmake bitcode 
-
-# link the source file with annotator function file, then compile to executable
-bitcode: $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
-	$(LINK) -o $(MERGED_BC) $(ANNOTATOR_BC) $(EXTERNAL_OBJ)
-	$(DIS) $(MERGED_BC) -o $(MERGED_LL)
+all: cmake
 
 # generate LLVM analysis tools
 cmake:
@@ -44,25 +46,50 @@ cmake:
 	cd $(BUILD_DIR) && cmake ..
 	make -C $(BUILD_DIR)
 
-pin: $(OFFLOADER_BC) all
-	make -C ../PinInstrument/
-	$(CXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $(TEST_EXE) $(MERGED_BC) $(LDFLAGS)
-	$(ANALYSIS_BUILD_DIR)/CFGDump.exe $(MERGED_BC) $(MERGED_DUMP)
-	objdump -d $(TEST_EXE) > objdump$$LEVEL.out
-	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so  -b $(MERGED_DUMP) -o $(DECISION) -- ./$(TEST_EXE)
-	
+pin: cmake $(FINAL_EXE)
 
+$(DECISION): $(TEST_EXE) $(MERGED_DUMP) all
+	make -C ../PinInstrument/
+	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so  -b $(MERGED_DUMP) -o $@ -- ./$(TEST_EXE)
+	
 # generate the bitcode of each source code and inject annotator function call
-$(EXTERNAL_OBJ): %.o: %.cpp
-	$(CXX) $(PREOPT_CXXFLAGS) $(INCLUDE) -o $@ -c $<
-	$(OPT) -load $(ANALYSIS_BUILD_DIR)/libAnnotatorInjection.so -AnnotatorInjection $@ -o $@
+$(EXTERNAL_BC): %.bc: %.cpp
+	$(CLANGXX) $(PREOPT_CXXFLAGS) $(INCLUDE) -o $@ -c $<
 
 # generate the annotator function itself
 $(ANNOTATOR_BC): cmake
 	$(ANALYSIS_BUILD_DIR)/AnnotatorGeneration.exe
 
+$(EXTERNAL_MERGED_BC): $(EXTERNAL_BC)
+	$(LINK) -o $@ $^
+
+# link the source file with annotator function file, then compile to executable
+$(EXTERNAL_OPT_BC): $(EXTERNAL_MERGED_BC)
+	$(OPT) -load $(ANALYSIS_BUILD_DIR)/libAnnotatorInjection.so -AnnotatorInjection -o $@ $<
+
+$(MERGED_BC): $(EXTERNAL_OPT_BC) $(ANNOTATOR_BC)
+	$(LINK) -o $@ $^
+	$(DIS) $@ -o $(MERGED_LL)
+
 $(OFFLOADER_BC): ../LLVMAnalysis/$(OFFLOADER_SRC) cmake
-	$(CXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $@ -c $< $(LDFLAGS)
+	$(CLANGXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $@ -c $< $(LDFLAGS)
+
+$(MERGED_DUMP): $(EXTERNAL_OPT_BC)
+	$(ANALYSIS_BUILD_DIR)/CFGDump.exe -o $@ $^
+
+$(TEST_EXE): $(MERGED_BC)
+	$(CLANGXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $@ $^ $(LDFLAGS)
+	# objdump -d $(TEST_EXE) > objdump$$LEVEL.out
+
+$(DECISION_BC): $(EXTERNAL_MERGED_BC) $(DECISION)
+	$(OPT) -load $(ANALYSIS_BUILD_DIR)/libOffloaderInjection.so -OffloaderInjection -decision=$(DECISION) $(EXTERNAL_MERGED_BC) -o $@
+
+$(FINAL_BC): $(DECISION_BC) $(OFFLOADER_BC)
+	$(LINK) -o $@ $^
+	$(DIS) $@ -o $(FINAL_LL)
+
+$(FINAL_EXE): $(FINAL_BC)
+	$(CLANGXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $@ $^ $(LDFLAGS)
 
 
 clean:
@@ -70,4 +97,4 @@ clean:
 	rm -rf $(BUILD_DIR)
 	make clean -C ../PinInstrument/
 
-.PHONY: all bitcode cmake pin clean
+.PHONY: all bitcode cmake offloader pin clean

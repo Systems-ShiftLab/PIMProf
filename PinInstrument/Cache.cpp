@@ -361,7 +361,7 @@ VOID CACHE::Ul2Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
         _cache[UL3]->Access(addr, size, accessType);
 }
 
-VOID CACHE::InsRef(ADDRINT addr)
+VOID CACHE::InstrCacheRef(ADDRINT addr)
 {
     const UINT32 size = 1; // assuming access does not cross cache lines
     const ACCESS_TYPE accessType = ACCESS_TYPE_LOAD;
@@ -377,7 +377,7 @@ VOID CACHE::InsRef(ADDRINT addr)
 }
 
 
-VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID CACHE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     // DTLB
     _cache[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
@@ -389,7 +389,7 @@ VOID CACHE::MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
     if ( ! dl1Hit) Ul2Access(addr, size, accessType);
 }
 
-VOID CACHE::MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID CACHE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     // DTLB
     _cache[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);

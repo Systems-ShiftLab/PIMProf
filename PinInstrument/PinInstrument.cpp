@@ -143,32 +143,32 @@ std::ostream &DataReuse::print(std::ostream &out) {
 /* MemoryLatency */
 /* ===================================================================== */
 
-VOID MemoryLatency::InsRef(ADDRINT addr)
+VOID MemoryLatency::InstrCacheRef(ADDRINT addr)
 {
-    cache.InsRef(addr);
+    cache.InstrCacheRef(addr);
 }
 
-VOID MemoryLatency::MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID MemoryLatency::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
-    cache.MemRefMulti(addr, size, accessType);
+    cache.DataCacheRefMulti(addr, size, accessType);
 }
 
-VOID MemoryLatency::MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID MemoryLatency::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
-    cache.MemRefSingle(addr, size, accessType);
+    cache.DataCacheRefSingle(addr, size, accessType);
 }
 
 VOID MemoryLatency::InstructionInstrument(INS ins, VOID *v)
 {
     // all instruction fetches access I-cache
     INS_InsertCall(
-        ins, IPOINT_BEFORE, (AFUNPTR)InsRef,
+        ins, IPOINT_BEFORE, (AFUNPTR)InstrCacheRef,
         IARG_INST_PTR,
         IARG_END);
     if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins))
     {
         const UINT32 size = INS_MemoryReadSize(ins);
-        const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)MemRefSingle : (AFUNPTR)MemRefMulti);
+        const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
 
         // only predicated-on memory instructions access D-cache
         INS_InsertPredicatedCall(
@@ -181,7 +181,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *v)
     if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins))
     {
         const UINT32 size = INS_MemoryWriteSize(ins);
-        const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)MemRefSingle : (AFUNPTR)MemRefMulti);
+        const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
 
         // only predicated-on memory instructions access D-cache
         INS_InsertPredicatedCall(

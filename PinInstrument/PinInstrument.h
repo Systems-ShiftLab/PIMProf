@@ -61,13 +61,13 @@ class MemoryLatency {
     static VOID SetBBLSize(BBLID _BBL_size);
 
     /// Do on instruction cache reference
-    static VOID InsRef(ADDRINT addr);
+    static VOID InstrCacheRef(ADDRINT addr);
 
     /// Do on multi-line data cache references
-    static VOID MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    static VOID DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// Do on a single-line data cache reference
-    static VOID MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    static VOID DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// The instrumentation function for memory instructions
     static VOID InstructionInstrument(INS ins, VOID *v);

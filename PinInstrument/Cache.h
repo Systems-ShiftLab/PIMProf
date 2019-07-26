@@ -487,13 +487,13 @@ class CACHE
     VOID Ul2Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// Do on instruction cache reference
-    VOID InsRef(ADDRINT addr);
+    VOID InstrCacheRef(ADDRINT addr);
 
     /// Do on multi-line data cache references
-    VOID MemRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    VOID DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// Do on a single-line data cache reference
-    VOID MemRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    VOID DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 };
 
 std::string StringInt(UINT64 val, UINT32 width = 0, CHAR padding = ' ');

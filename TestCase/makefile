@@ -8,7 +8,6 @@ LINK             := llvm-link-7
 DIS              := llvm-dis-7
 PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 # -O3 -pedantic-errors -Wall -Wextra -Werror
 POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -O3
-PASSFLAGS        := -Xclang -load -Xclang $(ANALYSIS_BUILD_DIR)/libAnnotatorInjection.so
 LDFLAGS          := 
 INCLUDE          :=
 
@@ -93,7 +92,7 @@ $(FINAL_EXE): $(FINAL_BC)
 
 
 clean:
-	rm -rf *.o *.exe *.bc *.ll *.out *.log
+	rm -rf *.o *.exe *.bc *.ll *.out *.log *.dot
 	rm -rf $(BUILD_DIR)
 	make clean -C ../PinInstrument/
 

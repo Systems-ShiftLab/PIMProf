@@ -10,6 +10,8 @@
 const unsigned PIMCoreIdBegin = 1;
 const unsigned PIMCoreIdEnd = 2;
 
+int PIMProfPreviousSite = -1;
+
 void print_affinity() {
     cpu_set_t mask;
     long nproc, i;
@@ -28,26 +30,28 @@ void print_affinity() {
 }
 
 void PIMProfOffloader(int site) {
-    cpu_set_t mask;
-    int status;
+    if (site != PIMProfPreviousSite) {
+        PIMProfPreviousSite = site;
+        cpu_set_t mask;
+        int status;
 
-    CPU_ZERO(&mask);
-    if (site == 0) {
-        for (int i = 0; i < PIMCoreIdBegin; i++) {
-            CPU_SET(i, &mask);
+        CPU_ZERO(&mask);
+        if (site == 0) {
+            for (int i = 0; i < PIMCoreIdBegin; i++) {
+                CPU_SET(i, &mask);
+            }
         }
-    }
-    else if (site == 1) {
-        for (int i = PIMCoreIdBegin; i < PIMCoreIdEnd; i++) {
-            CPU_SET(i, &mask);
+        else if (site == 1) {
+            for (int i = PIMCoreIdBegin; i < PIMCoreIdEnd; i++) {
+                CPU_SET(i, &mask);
+            }
         }
+        else {
+            assert(0);
+        }
+        status = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+        assert(status != -1);
     }
-    else {
-        assert(0);
-    }
-    status = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
-    assert(status != -1);
-
-    // printf("%s\n", (site == 0 ? "C" : "P"));
+    printf("%s", (site == 0 ? "C" : "P"));
     // print_affinity();
 }

@@ -48,6 +48,7 @@ COST CostSolver::_fetch_cost;
 COST CostSolver::_memory_cost[MAX_COST_SITE];
 BBLID CostSolver::_BBL_size;
 // std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
+int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
 
 /* ===================================================================== */
 /* DataReuse */
@@ -265,15 +266,21 @@ VOID MemoryLatency::SetBBLSize(BBLID _BBL_size) {
 
 VOID InstructionLatency::InstructionInstrument(INS ins, VOID *v)
 {
+    instr_cnt++;
     BBLID bblid = PinInstrument::GetCurrentBBL();
     if (bblid == GLOBALBBLID) return;
-    // all instruction fetches access I-cache
-    if (! (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)))
-    {
-        OPCODE opcode = INS_Opcode(ins);
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            CostSolver::_BBL_instruction_cost[i][bblid] += _instruction_latency[i][opcode];
-        }
+
+
+    if (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)) {
+        mem_instr_cnt++;
+    }
+    else {
+        nonmem_instr_cnt++;
+    }
+
+    OPCODE opcode = INS_Opcode(ins);
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        CostSolver::_BBL_instruction_cost[i][bblid] += _instruction_latency[i][opcode];
     }
 }
 
@@ -361,6 +368,9 @@ COST CostSolver::Minimize(std::ostream &out)
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         COST diff = _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i];
         index.push_back(std::make_pair(std::abs(diff), i));
+    }
+
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
             decision.push_back(CPU);
             cur_partial_total += _BBL_partial_total[CPU][i];
@@ -373,8 +383,14 @@ COST CostSolver::Minimize(std::ostream &out)
     
     COST cur_data_reuse = Cost(decision);
 
-    PrintDecision(std::cout, decision, true);
-    std::cout << "Pure greedy: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    // PrintDecision(std::cout, decision, true);
+    std::ofstream tempofs("greedy_decision.txt", std::ofstream::out);
+    PrintDecision(tempofs, decision, false);
+
+    std::cout << "instrcnt: " << mem_instr_cnt << " & " << nonmem_instr_cnt << " / " << instr_cnt << std::endl;
+    std::cout << "PLAN\t\tINSTR\tMEM\tPARTIAL\tREUSE\tTOTAL" << std::endl;
+    PrintDecisionStat(std::cout, decision, "Pure greedy");
+
 
     std::sort(index.begin(), index.end());
 
@@ -405,35 +421,33 @@ COST CostSolver::Minimize(std::ostream &out)
             }
         }
     }
-    PrintDecision(std::cout, decision, true);
+    // PrintDecision(std::cout, decision, true);
     PrintDecision(out, decision, false);
-    std::cout << "PIMProf optimized: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    PrintDecisionStat(std::cout, decision, "PIMProf opt");
 
     // figure out the cost of pure CPU
     decision.clear();
+    cur_partial_total = 0;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         decision.push_back(CPU);
-        cur_partial_total += _BBL_partial_total[CPU][i];
     }
     
-    cur_data_reuse = Cost(decision);
-    std::cout << "Pure CPU: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    PrintDecisionStat(std::cout, decision, "Pure CPU");
 
 
-     // figure out the cost of pure CPU
+     // figure out the cost of pure PIM
     decision.clear();
+    cur_partial_total = 0;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         decision.push_back(PIM);
-        cur_partial_total += _BBL_partial_total[PIM][i];
     }
     
-    cur_data_reuse = Cost(decision);
-    std::cout << "Pure PIM: " << cur_partial_total << " " << cur_data_reuse << " " << (cur_partial_total + cur_data_reuse) << std::endl;
+    PrintDecisionStat(std::cout, decision, "Pure PIM");
 
     return 0;
 }
 
-VOID CostSolver::TrieBFS(COST &cost, CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
+VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
 {
     if (root->_isLeaf) {
         if (isDifferent) {
@@ -464,7 +478,7 @@ VOID CostSolver::TrieBFS(COST &cost, CostSolver::DECISION &decision, BBLID bblid
     }
 }
 
-COST CostSolver::Cost(CostSolver::DECISION &decision)
+COST CostSolver::Cost(const CostSolver::DECISION &decision)
 {
 
     COST cost = 0;
@@ -717,6 +731,28 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
     return out;
 }
 
+std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name)
+{
+    COST cur_instr_cost = 0;
+    COST cur_mem_cost = 0;
+    COST cur_data_reuse = Cost(decision);
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        if (decision[i] == CPU) {
+            cur_instr_cost += CostSolver::_BBL_instruction_cost[CPU][i] * _instruction_multiplier[CPU];
+            cur_mem_cost += CostSolver::_BBL_memory_cost[CPU][i];
+        }
+        else {
+            cur_instr_cost += CostSolver::_BBL_instruction_cost[PIM][i] * _instruction_multiplier[PIM];
+            cur_mem_cost += CostSolver::_BBL_memory_cost[PIM][i];
+        }
+    }
+    out << name << ":\t"
+        << cur_instr_cost << "\t" << cur_mem_cost << "\t"
+        << (cur_instr_cost + cur_mem_cost) << "\t" << cur_data_reuse << "\t"
+        << (cur_instr_cost + cur_mem_cost + cur_data_reuse) << std::endl;
+    return out;
+}
+
 /* ===================================================================== */
 /* CostSolver::CostTerm */
 /* ===================================================================== */
@@ -854,6 +890,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     delete outputfile;
     CostSolver::Minimize(ofs);
     ofs.close();
+    /*
     std::cout << "BBL\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
@@ -869,7 +906,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
         << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
         << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t"
         << CostSolver::_BBL_partial_total[CPU][i] - CostSolver::_BBL_partial_total[PIM][i] << std::endl;
-    }
+    }*/
     ofs.open("output.dot", std::ofstream::out);
     DataReuse::print(ofs);
     ofs.close();

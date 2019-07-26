@@ -264,24 +264,32 @@ VOID MemoryLatency::SetBBLSize(BBLID _BBL_size) {
     }
 }
 
-VOID InstructionLatency::InstructionInstrument(INS ins, VOID *v)
+VOID InstructionLatency::InstructionCount(UINT32 opcode, BOOL ismem)
 {
     instr_cnt++;
     BBLID bblid = PinInstrument::GetCurrentBBL();
     if (bblid == GLOBALBBLID) return;
 
 
-    if (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)) {
+    if (ismem) {
         mem_instr_cnt++;
     }
     else {
         nonmem_instr_cnt++;
+        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+            CostSolver::_BBL_instruction_cost[i][bblid] += _instruction_latency[i][opcode];
+        }
     }
+}
 
-    OPCODE opcode = INS_Opcode(ins);
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        CostSolver::_BBL_instruction_cost[i][bblid] += _instruction_latency[i][opcode];
-    }
+VOID InstructionLatency::InstructionInstrument(INS ins, VOID *v)
+{
+    UINT32 opcode = (UINT32)(INS_Opcode(ins));
+    BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
+        IARG_ADDRINT, opcode,
+        IARG_BOOL, ismem,
+        IARG_END);
 }
 
 
@@ -388,7 +396,7 @@ COST CostSolver::Minimize(std::ostream &out)
     PrintDecision(tempofs, decision, false);
 
     std::cout << "instrcnt: " << mem_instr_cnt << " & " << nonmem_instr_cnt << " / " << instr_cnt << std::endl;
-    std::cout << "PLAN\t\tINSTR\tMEM\tPARTIAL\tREUSE\tTOTAL" << std::endl;
+    std::cout << "PLAN\t\tINSTRUCTION\tMEMORY\t\tPARTIAL\t\tREUSE\t\tTOTAL" << std::endl;
     PrintDecisionStat(std::cout, decision, "Pure greedy");
 
 

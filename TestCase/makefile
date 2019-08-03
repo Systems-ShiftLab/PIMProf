@@ -1,13 +1,15 @@
 BUILD_DIR           := ../build
 ANALYSIS_BUILD_DIR  := $(BUILD_DIR)/LLVMAnalysis
 
-CLANGXX          := clang++-7
-OPT              := opt-7
-LLC              := llc-7
-LINK             := llvm-link-7
-DIS              := llvm-dis-7
-PREOPT_CXXFLAGS  := -flto -fPIC -std=c++11 # -O3 -pedantic-errors -Wall -Wextra -Werror
-POSTOPT_CXXFLAGS := $(PREOPT_CXXFLAGS) -O3
+LLVM_BIN         := $(LLVM_HOME)/bin
+CLANGXX          := $(LLVM_BIN)/clang++
+OPT              := $(LLVM_BIN)/opt
+LLC              := $(LLVM_BIN)/llc
+LINK             := $(LLVM_BIN)/llvm-link
+DIS              := $(LLVM_BIN)/llvm-dis
+CXXFLAGS := -fPIC -std=c++11 -O3
+EMITBC_CXXFLAGS  := -fPIC -std=c++11 -flto # -O3 -pedantic-errors -Wall -Wextra -Werror
+
 LDFLAGS          := 
 INCLUDE          :=
 
@@ -51,33 +53,36 @@ $(DECISION): $(TEST_EXE) $(MERGED_DUMP) all
 	make -C ../PinInstrument/
 	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so  -b $(MERGED_DUMP) -o $@ -- ./$(TEST_EXE)
 	
-# generate the bitcode of each source code and inject annotator function call
+# generate the bitcode of each source code
 $(EXTERNAL_BC): %.bc: %.cpp
-	$(CLANGXX) $(PREOPT_CXXFLAGS) $(INCLUDE) -o $@ -c $<
+	$(CLANGXX) $(EMITBC_CXXFLAGS) $(INCLUDE) -o $@ -c $<
 
 # generate the annotator function itself
 $(ANNOTATOR_BC): cmake
 	$(ANALYSIS_BUILD_DIR)/AnnotatorGeneration.exe
 
+# link bitcodes
 $(EXTERNAL_MERGED_BC): $(EXTERNAL_BC)
 	$(LINK) -o $@ $^
 
-# link the source file with annotator function file, then compile to executable
+# inject annotator
 $(EXTERNAL_OPT_BC): $(EXTERNAL_MERGED_BC)
 	$(OPT) -load $(ANALYSIS_BUILD_DIR)/libAnnotatorInjection.so -AnnotatorInjection -o $@ $<
 
+# link the source file with annotator function file
+# note that the annotator bc itself should not be annotated
 $(MERGED_BC): $(EXTERNAL_OPT_BC) $(ANNOTATOR_BC)
 	$(LINK) -o $@ $^
 	$(DIS) $@ -o $(MERGED_LL)
 
 $(OFFLOADER_BC): ../LLVMAnalysis/$(OFFLOADER_SRC) cmake
-	$(CLANGXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $@ -c $< $(LDFLAGS)
+	$(CLANGXX) $(EMITBC_CXXFLAGS) $(INCLUDE) -o $@ -c $< $(LDFLAGS)
 
 $(MERGED_DUMP): $(EXTERNAL_OPT_BC)
 	$(ANALYSIS_BUILD_DIR)/CFGDump.exe -o $@ $^
 
 $(TEST_EXE): $(MERGED_BC)
-	$(CLANGXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $@ $^ $(LDFLAGS)
+	$(CLANGXX) $(CXXFLAGS) $(INCLUDE) -o $@ $^ $(LDFLAGS)
 	# objdump -d $(TEST_EXE) > objdump$$LEVEL.out
 
 $(DECISION_BC): $(EXTERNAL_MERGED_BC) $(DECISION)
@@ -88,7 +93,7 @@ $(FINAL_BC): $(DECISION_BC) $(OFFLOADER_BC)
 	$(DIS) $@ -o $(FINAL_LL)
 
 $(FINAL_EXE): $(FINAL_BC)
-	$(CLANGXX) $(POSTOPT_CXXFLAGS) $(INCLUDE) -o $@ $^ $(LDFLAGS)
+	$(CLANGXX) $(CXXFLAGS) $(INCLUDE) -o $@ $^ $(LDFLAGS)
 
 
 clean:

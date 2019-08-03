@@ -54,7 +54,7 @@ namespace {
         cl::init("")
     );
 
-    void InjectOffloaderCall(Module &M, BasicBlock &BB, int DECISION) {
+    void InjectOffloaderCall(Module &M, BasicBlock &BB, int DECISION, int BBLID) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
@@ -62,19 +62,33 @@ namespace {
             M.getOrInsertFunction(
                 PIMProfOffloader, 
                 FunctionType::getVoidTy(ctx), 
+                Type::getInt32Ty(ctx),
                 Type::getInt32Ty(ctx)
             )
         );
 
-        Value *decision = ConstantInt::get(
-            IntegerType::get(M.getContext(),32), DECISION);
+        std::vector<Value *> args;
+        args.push_back(ConstantInt::get(
+            IntegerType::get(M.getContext(),32), DECISION));
+        args.push_back(ConstantInt::get(
+            IntegerType::get(M.getContext(),32), BBLID));
 
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
         CallInst *head_instr = CallInst::Create(
-            offloader, ArrayRef<Value *>(decision), "",
+            offloader, ArrayRef<Value *>(args), "",
             beginning);
+
+        // insert instruction metadata
+        MDNode* md = MDNode::get(
+            ctx, 
+            ConstantAsMetadata::get(
+                ConstantInt::get(
+                    IntegerType::get(M.getContext(),32), BBLID)
+            )
+        );
+        head_instr->setMetadata(PIMProfBBLIDMetadata, md);
 
     }
 
@@ -115,16 +129,19 @@ namespace {
                 // according to their basic block ID and corresponding decision
                 // simply assume that the input program is the same as the input in annotator injection pass
                 for (auto &func : M) {
+                    errs() << func.getName() << "\n";
                     for (auto &bb: func) {
-                        InjectOffloaderCall(M, bb, decisions[bblid]);
+                        errs() << decisions[bblid] << " ";
+                        InjectOffloaderCall(M, bb, decisions[bblid], bblid);
                         bblid++;
                     }
+                    errs() << "\n";
                 }
             }
             else if (StayOn != INVALID && InputFilename == "") {
                 for (auto &func : M) {
                     for (auto &bb: func) {
-                        InjectOffloaderCall(M, bb, (int)StayOn);
+                        InjectOffloaderCall(M, bb, (int)StayOn, bblid);
                         bblid++;
                     }
                 }

@@ -48,7 +48,7 @@ COST CostSolver::_fetch_cost;
 COST CostSolver::_memory_cost[MAX_COST_SITE];
 BBLID CostSolver::_BBL_size;
 // std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
-int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
+long long int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
 
 /* ===================================================================== */
 /* DataReuse */
@@ -898,13 +898,14 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     delete outputfile;
     CostSolver::Minimize(ofs);
     ofs.close();
-    /*
-    std::cout << "BBL\t"
+    
+    ofs.open("BBLBlockCost.out", std::ofstream::out);
+    ofs << "BBL\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
     << "difference" << std::endl;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        std::cout << i << "\t"
+        ofs << i << "\t"
         << CostSolver::_BBL_instruction_cost[CPU][i] *
            CostSolver::_instruction_multiplier[CPU]
         << "\t\t"
@@ -914,8 +915,9 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
         << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
         << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t"
         << CostSolver::_BBL_partial_total[CPU][i] - CostSolver::_BBL_partial_total[PIM][i] << std::endl;
-    }*/
-    ofs.open("output.dot", std::ofstream::out);
+    }
+    ofs.close();
+    ofs.open("BBLReuseCost.dot", std::ofstream::out);
     DataReuse::print(ofs);
     ofs.close();
 }

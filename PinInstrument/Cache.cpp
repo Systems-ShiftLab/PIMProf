@@ -187,21 +187,16 @@ CACHE_LEVEL::~CACHE_LEVEL()
 
 VOID CACHE_LEVEL::AddMemCost(BOOL hit, CACHE_LEVEL *lvl)
 {
-    if (hit) {
-        BBLID bblid = PinInstrument::GetCurrentBBL();
-        if (bblid != GLOBALBBLID) {
+    BBLID bblid = PinInstrument::GetCurrentBBL();
+    if (bblid != GLOBALBBLID) {
+        if (hit) {
             for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
                 CostSolver::_BBL_memory_cost[i][bblid] += lvl->_hitcost[i];
             }
         }
-    }
-    else {
-        BBLID bblid = PinInstrument::GetCurrentBBL();
-        if (bblid != GLOBALBBLID) {
-            if (lvl->_name == "UL3") {
-                for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-                    CostSolver::_BBL_memory_cost[i][bblid] += CostSolver::_memory_cost[i];
-                }
+        else if (lvl->_name == "UL3") {
+            for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+                CostSolver::_BBL_memory_cost[i][bblid] += CostSolver::_memory_cost[i];
             }
         }
     }

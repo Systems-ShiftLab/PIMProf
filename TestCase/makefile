@@ -86,7 +86,7 @@ $(TEST_EXE): $(MERGED_BC)
 	# objdump -d $(TEST_EXE) > objdump$$LEVEL.out
 
 $(DECISION_BC): $(EXTERNAL_MERGED_BC) $(DECISION)
-	$(OPT) -load $(ANALYSIS_BUILD_DIR)/libOffloaderInjection.so -OffloaderInjection -decision=$(DECISION) $(EXTERNAL_MERGED_BC) -o $@
+	$(OPT) -load $(ANALYSIS_BUILD_DIR)/libOffloaderInjection.so -OffloaderInjection -decision=$(DECISION) $(EXTERNAL_MERGED_BC) -o $@ > instruction_dump.ll
 
 $(FINAL_BC): $(DECISION_BC) $(OFFLOADER_BC)
 	$(LINK) -o $@ $^

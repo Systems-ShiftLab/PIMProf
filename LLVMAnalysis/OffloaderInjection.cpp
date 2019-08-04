@@ -6,10 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Pass.h"
+
 #include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Pass.h"
 
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
@@ -18,9 +19,16 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
 
+#include "llvm/IR/AssemblyAnnotationWriter.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+
 
 #include <iostream>
 #include <assert.h>
@@ -92,6 +100,20 @@ namespace {
 
     }
 
+    class PIMProfAAW : public AssemblyAnnotationWriter {
+    public:
+        void emitInstructionAnnot(const Instruction *I, formatted_raw_ostream &ofs) {
+            ofs << "######## At ";
+            DILocation *deb = I->getDebugLoc();
+            if (deb != NULL) {
+                ofs << deb->getFilename();
+                ofs << " line: " << deb->getLine();
+                ofs << " col: " << deb->getColumn();
+            }
+            ofs << "\n";
+        }
+    };
+
     struct OffloaderInjection : public ModulePass {
         static char ID;
         OffloaderInjection() : ModulePass(ID) {}
@@ -151,6 +173,12 @@ namespace {
                 assert(false);
             }
             
+            // dump entire program
+            PIMProfAAW aaw = PIMProfAAW();
+            for (auto &func: M) {
+                func.print(outs(), &aaw);
+            }
+
             // M.print(errs(), nullptr);
             return true;
         }

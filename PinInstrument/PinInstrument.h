@@ -167,7 +167,7 @@ class CostSolver {
     CostSolver(const std::string filename);
     // static inline VOID clear() { _cost_term_set.clear(); }
 
-    static COST Minimize(std::ostream &out);
+    static DECISION Minimize(std::ostream &out);
 
     static VOID TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
 

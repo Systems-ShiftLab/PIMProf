@@ -359,7 +359,7 @@ CostSolver::CostSolver(const std::string filename)
     ReadControlFlowGraph(filename);
 }
 
-COST CostSolver::Minimize(std::ostream &out)
+CostSolver::DECISION CostSolver::Minimize(std::ostream &out)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < CostSolver::_BBL_size; j++) {
@@ -369,7 +369,7 @@ COST CostSolver::Minimize(std::ostream &out)
         }
     }
     std::vector<std::pair<COST, UINT32>> index;
-    DECISION decision;
+    DECISION decision, result;
     COST cur_partial_total = 0;
     
 
@@ -432,6 +432,7 @@ COST CostSolver::Minimize(std::ostream &out)
     // PrintDecision(std::cout, decision, true);
     PrintDecision(out, decision, false);
     PrintDecisionStat(std::cout, decision, "PIMProf opt");
+    result = decision;
 
     // figure out the cost of pure CPU
     decision.clear();
@@ -452,7 +453,7 @@ COST CostSolver::Minimize(std::ostream &out)
     
     PrintDecisionStat(std::cout, decision, "Pure PIM");
 
-    return 0;
+    return result;
 }
 
 VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
@@ -896,16 +897,17 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     char *outputfile = (char *)v;
     std::ofstream ofs(outputfile, std::ofstream::out);
     delete outputfile;
-    CostSolver::Minimize(ofs);
+    CostSolver::DECISION decision = CostSolver::Minimize(ofs);
     ofs.close();
     
     ofs.open("BBLBlockCost.out", std::ofstream::out);
-    ofs << "BBL\t"
+    ofs << "BBL\t" << "Decision\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
     << "difference" << std::endl;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         ofs << i << "\t"
+        << (decision[i] == 0 ? "C" : "P") << "\t"
         << CostSolver::_BBL_instruction_cost[CPU][i] *
            CostSolver::_instruction_multiplier[CPU]
         << "\t\t"

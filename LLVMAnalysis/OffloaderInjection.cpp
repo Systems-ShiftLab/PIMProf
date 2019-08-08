@@ -153,7 +153,7 @@ namespace {
                 for (auto &func : M) {
                     errs() << func.getName() << "\n";
                     for (auto &bb: func) {
-                        errs() << decisions[bblid] << " ";
+                        errs() << bblid << "(" << decisions[bblid] << ") ";
                         InjectOffloaderCall(M, bb, decisions[bblid], bblid);
                         bblid++;
                     }

@@ -80,6 +80,7 @@ VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
         TrieNode *temp = curNode->_children[curID];
         if (temp == NULL) {
             temp = new TrieNode();
+            temp->_parent = curNode;
             curNode->_children[curID] = temp;
         }
         curNode = temp;
@@ -87,6 +88,7 @@ VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
     TrieNode *temp = curNode->_children[seg._headID];
     if (temp == NULL) {
         temp = new TrieNode();
+        temp->_parent = curNode;
         curNode->_children[seg._headID] = temp;
     }
     temp->_isLeaf = true;
@@ -396,7 +398,7 @@ CostSolver::DECISION CostSolver::Minimize(std::ostream &out)
         }
     }
     
-    COST cur_total = Cost(decision);
+    COST cur_total = Cost(decision, DataReuse::_root);
 
     // PrintDecision(std::cout, decision, true);
     std::ofstream tempofs("greedy_decision.txt", std::ofstream::out);
@@ -421,7 +423,7 @@ CostSolver::DECISION CostSolver::Minimize(std::ostream &out)
             
             if (decision[id] == CPU) {
                 decision[id] = PIM;
-                COST temp_total = Cost(decision);
+                COST temp_total = Cost(decision, DataReuse::_root);
                 if (temp_total > cur_total)
                     decision[id] = CPU;
                 else
@@ -429,7 +431,7 @@ CostSolver::DECISION CostSolver::Minimize(std::ostream &out)
             }
             else {
                 decision[id] = CPU;
-                COST temp_total = Cost(decision);
+                COST temp_total = Cost(decision, DataReuse::_root);
                 if (temp_total > cur_total)
                     decision[id] = PIM;
                 else {
@@ -497,14 +499,14 @@ VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
     }
 }
 
-COST CostSolver::Cost(const CostSolver::DECISION &decision)
+COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
 {
 
     COST cur_reuse_cost = 0;
     COST cur_instr_cost = 0;
     COST cur_mem_cost = 0;
-    std::map<BBLID, TrieNode *>::iterator it = DataReuse::_root->_children.begin();
-    std::map<BBLID, TrieNode *>::iterator eit = DataReuse::_root->_children.end();
+    std::map<BBLID, TrieNode *>::iterator it = reusetree->_children.begin();
+    std::map<BBLID, TrieNode *>::iterator eit = reusetree->_children.end();
     for (; it != eit; it++) {
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
@@ -565,19 +567,6 @@ VOID CostSolver::SetBBLSize(BBLID _BBL_size) {
     }
 }
 
-// VOID CostSolver::AddCostTerm(const CostTerm &cost) {
-//     if (cost._coefficient == 0) {
-//         return;
-//     }
-//     std::set<CostTerm>::iterator it = _cost_term_set.find(cost);
-//     if (it != _cost_term_set.end()) {
-//         it->_coefficient += cost._coefficient;
-//     }
-//     else {
-//         _cost_term_set.insert(cost);
-//     }
-// }
-
 VOID CostSolver::ReadControlFlowGraph(const std::string filename)
 {
     std::ifstream ifs;
@@ -592,161 +581,14 @@ VOID CostSolver::ReadControlFlowGraph(const std::string filename)
     InstructionLatency::SetBBLSize(_BBL_size);
     MemoryLatency::SetBBLSize(_BBL_size);
     CostSolver::SetBBLSize(_BBL_size);
-
-    // /****************************
-    // The control cost of BBL i -> BBL j depends on the offloading decision of BBL i and BBL j
-    // totalcost += cc[0][0]*(1-d[i])*(1-d[j]) + cc[0][1]*(1-d[i])*d[j] + cc[1][0]*d[i]*(1-dec[j]) + cc[1][1]*d[i]*d[j]
-    // ****************************/
-
-    // while(getline(ifs, curline)) {
-    //     std::stringstream ss(curline);
-    //     BBLID head, tail;
-    //     ss >> head;
-    //     while (ss >> tail) {
-    //         std::vector<INT32> list;
-    //         list.push_back(-head);
-    //         list.push_back(-tail);
-    //         AddCostTerm(CostTerm(_control_latency[0][0], list));
-    //         list.clear();
-    //         list.push_back(-head);
-    //         list.push_back(tail);
-    //         AddCostTerm(CostTerm(_control_latency[0][1], list));
-    //         list.clear();
-    //         list.push_back(head);
-    //         list.push_back(-tail);
-    //         AddCostTerm(CostTerm(_control_latency[1][0], list));
-    //         list.clear();
-    //         list.push_back(head);
-    //         list.push_back(tail);
-    //         AddCostTerm(CostTerm(_control_latency[1][1], list));
-    //     }
-    // }
 }
-
-// VOID CostSolver::AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE])
-// {
-//     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-//         ASSERTX(_BBL_instruction_cost[i].size() == _BBL_size);
-//     }
-
-//     /****************************
-//     The instruction cost of BBL i depends solely on the offloading decision of BBL i
-//     totalcost += cc[0]*multiplier[0]*(1-d[i]) + cc[1]*multiplier[1]*d[i] or
-//     totalcost += (-cc[0]*multiplier[0]+cc[1]*multiplier[1])*d[i] + cc[0]*multiplier[0]
-//     ****************************/
-//     for (BBLID i = 0; i < _BBL_size; i++) {
-//         COST cost = -_BBL_instruction_cost[0][i] * _instruction_multiplier[0] + _BBL_instruction_cost[1][i] * _instruction_multiplier[1];
-//         AddCostTerm(CostTerm(cost, i));
-//         cost = _BBL_instruction_cost[0][i] * _instruction_multiplier[0];
-//         AddCostTerm(CostTerm(cost));
-//     }
-// }
-
-// VOID CostSolver::AddDataReuseCost(std::vector<BBLOP> *op)
-// {
-//     std::vector<BBLOP>::iterator it = op->begin();
-//     std::vector<BBLOP>::iterator eit = op->end();
-//     std::vector<INT32> origin;
-//     std::vector<INT32> flipped;
-//     std::ofstream ofs("output.txt", std::ofstream::app);
-//     bool printflag = false;
-//     for (; it != eit; it++) {
-//         ofs << it->first << "," << it->second << " -> ";
-//         printflag = true;
-//         BBLID curid = it->first;
-//         ACCESS_TYPE curtype = it->second;
-
-//         /****************************
-//         The data reuse cost of a LOAD is dependent on the offloading decision of all operations between itself and the most recent STORE. 
-//         A PIM LOAD needs to pay the FLUSH cost when the LOADs and the most recent STORE are all on CPU.
-//         A CPU LOAD needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
-
-//         Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
-//         totalcost += clwb*d[j]*(1-d[i])*(1-d[i+1])*...*(1-d[j-1])
-//                    + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
-
-//         If there is no STORE before it,
-//         A PIM LOAD does not need to pay any cost.
-//         A CPU LOAD needs to pay the FETCH cost.
-
-//         So:
-//         totalcost += fetch*(1-d[j])
-//         ****************************/
-//         if (curtype == ACCESS_TYPE_LOAD) {
-//             if (origin.empty()) { // no STORE
-//                 AddCostTerm(CostTerm(_fetch_cost, -curid));
-//                 origin.push_back(curid);
-//                 flipped.push_back(-curid);
-//             }
-//             else {
-//                 flipped.push_back(curid);
-//                 AddCostTerm(CostTerm(_clwb_cost, flipped));
-//                 flipped.pop_back();
-//                 flipped.push_back(-curid);
-
-//                 origin.push_back(-curid);
-//                 AddCostTerm(CostTerm(_fetch_cost, origin));
-//                 origin.pop_back();
-//                 origin.push_back(curid);
-//             }
-//         }
-//         /****************************
-//         The data reuse cost of a STORE is dependent on the offloading decision of all operations between itself and the most recent STORE besides itself. 
-//         A PIM STORE needs to pay the INVALIDATE cost when any one among the LOADs and the most recent STORE is on CPU.
-//         A CPU STORE needs to pay the FETCH cost when the LOADs and the most recent STORE are all on PIM.
-
-//         Let the most recent STORE be on BBL i, and the LOAD itself be on BBL j, then:
-//         totalcost += invalidate*d[j]*(1-d[i]*d[i+1]*...*d[j-1])
-//                    + fetch*(1-d[j])*d[i]*d[i+1]*...*d[j-1]
-
-//         If there is no STORE before it,
-//         A PIM STORE does not need to pay any cost.
-//         A CPU STORE needs to pay the FETCH cost.
-
-//         So:
-//         totalcost += fetch*(1-d[j])
-//         ****************************/
-//         if (curtype == ACCESS_TYPE_STORE) {
-//             if (origin.empty()) { // no STORE
-//                 AddCostTerm(CostTerm(_fetch_cost, -curid));
-//                 origin.push_back(curid);
-//                 flipped.push_back(-curid);
-//             }
-//             else {
-//                 AddCostTerm(CostTerm(_invalidate_cost, curid));
-//                 origin.push_back(curid);
-//                 AddCostTerm(CostTerm(-_invalidate_cost, origin));
-//                 origin.pop_back();
-
-//                 origin.push_back(-curid);
-//                 AddCostTerm(CostTerm(_fetch_cost, origin));
-
-//                 origin.clear();
-//                 origin.push_back(curid);
-//                 flipped.clear();
-//                 flipped.push_back(-curid);
-//             }
-//         }
-//         if (curtype == ACCESS_TYPE_NUM) {
-//             ASSERTX(0);
-//         }
-
-//     }
-//     if (printflag)
-//         ofs << std::endl;
-// }
 
 std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
 {
     if (toscreen == true) {
         for (UINT32 i = 0; i < _BBL_size; i++) {
             out << i << ":";
-            if (decision[i] == CPU) {
-                out << "C";
-            }
-            else {
-                out << "P";
-            }
+            out << (decision[i] == CPU ? "C" : "P");
             out << " ";
         }
         out << std::endl;
@@ -754,12 +596,7 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
     else {
         for (UINT32 i = 0; i < _BBL_size; i++) {
             out << i << " ";
-            if (decision[i] == CPU) {
-                out << "C";
-            }
-            else {
-                out << "P";
-            }
+            out << (decision[i] == CPU ? "C" : "P");
             out << std::endl;
         }
     }
@@ -793,80 +630,6 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
         << (cur_instr_cost + cur_mem_cost + cur_reuse_cost) << std::endl;
     return out;
 }
-
-/* ===================================================================== */
-/* CostSolver::CostTerm */
-/* ===================================================================== */
-
-// CostSolver::CostTerm::CostTerm(COST c, INT32 id) : _coefficient(c)
-// {
-//     AddVar(id);
-// }
-
-// CostSolver::CostTerm::CostTerm(COST c, std::vector<INT32> &v) : _coefficient(c)
-// {
-//     AddVar(v);
-// }
-
-// COST CostSolver::CostTerm::Cost(DECISION &decision) const
-// {
-//     std::set<INT32>::const_iterator it = _varproduct.begin();
-//     std::set<INT32>::const_iterator eit = _varproduct.end();
-//     BOOL result = true;
-//     for (; it != eit; it++) {
-//         if (*it > 0)
-//             result &= decision[*it];
-//         else
-//             result &= (!decision[-(*it)]);
-//     }
-//     return (_coefficient * result);
-// }
-
-// VOID CostSolver::CostTerm::AddVar(INT32 id)
-// {
-//     if (_varproduct.find(-id) != _varproduct.end())
-//         _coefficient = 0;
-//     if (_coefficient != 0)
-//         _varproduct.insert(id);
-// }
-
-// VOID CostSolver::CostTerm::AddVar(std::vector<INT32> &v)
-// {
-//     std::vector<INT32>::iterator vit = v.begin();
-//     std::vector<INT32>::iterator evit = v.end();
-//     for (; vit != evit; vit++) {
-//         if (_varproduct.find(-(*vit)) != _varproduct.end())
-//             _coefficient = 0;
-//         if (_coefficient != 0)
-//             _varproduct.insert(*vit);
-//     }
-// }
-
-// std::ostream &CostSolver::CostTerm::print(std::ostream &out) const
-// {
-//     std::set<INT32>::const_iterator it = _varproduct.begin();
-//     std::set<INT32>::const_iterator eit = _varproduct.end();
-//     if (_coefficient < 0)
-//         out << "(" << _coefficient << ")";
-//     else if (_coefficient > 0)
-//         out << _coefficient;
-//     else
-//         return out;
-
-//     if (_varproduct.size() == 0) return out;
-//     if (*it > 0)
-//         out << " * d[" << *it << "]";
-//     else
-//         out << " * (1 - d[" << -(*it) << "])";
-//     if (_varproduct.size() == 1) return out;
-//     for (it++; it != eit; it++) {
-//         if (*it > 0)
-//         out << " * d[" << *it << "]";
-//         else 
-//             out << " * (1 - d[" << -(*it) << "])";
-//     }
-//     return out;
-// }
 
 
 /* ===================================================================== */
@@ -921,11 +684,6 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
 
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
 {
-    // CostSolver::AddInstructionCost(CostSolver::_BBL_instruction_cost);
-    // CostSolver::print(std::cout);
-    // std::cout << std::endl;
-    // InstructionLatency::WriteConfig("template.ini");
-    // printf("wow\n");
     char *outputfile = (char *)v;
     std::ofstream ofs(outputfile, std::ofstream::out);
     delete outputfile;

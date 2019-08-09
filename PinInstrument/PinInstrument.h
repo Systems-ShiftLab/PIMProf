@@ -134,7 +134,6 @@ class CostSolver {
     friend class CACHE_LEVEL;
 
   public:
-    // class CostTerm;
     /// A DECISION is a vector that represents a certain offloading decision, for example:
     /// A DECISION vector (PIM, CPU, CPU, PIM) means:
     /// put the 1st and 4th BBL on PIM and 2nd and 3rd on CPU for execution
@@ -157,12 +156,6 @@ class CostSolver {
   private:
     static BBLID _BBL_size;
 
-    /// Based on the structure of the program, the total cost can be expressed as a polynomial, where each term is the product of some decisions,
-    /// when the desision is given, the corresponding cost is determined, for example:
-    /// Let "DECISION dec" be an arbitrary decision vector, the total cost may have an expression in this form:
-    /// cost = coeff[0] + coeff[1] * dec[2] * dec[4] + coeff[2] * dec[0] * dec[1] * dec[2] * dec[3] + ...
-    // static std::set<CostTerm> _cost_term_set;
-
   public:
     CostSolver();
     CostSolver(const std::string filename);
@@ -172,7 +165,7 @@ class CostSolver {
 
     static VOID TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
 
-    static COST Cost(const DECISION &decision);
+    static COST Cost(const DECISION &decision, TrieNode *reusetree);
 
     static VOID ReadConfig(const std::string filename);
 
@@ -184,48 +177,9 @@ class CostSolver {
     /// Attribute the control cost to the tail node
     static VOID ReadControlFlowGraph(const std::string filename);
 
-    /// Read the Instruction Cost from InstructionLatency instrumentation result
-    // static VOID AddInstructionCost(std::vector<COST> (&_BBL_instruction_cost)[MAX_COST_SITE]);
-
-    /// Read the memory cost from MemoryLatency instrumentation result
-    // static VOID AddMemoryCost();
-
-    // static VOID AddDataReuseCost(std::vector<BBLOP> *op);
-
     static std::ostream &PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen);
     static std::ostream &PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name);
 };
-
-// class CostSolver::CostTerm {
-//     friend class CostSolver;
-//   public:
-//     typedef std::vector<BBLID> BBLIDList; 
-//   private:
-//     mutable COST _coefficient;
-
-//     // A positive BBLID i represents d[i] in term
-//     // A negative BBLID -i represents (1-d[i]) in term
-//     std::set<INT32> _varproduct;
-    
-//   public:
-//     inline CostTerm(COST c = 0) : _coefficient(c) {}
-//     CostTerm(COST c, INT32 id);
-//     CostTerm(COST c, std::vector<INT32> &v);
-
-//     COST Cost(DECISION &decision) const;
-
-//     inline VOID AddCoefficient(COST c) { _coefficient += c; }
-//     inline VOID AddVar(INT32 id);
-//     inline VOID AddVar(std::vector<INT32> &v);
-
-//     /// use this comparator for _cost_term_set comparison
-//     bool operator < (const CostTerm &rhs) const 
-//     {
-//         return (_varproduct < rhs._varproduct);
-//     }
-
-//     std::ostream &print(std::ostream &out) const;
-// };
 
 
 class PinInstrument {

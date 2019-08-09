@@ -86,10 +86,12 @@ namespace PIMProf {
       public:
         bool _isLeaf;
         std::map<BBLID, TrieNode *> _children;
+        TrieNode *_parent;
         INT64 _count;
       public:
         inline TrieNode() {
             _isLeaf = false;
+            _parent = NULL;
             _count = 0;
         }
 

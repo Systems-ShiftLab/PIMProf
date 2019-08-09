@@ -363,7 +363,7 @@ CostSolver::CostSolver(const std::string filename)
     ReadControlFlowGraph(filename);
 }
 
-bool comp(const std::pair<COST, UINT32> &l, const std::pair<COST, UINT32> &r)
+bool CostSolverComparator(const std::pair<COST, UINT32> &l, const std::pair<COST, UINT32> &r)
 {
     return l.first < r.first;
 }
@@ -409,7 +409,7 @@ CostSolver::DECISION CostSolver::Minimize(std::ostream &out)
     PrintDecisionStat(std::cout, decision, "Pure greedy");
 
 
-    std::sort(index.begin(), index.end(), comp);
+    std::sort(index.begin(), index.end(), CostSolverComparator);
 
     decision.clear();
     cur_partial_total = 0;
@@ -511,13 +511,10 @@ COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        if (decision[i] == CPU) {
-            cur_instr_cost += CostSolver::_BBL_instruction_cost[CPU][i] * _instruction_multiplier[CPU];
-            cur_mem_cost += CostSolver::_BBL_memory_cost[CPU][i];
-        }
-        else {
-            cur_instr_cost += CostSolver::_BBL_instruction_cost[PIM][i] * _instruction_multiplier[PIM];
-            cur_mem_cost += CostSolver::_BBL_memory_cost[PIM][i];
+        CostSite site = decision[i];
+        if (site == CPU || site == PIM) {
+            cur_instr_cost += CostSolver::_BBL_instruction_cost[site][i] * _instruction_multiplier[site];
+            cur_mem_cost += CostSolver::_BBL_memory_cost[site][i];
         }
     }
     return (cur_reuse_cost + cur_instr_cost + cur_mem_cost);
@@ -588,7 +585,8 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
     if (toscreen == true) {
         for (UINT32 i = 0; i < _BBL_size; i++) {
             out << i << ":";
-            out << (decision[i] == CPU ? "C" : "P");
+            out << (decision[i] == CPU ? "C" : "");
+            out << (decision[i] == PIM ? "P" : "");
             out << " ";
         }
         out << std::endl;
@@ -596,7 +594,8 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
     else {
         for (UINT32 i = 0; i < _BBL_size; i++) {
             out << i << " ";
-            out << (decision[i] == CPU ? "C" : "P");
+            out << (decision[i] == CPU ? "C" : "");
+            out << (decision[i] == PIM ? "P" : "");
             out << std::endl;
         }
     }
@@ -614,13 +613,10 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        if (decision[i] == CPU) {
-            cur_instr_cost += CostSolver::_BBL_instruction_cost[CPU][i] * _instruction_multiplier[CPU];
-            cur_mem_cost += CostSolver::_BBL_memory_cost[CPU][i];
-        }
-        else {
-            cur_instr_cost += CostSolver::_BBL_instruction_cost[PIM][i] * _instruction_multiplier[PIM];
-            cur_mem_cost += CostSolver::_BBL_memory_cost[PIM][i];
+        CostSite site = decision[i];
+        if (site == CPU || site == PIM) {
+            cur_instr_cost += CostSolver::_BBL_instruction_cost[site][i] * _instruction_multiplier[site];
+            cur_mem_cost += CostSolver::_BBL_memory_cost[site][i];
         }
     }
 
@@ -697,7 +693,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     << "difference" << std::endl;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         ofs << i << "\t"
-        << (decision[i] == 0 ? "C" : "P") << "\t"
+        << (decision[i] == CPU ? "C" : "") << (decision[i] == PIM ? "P" : "") << "\t"
         << CostSolver::_BBL_instruction_cost[CPU][i] *
            CostSolver::_instruction_multiplier[CPU]
         << "\t\t"

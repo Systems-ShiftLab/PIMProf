@@ -152,6 +152,7 @@ class CostSolver {
     static COST _clwb_cost;
     static COST _invalidate_cost;
     static COST _fetch_cost;
+    static double _data_reuse_threshold;
 
   private:
     static BBLID _BBL_size;

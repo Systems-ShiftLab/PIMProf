@@ -47,6 +47,7 @@ COST CostSolver::_invalidate_cost;
 COST CostSolver::_fetch_cost;
 COST CostSolver::_memory_cost[MAX_COST_SITE];
 BBLID CostSolver::_BBL_size;
+double CostSolver::_data_reuse_threshold;
 // std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
 long long int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
 
@@ -351,6 +352,7 @@ CostSolver::CostSolver()
     _clwb_cost = 0;
     _invalidate_cost = 0;
     _fetch_cost = 0;
+    _data_reuse_threshold = 0;
 }
 
 CostSolver::CostSolver(const std::string filename)
@@ -549,6 +551,10 @@ VOID CostSolver::ReadConfig(const std::string filename)
         if (cost >= 0) {
             _instruction_multiplier[i] = cost;
         }
+    }
+    double th = reader.GetReal("Threshold", "DataReuse", -1);
+    if (th >= 0) {
+        _data_reuse_threshold = th;
     }
 }
 

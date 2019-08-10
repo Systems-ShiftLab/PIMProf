@@ -58,7 +58,7 @@ VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
     if (bblid != GLOBALBBLID) {
         _seg.insert(bblid);
         if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-            DataReuse::UpdateTrie(_seg);
+            DataReuse::UpdateTrie(DataReuse::getRoot(), _seg);
             _seg.clear();
             _seg.insert(bblid);
         }
@@ -66,7 +66,7 @@ VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
 }
 
 VOID CACHE_TAG::SplitOnMiss() {
-    DataReuse::UpdateTrie(_seg);
+    DataReuse::UpdateTrie(DataReuse::getRoot(), _seg);
     _seg.clear();
 }
 

@@ -48,7 +48,7 @@ COST CostSolver::_invalidate_cost;
 COST CostSolver::_fetch_cost;
 COST CostSolver::_memory_cost[MAX_COST_SITE];
 BBLID CostSolver::_BBL_size;
-double CostSolver::_data_reuse_impactratio;
+int CostSolver::_batchcount;
 int CostSolver::_batchsize;
 // std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
 long long int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
@@ -67,14 +67,14 @@ DataReuse::~DataReuse()
     DeleteTrie(_root);
 }
 
-VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
+VOID DataReuse::UpdateTrie(TrieNode *root, DataReuseSegment &seg)
 {
     // A reuse chain segment of size 1 can be removed
     if (seg.size() <= 1) return;
 
     // seg.print(std::cout);
 
-    TrieNode *curNode = _root;
+    TrieNode *curNode = root;
     std::set<BBLID>::iterator it = seg._set.begin();
     std::set<BBLID>::iterator eit = seg._set.end();
     for (; it != eit; it++) {
@@ -83,6 +83,7 @@ VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
         if (temp == NULL) {
             temp = new TrieNode();
             temp->_parent = curNode;
+            temp->_curID = curID;
             curNode->_children[curID] = temp;
         }
         curNode = temp;
@@ -91,11 +92,25 @@ VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
     if (temp == NULL) {
         temp = new TrieNode();
         temp->_parent = curNode;
+        temp->_curID = seg._headID;
         curNode->_children[seg._headID] = temp;
         _leaves.push_back(temp);
     }
     temp->_isLeaf = true;
-    temp->_count += 1;
+    temp->_count += seg.getCount();
+}
+
+VOID DataReuse::ExportSegment(DataReuseSegment &seg, TrieNode *leaf)
+{
+    ASSERTX(leaf->_isLeaf);
+    seg.setHead(leaf->_curID);
+    seg.setCount(leaf->_count);
+
+    TrieNode *temp = leaf;
+    while (temp->_parent != NULL) {
+        seg.insert(temp->_curID);
+        temp = temp->_parent;
+    }
 }
 
 VOID DataReuse::DeleteTrie(TrieNode *root)
@@ -110,36 +125,36 @@ VOID DataReuse::DeleteTrie(TrieNode *root)
     delete root;
 }
 
-VOID DataReuse::PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count)
+VOID DataReuse::PrintTrie(std::ostream &out, TrieNode *root, int parent, int &count)
 {
     if (root->_isLeaf) {
-        out << "    V_" << count << " [shape=box, label=\"head = " << bblid << "\n cnt = " << root->_count << "\"];" << std::endl;
+        out << "    V_" << count << " [shape=box, label=\"head = " << root->_curID << "\n cnt = " << root->_count << "\"];" << std::endl;
         out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
         parent = count;
         count++;
     }
     else {
-        out << "    V_" << count << " [label=\"" << bblid << "\"];" << std::endl;
+        out << "    V_" << count << " [label=\"" << root->_curID << "\"];" << std::endl;
         out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
         parent = count;
         count++;
         std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
         std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
         for (; it != eit; it++) {
-            DataReuse::PrintTrie(out, it->first, it->second, parent, count);
+            DataReuse::PrintTrie(out, it->second, parent, count);
         }
     }
 }
 
-std::ostream &DataReuse::print(std::ostream &out) {
+std::ostream &DataReuse::print(std::ostream &out, TrieNode *root) {
     int parent = 0;
     int count = 1;
     out << "digraph trie {" << std::endl;
-    std::map<BBLID, TrieNode *>::iterator it = _root->_children.begin();
-    std::map<BBLID, TrieNode *>::iterator eit = _root->_children.end();
+    std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
+    std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
     out << "    V_0" << " [label=\"root\"];" << std::endl;
     for (; it != eit; it++) {
-        DataReuse::PrintTrie(out, it->first, it->second, parent, count);
+        DataReuse::PrintTrie(out, it->second, parent, count);
     }
     out << "}" << std::endl;
     return out;
@@ -357,7 +372,7 @@ CostSolver::CostSolver()
     _clwb_cost = 0;
     _invalidate_cost = 0;
     _fetch_cost = 0;
-    _data_reuse_impactratio = 0;
+    _batchcount = 0;
     _batchsize = 0;
 }
 
@@ -398,12 +413,10 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     PrintDecisionStat(std::cout, decision, "Pure greedy");
 
     // Optimal
-    decision.clear();
-    FindOptimal(decision, DataReuse::_root);
+    result = FindOptimal(DataReuse::_root);
     // PrintDecision(std::cout, decision, true);
-    PrintDecision(out, decision, false);
-    PrintDecisionStat(std::cout, decision, "PIMProf opt");
-    result = decision;
+    PrintDecision(out, result, false);
+    PrintDecisionStat(std::cout, result, "PIMProf opt");
 
     // pure CPU
     decision.clear();
@@ -435,7 +448,6 @@ VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
         }
     }
     else {
-        
         std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
         std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
         for (; it != eit; it++) {
@@ -455,7 +467,6 @@ VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 
 COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
 {
-
     COST cur_reuse_cost = 0;
     COST cur_instr_cost = 0;
     COST cur_mem_cost = 0;
@@ -479,12 +490,119 @@ bool CostSolverComparator(const TrieNode *l, const TrieNode *r)
     return l->_count > r->_count;
 }
 
-void CostSolver::FindOptimal(DECISION &decision, TrieNode *reusetree)
+CostSolver::DECISION CostSolver::FindOptimal(TrieNode *reusetree)
 {
+
     std::sort(DataReuse::_leaves.begin(), DataReuse::_leaves.end(), CostSolverComparator);
-    for (int i = 0; i < 10; i++) {
-        std::cout << DataReuse::_leaves[i]->_count << std::endl;
+
+    COST cur_total = FLT_MAX;
+    DECISION decision;
+
+    //initialize all decision to INVALID
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        decision.push_back(INVALID);
     }
+
+    TrieNode *partial_root = new TrieNode();
+    DataReuseSegment allidset;
+    int currentnode = 0;
+    int leavessize = DataReuse::_leaves.size();
+
+    for (int i = 0; i < _batchcount; i++) {
+        std::cout << "cnt" << i << std::endl;
+        
+        std::vector<BBLID> idvec;
+        // insert segments until the number of different BBLs hit _batchsize
+        while (currentnode < leavessize) {
+            DataReuseSegment seg;
+            DataReuse::ExportSegment(seg, DataReuse::_leaves[currentnode]);
+            std::vector<BBLID> diff = seg.diff(allidset);
+            // std::cout << idvec.size() << " " << diff.size() << std::endl;
+            if (idvec.size() + diff.size() > (unsigned)_batchsize) break;
+            allidset.insert(seg);
+            idvec.insert(idvec.end(), diff.begin(), diff.end());
+            DataReuse::UpdateTrie(partial_root, seg);
+            currentnode++;
+        }
+
+        int idvecsize = idvec.size();
+        for (int i = 0; i < idvecsize; i++) {
+            std::cout << idvec[i] << " ";
+        }
+        std::cout << std::endl;
+
+        // find optimal in this batch
+        ASSERTX(idvecsize <= _batchsize);
+        UINT64 permute = (1 << idvecsize) - 1;
+
+        // should not compare the cost between batches, so reset cur_total
+        cur_total = FLT_MAX;
+
+        DECISION temp_decision = decision;
+        for (; permute != (UINT64)(-1); permute--) {
+            for (int j = 0; j < idvecsize; j++) {
+                if ((permute >> j) & 1)
+                    temp_decision[idvec[j]] = PIM;
+                else
+                    temp_decision[idvec[j]] = CPU;
+            }
+            COST temp_total = Cost(temp_decision, partial_root);
+            if (temp_total < cur_total) {
+                cur_total = temp_total;
+                decision = temp_decision;
+            }
+            // PrintDecision(std::cout, decision, true);
+        }
+    }
+    std::ofstream ofs("temp.dot", std::ofstream::out);
+    DataReuse::print(ofs, partial_root);
+    ofs.close();
+
+    DataReuse::DeleteTrie(partial_root);
+
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        if (decision[i] == INVALID) {
+            if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
+                decision[i] = CPU;
+            }
+            else {
+                decision[i] = PIM;
+            }
+        }
+    }
+    // for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    //     if (decision[i] == INVALID)
+    //         decision[i] = PIM;
+    // }
+
+    cur_total = Cost(decision, DataReuse::_root);
+    std::cout << cur_total << std::endl;
+    for (int j = 0; j < 10; j++) {
+        for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+            BBLID id = i;
+            
+            if (decision[id] == CPU) {
+                decision[id] = PIM;
+                COST temp_total = Cost(decision, DataReuse::_root);
+                if (temp_total > cur_total)
+                    decision[id] = CPU;
+                else
+                    cur_total = temp_total;
+            }
+            else {
+                decision[id] = CPU;
+                COST temp_total = Cost(decision, DataReuse::_root);
+                if (temp_total > cur_total)
+                    decision[id] = PIM;
+                else {
+                    cur_total = temp_total;
+                }
+            }
+        }
+        std::cout << cur_total << std::endl;
+    }
+
+    return decision;
 }
 
 VOID CostSolver::ReadConfig(const std::string filename)
@@ -517,11 +635,11 @@ VOID CostSolver::ReadConfig(const std::string filename)
         ASSERTX(cost >= 0);
         _instruction_multiplier[i] = cost;
     }
-    double th = reader.GetReal("DataReuse", "ImpactRatio", -1);
-    ASSERTX(th >= 0);
-    _data_reuse_impactratio = th;
+    int size = reader.GetInteger("DataReuse", "BatchCount", -1);
+    ASSERTX(size >= 0);
+    _batchcount = size;
 
-    int size = reader.GetInteger("DataReuse", "BatchSize", -1);
+    size = reader.GetInteger("DataReuse", "BatchSize", -1);
     ASSERTX(size > 0);
     _batchsize = size;
 
@@ -676,6 +794,6 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     }
     ofs.close();
     ofs.open("BBLReuseCost.dot", std::ofstream::out);
-    DataReuse::print(ofs);
+    DataReuse::print(ofs, DataReuse::getRoot());
     ofs.close();
 }

@@ -42,10 +42,15 @@ class DataReuse {
   public:
     DataReuse();
     ~DataReuse();
-    static VOID UpdateTrie(DataReuseSegment &seg);
+    static VOID UpdateTrie(TrieNode *root, DataReuseSegment &seg);
     static VOID DeleteTrie(TrieNode *root);
-    static VOID PrintTrie(std::ostream &out, BBLID bblid, TrieNode *root, int parent, int &count);
-    static std::ostream &print(std::ostream &out);
+    static VOID ExportSegment(DataReuseSegment &seg, TrieNode *leaf);
+    static VOID PrintTrie(std::ostream &out, TrieNode *root, int parent, int &count);
+    static std::ostream &print(std::ostream &out, TrieNode *root);
+
+    static inline TrieNode *getRoot() {
+        return _root;
+    }
     
 
 };
@@ -152,7 +157,7 @@ class CostSolver {
     static COST _clwb_cost;
     static COST _invalidate_cost;
     static COST _fetch_cost;
-    static double _data_reuse_impactratio;
+    static int _batchcount;
     static int _batchsize;
 
   private:
@@ -169,7 +174,7 @@ class CostSolver {
 
     static COST Cost(const DECISION &decision, TrieNode *reusetree);
 
-    static void FindOptimal(DECISION &decision, TrieNode *reusetree);
+    static DECISION FindOptimal(TrieNode *reusetree);
 
     static VOID ReadConfig(const std::string filename);
 

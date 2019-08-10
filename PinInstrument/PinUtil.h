@@ -3,6 +3,7 @@
 
 #include "pin.H"
 #include "INIReader.h"
+#include <algorithm>
 
 namespace PIMProf {
     typedef UINT32 CACHE_STATS;
@@ -34,13 +35,15 @@ namespace PIMProf {
       private:
         BBLID _headID;
         std::set<BBLID> _set;
+        int _count;
 
       public:
         inline DataReuseSegment() {
             _headID = GLOBALBBLID;
+            _count = 1;
         }
 
-        inline size_t size() {
+        inline size_t size() const {
             return _set.size();
         }
 
@@ -50,18 +53,47 @@ namespace PIMProf {
             _set.insert(bblid);
         }
 
+        inline VOID insert(DataReuseSegment &seg) {
+            _set.insert(seg._set.begin(), seg._set.end());
+        }
+
+        inline std::vector<BBLID> diff(DataReuseSegment &seg) {
+            std::vector<BBLID> result;
+            std::set_difference(
+                _set.begin(), _set.end(),
+                seg.begin(), seg.end(),
+                std::inserter(result, result.end())
+            );
+            return result;
+        }
+
         inline VOID clear() {
             _headID = GLOBALBBLID;
             _set.clear();
         }
 
+        inline std::set<BBLID>::iterator begin() {
+            return _set.begin();
+        }
+
+        inline std::set<BBLID>::iterator end() {
+            return _set.end();
+        }
 
         inline VOID setHead(BBLID head) {
             _headID = head;
         }
 
-        inline BBLID getHead() {
+        inline BBLID getHead() const {
             return _headID;
+        }
+
+        inline VOID setCount(int count) {
+            _count = count;
+        }
+
+        inline int getCount() const {
+            return _count;
         }
 
         inline BOOL operator == (DataReuseSegment &rhs) {
@@ -86,6 +118,7 @@ namespace PIMProf {
       public:
         bool _isLeaf;
         std::map<BBLID, TrieNode *> _children;
+        BBLID _curID;
         TrieNode *_parent;
         INT64 _count;
       public:

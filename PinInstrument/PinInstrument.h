@@ -36,7 +36,8 @@ namespace PIMProf {
 class DataReuse {
     friend class CostSolver;
   private:
-    static TrieNode* _root;
+    static TrieNode *_root;
+    static std::vector<TrieNode *> _leaves;
 
   public:
     DataReuse();
@@ -151,7 +152,8 @@ class CostSolver {
     static COST _clwb_cost;
     static COST _invalidate_cost;
     static COST _fetch_cost;
-    static double _data_reuse_threshold;
+    static double _data_reuse_impactratio;
+    static int _batchsize;
 
   private:
     static BBLID _BBL_size;
@@ -161,11 +163,13 @@ class CostSolver {
     CostSolver(const std::string filename);
     // static inline VOID clear() { _cost_term_set.clear(); }
 
-    static DECISION Minimize(std::ostream &out);
+    static DECISION PrintSolution(std::ostream &out);
 
     static VOID TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
 
     static COST Cost(const DECISION &decision, TrieNode *reusetree);
+
+    static void FindOptimal(DECISION &decision, TrieNode *reusetree);
 
     static VOID ReadConfig(const std::string filename);
 

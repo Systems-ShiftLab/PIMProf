@@ -31,7 +31,8 @@ DataReuse PinInstrument::data_reuse;
 std::stack<BBLID> PinInstrument::bblidstack;
 CostSolver PinInstrument::solver;
 
-TrieNode* DataReuse::_root;
+TrieNode *DataReuse::_root;
+std::vector<TrieNode *> DataReuse::_leaves;
 
 CACHE MemoryLatency::cache;
 
@@ -47,7 +48,8 @@ COST CostSolver::_invalidate_cost;
 COST CostSolver::_fetch_cost;
 COST CostSolver::_memory_cost[MAX_COST_SITE];
 BBLID CostSolver::_BBL_size;
-double CostSolver::_data_reuse_threshold;
+double CostSolver::_data_reuse_impactratio;
+int CostSolver::_batchsize;
 // std::set<CostSolver::CostTerm> CostSolver::_cost_term_set;
 long long int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
 
@@ -90,6 +92,7 @@ VOID DataReuse::UpdateTrie(DataReuseSegment &seg)
         temp = new TrieNode();
         temp->_parent = curNode;
         curNode->_children[seg._headID] = temp;
+        _leaves.push_back(temp);
     }
     temp->_isLeaf = true;
     temp->_count += 1;
@@ -354,7 +357,8 @@ CostSolver::CostSolver()
     _clwb_cost = 0;
     _invalidate_cost = 0;
     _fetch_cost = 0;
-    _data_reuse_threshold = 0;
+    _data_reuse_impactratio = 0;
+    _batchsize = 0;
 }
 
 CostSolver::CostSolver(const std::string filename)
@@ -363,13 +367,10 @@ CostSolver::CostSolver(const std::string filename)
     ReadControlFlowGraph(filename);
 }
 
-bool CostSolverComparator(const std::pair<COST, UINT32> &l, const std::pair<COST, UINT32> &r)
-{
-    return l.first < r.first;
-}
 
-CostSolver::DECISION CostSolver::Minimize(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 {
+    // set partial total
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < CostSolver::_BBL_size; j++) {
             _BBL_partial_total[i][j]
@@ -377,92 +378,45 @@ CostSolver::DECISION CostSolver::Minimize(std::ostream &out)
                 + CostSolver::_BBL_memory_cost[i][j];
         }
     }
-    std::vector<std::pair<COST, UINT32>> index;
+
     DECISION decision, result;
-    COST cur_partial_total = 0;
-    
-
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        COST diff = _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i];
-        index.push_back(std::make_pair(std::abs(diff), i));
-    }
-
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
-            decision.push_back(CPU);
-            cur_partial_total += _BBL_partial_total[CPU][i];
-        }
-        else {
-            decision.push_back(PIM);
-            cur_partial_total += _BBL_partial_total[PIM][i];
-        }
-    }
-    
-    COST cur_total = Cost(decision, DataReuse::_root);
-
-    // PrintDecision(std::cout, decision, true);
-    std::ofstream tempofs("greedy_decision.txt", std::ofstream::out);
-    PrintDecision(tempofs, decision, false);
 
     std::cout << "instrcnt: " << mem_instr_cnt << " & " << nonmem_instr_cnt << " / " << instr_cnt << std::endl;
     std::cout << "PLAN\t\tINSTRUCTION\tMEMORY\t\tPARTIAL\t\tREUSE\t\tTOTAL" << std::endl;
+
+    // greedy decision
+    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
+            decision.push_back(CPU);
+        }
+        else {
+            decision.push_back(PIM);
+        }
+    }
+    std::ofstream tempofs("greedy_decision.txt", std::ofstream::out);
+    PrintDecision(tempofs, decision, false);
     PrintDecisionStat(std::cout, decision, "Pure greedy");
 
-
-    std::sort(index.begin(), index.end(), CostSolverComparator);
-
+    // Optimal
     decision.clear();
-    cur_partial_total = 0;
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        decision.push_back(CPU);
-    }
-
-    for (int j = 0; j < 10; j++) {
-        for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-            BBLID id = index[i].second;
-            
-            if (decision[id] == CPU) {
-                decision[id] = PIM;
-                COST temp_total = Cost(decision, DataReuse::_root);
-                if (temp_total > cur_total)
-                    decision[id] = CPU;
-                else
-                    cur_total = temp_total;
-            }
-            else {
-                decision[id] = CPU;
-                COST temp_total = Cost(decision, DataReuse::_root);
-                if (temp_total > cur_total)
-                    decision[id] = PIM;
-                else {
-                    cur_total = temp_total;
-                }
-            }
-        }
-        std::cout << cur_total << std::endl;
-    }
+    FindOptimal(decision, DataReuse::_root);
     // PrintDecision(std::cout, decision, true);
     PrintDecision(out, decision, false);
     PrintDecisionStat(std::cout, decision, "PIMProf opt");
     result = decision;
 
-    // figure out the cost of pure CPU
+    // pure CPU
     decision.clear();
-    cur_partial_total = 0;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         decision.push_back(CPU);
     }
-    
     PrintDecisionStat(std::cout, decision, "Pure CPU");
 
-
-     // figure out the cost of pure PIM
+     // pure PIM
     decision.clear();
-    cur_partial_total = 0;
     for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
         decision.push_back(PIM);
     }
-    
     PrintDecisionStat(std::cout, decision, "Pure PIM");
 
     return result;
@@ -520,6 +474,19 @@ COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
     return (cur_reuse_cost + cur_instr_cost + cur_mem_cost);
 }
 
+bool CostSolverComparator(const TrieNode *l, const TrieNode *r)
+{
+    return l->_count > r->_count;
+}
+
+void CostSolver::FindOptimal(DECISION &decision, TrieNode *reusetree)
+{
+    std::sort(DataReuse::_leaves.begin(), DataReuse::_leaves.end(), CostSolverComparator);
+    for (int i = 0; i < 10; i++) {
+        std::cout << DataReuse::_leaves[i]->_count << std::endl;
+    }
+}
+
 VOID CostSolver::ReadConfig(const std::string filename)
 {
     INIReader reader(filename);
@@ -534,27 +501,30 @@ VOID CostSolver::ReadConfig(const std::string filename)
         }
     }
     COST cost = reader.GetReal("UnitReuseCost", "clwb", -1);
-    if (cost >= 0) {
-        _clwb_cost = cost;
-    }
+    ASSERTX(cost >= 0);
+    _clwb_cost = cost;
+
     cost = reader.GetReal("UnitReuseCost", "invalidate", -1);
-    if (cost >= 0) {
-        _invalidate_cost = cost;
-    }
+    ASSERTX(cost >= 0);
+    _invalidate_cost = cost;
+
     cost = reader.GetReal("UnitReuseCost", "fetch", -1);
-    if (cost >= 0) {
-        _fetch_cost = cost;
-    }
+    ASSERTX(cost >= 0);
+    _fetch_cost = cost;
+
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         COST cost = reader.GetReal("UnitInstructionCost", CostSiteName[i], -1);
-        if (cost >= 0) {
-            _instruction_multiplier[i] = cost;
-        }
+        ASSERTX(cost >= 0);
+        _instruction_multiplier[i] = cost;
     }
-    double th = reader.GetReal("Threshold", "DataReuse", -1);
-    if (th >= 0) {
-        _data_reuse_threshold = th;
-    }
+    double th = reader.GetReal("DataReuse", "ImpactRatio", -1);
+    ASSERTX(th >= 0);
+    _data_reuse_impactratio = th;
+
+    int size = reader.GetInteger("DataReuse", "BatchSize", -1);
+    ASSERTX(size > 0);
+    _batchsize = size;
+
 }
 
 VOID CostSolver::SetBBLSize(BBLID _BBL_size) {
@@ -683,7 +653,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     char *outputfile = (char *)v;
     std::ofstream ofs(outputfile, std::ofstream::out);
     delete outputfile;
-    CostSolver::DECISION decision = CostSolver::Minimize(ofs);
+    CostSolver::DECISION decision = CostSolver::PrintSolution(ofs);
     ofs.close();
     
     ofs.open("BBLBlockCost.out", std::ofstream::out);

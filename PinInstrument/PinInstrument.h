@@ -182,8 +182,6 @@ class CostSolver {
 
     static VOID SetBBLSize(BBLID _BBL_size);
 
-    /// Read the Control Flow Graph from LLVM pass
-    /// Attribute the control cost to the tail node
     static VOID ReadControlFlowGraph(const std::string filename);
 
     static std::ostream &PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen);

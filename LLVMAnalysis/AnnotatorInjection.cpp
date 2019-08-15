@@ -34,6 +34,7 @@ namespace {
             M.getOrInsertFunction(
                 PIMProfAnnotatorHead, 
                 FunctionType::getInt32Ty(ctx), 
+                Type::getInt32Ty(ctx),
                 Type::getInt32Ty(ctx)
             )
         );
@@ -41,6 +42,7 @@ namespace {
             M.getOrInsertFunction(
                 PIMProfAnnotatorTail, 
                 FunctionType::getInt32Ty(ctx), 
+                Type::getInt32Ty(ctx),
                 Type::getInt32Ty(ctx)
             )
         );
@@ -55,15 +57,28 @@ namespace {
         Value *bblid = ConstantInt::get(
             IntegerType::get(M.getContext(),32), BBLID);
 
+        std::string funcname = BB.getParent()->getName();
+        // errs() << funcname << "\n";
+        // errs() << (funcname.find(OpenMPIdentifier) != std::string::npos) << "\n";
+
+        Value *isomp = ConstantInt::get(
+            IntegerType::get(M.getContext(),32), 
+            (funcname.find(OpenMPIdentifier) != std::string::npos));
+        
+        std::vector<Value *> arglist;
+        arglist.push_back(bblid);
+        arglist.push_back(isomp);
+
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
+
         CallInst *head_instr = CallInst::Create(
-            annotator_head, ArrayRef<Value *>(bblid), "",
+            annotator_head, ArrayRef<Value *>(arglist), "",
             beginning);
 
         CallInst *tail_instr = CallInst::Create(
-            annotator_tail, ArrayRef<Value *>(bblid), "",
+            annotator_tail, ArrayRef<Value *>(arglist), "",
             BB.getTerminator());
         // insert instruction metadata
         MDNode* md = MDNode::get(

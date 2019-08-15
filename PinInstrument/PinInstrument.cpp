@@ -29,6 +29,7 @@ MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
 DataReuse PinInstrument::data_reuse;
 std::stack<BBLID> PinInstrument::bblidstack;
+bool inOpenMPRegion;
 CostSolver PinInstrument::solver;
 
 TrieNode *DataReuse::_root;
@@ -720,17 +721,18 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
 /* PinInstrument */
 /* ===================================================================== */
 
-VOID PinInstrument::DoAtAnnotatorHead(BBLID bblid)
+VOID PinInstrument::DoAtAnnotatorHead(BBLID bblid, INT32 isomp)
 {
     // std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
     bblidstack.push(bblid);
 }
 
-VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid)
+VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid, INT32 isomp)
 {
     // std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
     ASSERTX(bblidstack.top() == bblid);
     bblidstack.pop();
+    inOpenMPRegion = false;
 }
 
 VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
@@ -738,6 +740,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
     // push a fake bblid
 
     bblidstack.push(GLOBALBBLID);
+    inOpenMPRegion = false;
 
     // find annotator head and tail by their names
     RTN annotator_head = RTN_FindByName(img, PIMProfAnnotatorHead.c_str());
@@ -752,6 +755,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
             IPOINT_BEFORE,
             (AFUNPTR)DoAtAnnotatorHead,
             IARG_FUNCARG_CALLSITE_VALUE, 0, // The first argument of DoAtAnnotatorHead
+            IARG_FUNCARG_CALLSITE_VALUE, 1, // The second argument of DoAtAnnotatorTail
             IARG_END);
         RTN_Close(annotator_head);
 
@@ -761,6 +765,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
             IPOINT_BEFORE,
             (AFUNPTR)DoAtAnnotatorTail,
             IARG_FUNCARG_CALLSITE_VALUE, 0, // The first argument of DoAtAnnotatorTail
+            IARG_FUNCARG_CALLSITE_VALUE, 1, // The second argument of DoAtAnnotatorTail
             IARG_END);
         RTN_Close(annotator_tail);
     }

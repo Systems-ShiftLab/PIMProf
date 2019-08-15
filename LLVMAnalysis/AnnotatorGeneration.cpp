@@ -26,7 +26,7 @@ LLVMContext ctx;
 // provide definition of function if it has not been defined
 // intended behavior:
 // ; Function Attrs: noinline nounwind optnone uwtable
-// define i32 @Annotator(i32) {
+// define i32 @Annotator(i32, i32) {
 //     %2 = alloca i32, align 4
 //     store i32 %0, i32* %2, align 4
 //     %3 = load i32, i32* %2, align 4
@@ -39,6 +39,7 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
         M.getOrInsertFunction(
             name, 
             FunctionType::getInt32Ty(ctx), 
+            Type::getInt32Ty(ctx),
             Type::getInt32Ty(ctx)
         )
     );

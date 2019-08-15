@@ -202,8 +202,8 @@ class PinInstrument {
     PinInstrument() {};
 
   public:
-    static VOID DoAtAnnotatorHead(BBLID bblid);
-    static VOID DoAtAnnotatorTail(BBLID bblid);
+    static VOID DoAtAnnotatorHead(BBLID bblid, INT32 isomp);
+    static VOID DoAtAnnotatorTail(BBLID bblid, INT32 isomp);
 
     static inline BBLID GetCurrentBBL()
     {

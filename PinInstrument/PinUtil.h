@@ -1,9 +1,11 @@
 #ifndef __PINUTIL_H__
 #define __PINUTIL_H__
 
+#include <stack>
+#include <algorithm>
+
 #include "pin.H"
 #include "INIReader.h"
-#include <algorithm>
 
 namespace PIMProf {
     typedef UINT32 CACHE_STATS;
@@ -26,6 +28,24 @@ namespace PIMProf {
         ACCESS_TYPE_LOAD,
         ACCESS_TYPE_STORE,
         ACCESS_TYPE_NUM
+    };
+
+    class BBLScope {
+      private:
+        static std::stack<BBLID> bblidstack;
+      public:
+        static inline void push(BBLID bblid)
+        {
+            bblidstack.push(bblid);
+        }
+        static inline void pop()
+        {
+            bblidstack.pop();
+        }
+        static inline BBLID GetCurrentBBL()
+        {
+            return bblidstack.top();
+        }
     };
 
     typedef std::pair<BBLID, ACCESS_TYPE> BBLOP;
@@ -130,6 +150,7 @@ namespace PIMProf {
 
         
     };
+    
 
     inline INT32 INIErrorMsg(INT32 error, const string &filename, std::ostream &out) 
     {

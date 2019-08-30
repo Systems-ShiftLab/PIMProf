@@ -18,13 +18,12 @@
 
 #include "PinUtil.h"
 
-#include "PinInstrument.h"
 #include "MemoryLatency.h"
 #include "CostSolver.h"
 #include "Cache.h"
 
 namespace PIMProf {
-    class InstructionLatency {
+class InstructionLatency {
     friend class PinInstrument;
   public:
     static const UINT32 MAX_INDEX = 4096;

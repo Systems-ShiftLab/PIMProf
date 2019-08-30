@@ -10,7 +10,6 @@
 #ifndef __PININSTRUMENT_H__
 #define __PININSTRUMENT_H__
 
-#include <stack>
 #include <list>
 #include <set>
 #include "pin.H"
@@ -26,13 +25,13 @@
 namespace PIMProf {
 
 class PinInstrument {
-
   private:
     static MemoryLatency memory_latency;
     static InstructionLatency instruction_latency;
     static DataReuse data_reuse;
-    static std::stack<BBLID> bblidstack;
     static CostSolver solver;
+    static BBLScope bbl_scope;
+    
 
   public:
     PinInstrument() {};
@@ -40,11 +39,6 @@ class PinInstrument {
   public:
     static VOID DoAtAnnotatorHead(BBLID bblid, INT32 isomp);
     static VOID DoAtAnnotatorTail(BBLID bblid, INT32 isomp);
-
-    static inline BBLID GetCurrentBBL()
-    {
-        return bblidstack.top();
-    }
 
     /// The instrumentation function for an entire image
     static VOID ImageInstrument(IMG img, VOID *v);

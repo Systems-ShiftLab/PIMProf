@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <cmath>
 
+#include "CostSolver.h"
+
 using namespace PIMProf;
 
 /* ===================================================================== */

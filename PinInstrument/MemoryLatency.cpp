@@ -32,6 +32,14 @@ CACHE MemoryLatency::cache;
 /* MemoryLatency */
 /* ===================================================================== */
 
+VOID MemoryLatency::SetBBLSize(BBLID _BBL_size) {
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        CostSolver::_BBL_memory_cost[i].resize(_BBL_size);
+        memset(&CostSolver::_BBL_memory_cost[i][0], 0, _BBL_size * sizeof CostSolver::_BBL_memory_cost[i][0]);
+    }
+}
+
+
 VOID MemoryLatency::InstrCacheRef(ADDRINT addr)
 {
     cache.InstrCacheRef(addr);

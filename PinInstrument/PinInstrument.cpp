@@ -27,9 +27,10 @@ using namespace PIMProf;
 MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
 DataReuse PinInstrument::data_reuse;
-std::stack<BBLID> PinInstrument::bblidstack;
-bool inOpenMPRegion;
 CostSolver PinInstrument::solver;
+BBLScope PinInstrument::bbl_scope;
+std::stack<BBLID> BBLScope::bblidstack;
+bool inOpenMPRegion;
 
 
 /* ===================================================================== */
@@ -39,14 +40,14 @@ CostSolver PinInstrument::solver;
 VOID PinInstrument::DoAtAnnotatorHead(BBLID bblid, INT32 isomp)
 {
     // std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
-    bblidstack.push(bblid);
+    bbl_scope.push(bblid);
 }
 
 VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid, INT32 isomp)
 {
     // std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
-    ASSERTX(bblidstack.top() == bblid);
-    bblidstack.pop();
+    ASSERTX(bbl_scope.GetCurrentBBL() == bblid);
+    bbl_scope.pop();
     inOpenMPRegion = false;
 }
 
@@ -54,7 +55,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *v)
 {
     // push a fake bblid
 
-    bblidstack.push(GLOBALBBLID);
+    bbl_scope.push(GLOBALBBLID);
     inOpenMPRegion = false;
 
     // find annotator head and tail by their names

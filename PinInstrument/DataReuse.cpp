@@ -13,8 +13,9 @@
 #include <unistd.h>
 #include <cmath>
 
-
 #include "DataReuse.h"
+
+using namespace PIMProf;
 
 /* ===================================================================== */
 /* Static data structure */

@@ -28,9 +28,14 @@ MemoryLatency PinInstrument::memory_latency;
 InstructionLatency PinInstrument::instruction_latency;
 DataReuse PinInstrument::data_reuse;
 CostSolver PinInstrument::solver;
-BBLScope PinInstrument::bbl_scope;
 std::stack<BBLID> BBLScope::bblidstack;
+
 bool inOpenMPRegion;
+
+/* ===================================================================== */
+/* Global data structure */
+/* ===================================================================== */
+BBLScope bbl_scope;
 
 
 /* ===================================================================== */

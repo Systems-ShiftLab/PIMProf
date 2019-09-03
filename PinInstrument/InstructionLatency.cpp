@@ -26,7 +26,13 @@ using namespace PIMProf;
 /* ===================================================================== */
 
 COST InstructionLatency::_instruction_latency[MAX_COST_SITE][MAX_INDEX];
+
+
+/* ===================================================================== */
+/* Global data structure */
+/* ===================================================================== */
 long long int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
+extern BBLScope bbl_scope;
 
 /* ===================================================================== */
 /* InstructionLatency */
@@ -58,7 +64,7 @@ VOID InstructionLatency::SetBBLSize(BBLID _BBL_size) {
 VOID InstructionLatency::InstructionCount(UINT32 opcode, BOOL ismem)
 {
     instr_cnt++;
-    BBLID bblid = PinInstrument::GetCurrentBBL();
+    BBLID bblid = bbl_scope.GetCurrentBBL();
     if (bblid == GLOBALBBLID) return;
 
 

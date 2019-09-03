@@ -7,6 +7,9 @@
 #include "pin.H"
 
 #include "PinUtil.h"
+#include "MemoryLatency.h"
+#include "InstructionLatency.h"
+#include "DataReuse.h"
 
 namespace PIMProf
 {

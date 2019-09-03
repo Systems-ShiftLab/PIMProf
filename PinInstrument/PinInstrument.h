@@ -30,7 +30,6 @@ class PinInstrument {
     static InstructionLatency instruction_latency;
     static DataReuse data_reuse;
     static CostSolver solver;
-    static BBLScope bbl_scope;
     
 
   public:

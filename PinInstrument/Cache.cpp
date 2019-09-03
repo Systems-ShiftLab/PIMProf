@@ -23,6 +23,15 @@ const std::string CACHE::_name[CACHE::MAX_LEVEL] = {
     };
 CACHE_LEVEL *CACHE::_cache[CACHE::MAX_LEVEL];
 
+/* ===================================================================== */
+/* Global data structure */
+/* ===================================================================== */
+extern BBLScope bbl_scope;
+
+/* ===================================================================== */
+/* Cache */
+/* ===================================================================== */
+
 std::string PIMProf::StringInt(UINT64 val, UINT32 width, CHAR padding)
 {
     std::ostringstream ostr;
@@ -187,7 +196,7 @@ CACHE_LEVEL::~CACHE_LEVEL()
 
 VOID CACHE_LEVEL::AddMemCost(BOOL hit, CACHE_LEVEL *lvl)
 {
-    BBLID bblid = PinInstrument::GetCurrentBBL();
+    BBLID bblid = bbl_scope.GetCurrentBBL();
     if (bblid != GLOBALBBLID) {
         if (hit) {
             for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
@@ -240,7 +249,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         tag->SplitOnMiss();
     }
     if (hit) {
-        tag->InsertOnHit(PinInstrument::GetCurrentBBL(), accessType);
+        tag->InsertOnHit(bbl_scope.GetCurrentBBL(), accessType);
     }
 
     CACHE_LEVEL::AddMemCost(hit, this);

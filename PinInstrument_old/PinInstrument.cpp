@@ -101,23 +101,9 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *v)
     ofs.close();
     
     ofs.open("BBLBlockCost.out", std::ofstream::out);
-    ofs << "BBL\t" << "Decision\t"
-    << "CPUIns\t\t" << "PIMIns\t\t"
-    << "CPUMem\t\t" << "PIMMem\t\t"
-    << "difference" << std::endl;
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
-        ofs << i << "\t"
-        << (decision[i] == CPU ? "C" : "") << (decision[i] == PIM ? "P" : "") << "\t"
-        << CostSolver::_BBL_instruction_cost[CPU][i] *
-           CostSolver::_instruction_multiplier[CPU]
-        << "\t\t"
-        << CostSolver::_BBL_instruction_cost[PIM][i] * 
-           CostSolver::_instruction_multiplier[PIM]
-        << "\t\t"
-        << CostSolver::_BBL_memory_cost[CPU][i] << "\t\t"
-        << CostSolver::_BBL_memory_cost[PIM][i] << "\t\t"
-        << CostSolver::_BBL_partial_total[CPU][i] - CostSolver::_BBL_partial_total[PIM][i] << std::endl;
-    }
+
+    CostSolver::PrintBBLDecisionStat(ofs, decision, false);
+    
     ofs.close();
     ofs.open("BBLReuseCost.dot", std::ofstream::out);
     DataReuse::print(ofs, DataReuse::getRoot());

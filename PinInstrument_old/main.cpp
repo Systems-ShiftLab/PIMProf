@@ -1,10 +1,4 @@
-//===- main.cpp - The main entrance of PinInstrument tool ---------------------------*- C++ -*-===//
-//
-//
-//===----------------------------------------------------------------------===//
-//
-//
-//===----------------------------------------------------------------------===//
+
 #include <vector>
 #include <iostream>
 #include <iomanip>
@@ -14,14 +8,14 @@
 
 #include "../LLVMAnalysis/Common.h"
 #include "pin.H"
-#include "PinUtil.h"
+#include "PinInstrument.h"
+
+using namespace CONTROLLER;
+using namespace PIMProf;
 
 /* ===================================================================== */
 /* Commandline Switches */
 /* ===================================================================== */
-
-using namespace CONTROLLER;
-using namespace PIMProf;
 
 KNOB<string> KnobConfig(
     KNOB_MODE_WRITEONCE,
@@ -46,10 +40,6 @@ INT32 Usage(std::ostream &out) {
         << std::endl;
     return -1;
 }
-
-/* ===================================================================== */
-/* main */
-/* ===================================================================== */
 
 int main(int argc, CHAR *argv[])
 {
@@ -77,29 +67,33 @@ int main(int argc, CHAR *argv[])
         warningmsg("No output file name specified. Printing output to file offload_decision.txt.");
     }
 
-    // InstructionLatency::ReadConfig(configfile);
-    // MemoryLatency::ReadConfig(configfile);
-    // CostSolver::ReadConfig(configfile);
+    InstructionLatency::ReadConfig(configfile);
+    MemoryLatency::ReadConfig(configfile);
+    CostSolver::ReadConfig(configfile);
 
-    // string controlflowfile = KnobControlFlow.Value();
-    // if (controlflowfile == "") {
-    //     std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR << "Control flow graph file correpsonding to the input program not provided.\n\n";
-    //     ASSERTX(0);
-    // }
-    // CostSolver::ReadControlFlowGraph(controlflowfile);
+    string controlflowfile = KnobControlFlow.Value();
+    if (controlflowfile == "") {
+        std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR << "Control flow graph file correpsonding to the input program not provided.\n\n";
+        ASSERTX(0);
+    }
+    CostSolver::ReadControlFlowGraph(controlflowfile);
 
-    // IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);
+    IMG_AddInstrumentFunction(PinInstrument::ImageInstrument, 0);
 
-    // INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);
-    // INS_AddInstrumentFunction(InstructionLatency::InstructionInstrument, 0);
+    INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);
+    INS_AddInstrumentFunction(InstructionLatency::InstructionInstrument, 0);
 
-    // PIN_AddFiniFunction(MemoryLatency::FinishInstrument, 0);
+    PIN_AddFiniFunction(MemoryLatency::FinishInstrument, 0);
 
-    // char *outputfile_char = new char[outputfile.length() + 1];
-    // strcpy(outputfile_char, outputfile.c_str());
-    // PIN_AddFiniFunction(PinInstrument::FinishInstrument, (VOID *)(outputfile_char));
+    char *outputfile_char = new char[outputfile.length() + 1];
+    strcpy(outputfile_char, outputfile.c_str());
+    PIN_AddFiniFunction(PinInstrument::FinishInstrument, (VOID *)(outputfile_char));
 
     // Never returns
     PIN_StartProgram();
     return 0;
 }
+
+/* ===================================================================== */
+/* eof */
+/* ===================================================================== */

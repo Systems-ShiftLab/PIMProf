@@ -68,6 +68,7 @@ class CostSolver {
 
     static std::ostream &PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen);
     static std::ostream &PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name);
+    static std::ostream &PrintBBLDecisionStat(std::ostream &out, const DECISION &decision, bool toscreen);
 };
 
 } // namespace PIMProf

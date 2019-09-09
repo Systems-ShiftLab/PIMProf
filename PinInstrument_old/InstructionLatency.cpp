@@ -64,7 +64,7 @@ VOID InstructionLatency::SetBBLSize(BBLID _BBL_size) {
 VOID InstructionLatency::InstructionCount(UINT32 opcode, BOOL ismem)
 {
     instr_cnt++;
-    BBLID bblid = bbl_scope.GetCurrentBBL();
+    BBLID bblid = bbl_scope.top();
     if (bblid == GLOBALBBLID) return;
 
 

@@ -32,17 +32,17 @@ namespace PIMProf {
 
     class BBLScope {
       private:
-        static std::stack<BBLID> bblidstack;
+        std::stack<BBLID> bblidstack;
       public:
-        static inline void push(BBLID bblid)
+        inline void push(BBLID bblid)
         {
             bblidstack.push(bblid);
         }
-        static inline void pop()
+        inline void pop()
         {
             bblidstack.pop();
         }
-        static inline BBLID GetCurrentBBL()
+        inline BBLID top()
         {
             return bblidstack.top();
         }
@@ -147,49 +147,51 @@ namespace PIMProf {
             _parent = NULL;
             _count = 0;
         }
-
-        
     };
-    
-
-    inline INT32 INIErrorMsg(INT32 error, const string &filename, std::ostream &out) 
-    {
-        if (error == 0)
-            return error;
-        out << "################################################################################\n";
-        out << "## ";
-        if (error == -1) {
-            out << "PIMProf: .ini file open error." << std::endl;
-        }
-        else if (error == -2) {
-            out << "PIMProf: .ini file memory allocation for parsing error." << std::endl;
-        } 
-        
-        else if (error > 0) {
-            out << "PIMProf: .ini file parsing failure on line "
-                << error 
-                << "." << std::endl;
-        }
-        out << "## Filename: " << filename << std::endl;
-        out << "################################################################################\n";
-        return error;
-    }
 
     const string REDCOLOR = "\033[0;31m";
     const string YELLOWCOLOR = "\033[0;33m";
     const string NOCOLOR = "\033[0m";
 
-    inline void errormsg(string msg)
+    inline std::ostream &errormsg()
     {
-        std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR << msg << "\n";
+        std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR;
+        return std::cerr;
     }
 
-    inline void warningmsg(string msg)
+    inline std::ostream &warningmsg()
     {
-        std::cerr << YELLOWCOLOR << "## PIMProf WARNING: " << NOCOLOR << msg << "\n";
+        std::cerr << YELLOWCOLOR << "## PIMProf WARNING: " << NOCOLOR;
+        return std::cerr;
     }
 
+    class ConfigReader {
+      private:
+        INIReader reader;
+        std::string filename;
+      public:
+        inline ConfigReader() {}
 
+        inline ConfigReader(std::string f) {
+            reader = INIReader(f);
+            filename = f;
+            INT32 error = reader.ParseError();
+            if (error == -1) {
+                errormsg() << ".ini file open error." << std::endl;
+            }
+            else if (error == -2) {
+                errormsg() << ".ini file memory allocation for parsing error." << std::endl;
+            } 
+            
+            else if (error > 0) {
+                errormsg() << ".ini file parsing failure on line "
+                    << error 
+                    << "." << std::endl;
+            }
+            if (error)
+                errormsg() << "Filename: " << filename << std::endl;
+        }
+    };
 }
 
 #endif // __PINUTIL_H__

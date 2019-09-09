@@ -196,7 +196,7 @@ CACHE_LEVEL::~CACHE_LEVEL()
 
 VOID CACHE_LEVEL::AddMemCost(BOOL hit, CACHE_LEVEL *lvl)
 {
-    BBLID bblid = bbl_scope.GetCurrentBBL();
+    BBLID bblid = bbl_scope.top();
     if (bblid != GLOBALBBLID) {
         if (hit) {
             for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
@@ -249,7 +249,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         tag->SplitOnMiss();
     }
     if (hit) {
-        tag->InsertOnHit(bbl_scope.GetCurrentBBL(), accessType);
+        tag->InsertOnHit(bbl_scope.top(), accessType);
     }
 
     CACHE_LEVEL::AddMemCost(hit, this);

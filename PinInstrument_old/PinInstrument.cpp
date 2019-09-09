@@ -51,7 +51,7 @@ VOID PinInstrument::DoAtAnnotatorHead(BBLID bblid, INT32 isomp)
 VOID PinInstrument::DoAtAnnotatorTail(BBLID bblid, INT32 isomp)
 {
     // std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
-    ASSERTX(bbl_scope.GetCurrentBBL() == bblid);
+    ASSERTX(bbl_scope.top() == bblid);
     bbl_scope.pop();
     inOpenMPRegion = false;
 }

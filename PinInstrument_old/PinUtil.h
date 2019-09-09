@@ -42,7 +42,7 @@ namespace PIMProf {
         {
             bblidstack.pop();
         }
-        static inline BBLID GetCurrentBBL()
+        static inline BBLID top()
         {
             return bblidstack.top();
         }

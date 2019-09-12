@@ -15,7 +15,7 @@ class MemoryLatency {
 
   public:
 
-    static VOID SetBBLSize(BBLID _BBL_size);
+    static VOID SetBBLSize(BBLID bbl_size);
 
     /// Do on instruction cache reference
     static VOID InstrCacheRef(ADDRINT addr);

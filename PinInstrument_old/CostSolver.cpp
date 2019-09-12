@@ -30,7 +30,7 @@ COST CostSolver::_clwb_cost;
 COST CostSolver::_invalidate_cost;
 COST CostSolver::_fetch_cost;
 COST CostSolver::_memory_cost[MAX_COST_SITE];
-BBLID CostSolver::_BBL_size;
+BBLID CostSolver::bbl_size;
 int CostSolver::_batchcount;
 int CostSolver::_batchsize;
 
@@ -46,7 +46,7 @@ CostSolver::CostSolver()
 {
     memset(_control_latency, 0, sizeof(_control_latency));
     
-    _BBL_size = 0;
+    bbl_size = 0;
 
     _instruction_multiplier[PIM] = 1;
     _instruction_multiplier[CPU] = 1;
@@ -68,7 +68,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 {
     // set partial total
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < CostSolver::_BBL_size; j++) {
+        for (UINT32 j = 0; j < CostSolver::bbl_size; j++) {
             _BBL_partial_total[i][j]
                 = CostSolver::_BBL_instruction_cost[i][j] * _instruction_multiplier[i]
                 + CostSolver::_BBL_memory_cost[i][j];
@@ -81,7 +81,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     std::cout << "PLAN\t\tINSTRUCTION\tMEMORY\t\tPARTIAL\t\tREUSE\t\tTOTAL" << std::endl;
 
     // greedy decision
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
             decision.push_back(CPU);
         }
@@ -101,14 +101,14 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
     // pure CPU
     decision.clear();
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         decision.push_back(CPU);
     }
     PrintDecisionStat(std::cout, decision, "Pure CPU");
 
      // pure PIM
     decision.clear();
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         decision.push_back(PIM);
     }
     PrintDecisionStat(std::cout, decision, "Pure PIM");
@@ -156,7 +156,7 @@ COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
     for (; it != eit; it++) {
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         CostSite site = decision[i];
         if (site == CPU || site == PIM) {
             cur_instr_cost += CostSolver::_BBL_instruction_cost[site][i] * _instruction_multiplier[site];
@@ -180,7 +180,7 @@ CostSolver::DECISION CostSolver::FindOptimal(TrieNode *reusetree)
     DECISION decision;
 
     //initialize all decision to INVALID
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         decision.push_back(INVALID);
     }
 
@@ -241,7 +241,7 @@ CostSolver::DECISION CostSolver::FindOptimal(TrieNode *reusetree)
 
     DataReuse::DeleteTrie(partial_root);
 
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         if (decision[i] == INVALID) {
             if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
                 decision[i] = CPU;
@@ -251,7 +251,7 @@ CostSolver::DECISION CostSolver::FindOptimal(TrieNode *reusetree)
             }
         }
     }
-    // for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    // for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
     //     if (decision[i] == INVALID)
     //         decision[i] = PIM;
     // }
@@ -259,7 +259,7 @@ CostSolver::DECISION CostSolver::FindOptimal(TrieNode *reusetree)
     cur_total = Cost(decision, DataReuse::_root);
     std::cout << cur_total << std::endl;
     for (int j = 0; j < 10; j++) {
-        for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+        for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
             BBLID id = i;
             
             if (decision[id] == CPU) {
@@ -326,10 +326,10 @@ VOID CostSolver::ReadConfig(const std::string filename)
 
 }
 
-VOID CostSolver::SetBBLSize(BBLID _BBL_size) {
+VOID CostSolver::SetBBLSize(BBLID bbl_size) {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        CostSolver::_BBL_partial_total[i].resize(_BBL_size);
-        memset(&CostSolver::_BBL_partial_total[i][0], 0, _BBL_size * sizeof CostSolver::_BBL_partial_total[i][0]);
+        CostSolver::_BBL_partial_total[i].resize(bbl_size);
+        memset(&CostSolver::_BBL_partial_total[i][0], 0, bbl_size * sizeof CostSolver::_BBL_partial_total[i][0]);
     }
 }
 
@@ -341,18 +341,18 @@ VOID CostSolver::ReadControlFlowGraph(const std::string filename)
 
     getline(ifs, curline);
     std::stringstream ss(curline);
-    ss >> _BBL_size;
-    _BBL_size++; // _BBL_size = Largest BBLID + 1
+    ss >> bbl_size;
+    bbl_size++; // bbl_size = Largest BBLID + 1
 
-    InstructionLatency::SetBBLSize(_BBL_size);
-    MemoryLatency::SetBBLSize(_BBL_size);
-    CostSolver::SetBBLSize(_BBL_size);
+    InstructionLatency::SetBBLSize(bbl_size);
+    MemoryLatency::SetBBLSize(bbl_size);
+    CostSolver::SetBBLSize(bbl_size);
 }
 
 std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
 {
     if (toscreen == true) {
-        for (UINT32 i = 0; i < _BBL_size; i++) {
+        for (UINT32 i = 0; i < bbl_size; i++) {
             out << i << ":";
             out << (decision[i] == CPU ? "C" : "");
             out << (decision[i] == PIM ? "P" : "");
@@ -361,7 +361,7 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
         out << std::endl;
     }
     else {
-        for (UINT32 i = 0; i < _BBL_size; i++) {
+        for (UINT32 i = 0; i < bbl_size; i++) {
             out << i << " ";
             out << (decision[i] == CPU ? "C" : "");
             out << (decision[i] == PIM ? "P" : "");
@@ -381,7 +381,7 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
     for (; it != eit; it++) {
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         CostSite site = decision[i];
         if (site == CPU || site == PIM) {
             cur_instr_cost += CostSolver::_BBL_instruction_cost[site][i] * _instruction_multiplier[site];
@@ -402,7 +402,7 @@ std::ostream &CostSolver::PrintBBLDecisionStat(std::ostream &out, const DECISION
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
     << "difference" << std::endl;
-    for (UINT32 i = 0; i < CostSolver::_BBL_size; i++) {
+    for (UINT32 i = 0; i < CostSolver::bbl_size; i++) {
         out << i << "\t"
         << (decision[i] == CPU ? "C" : "") << (decision[i] == PIM ? "P" : "") << "\t"
         << CostSolver::_BBL_instruction_cost[CPU][i] *

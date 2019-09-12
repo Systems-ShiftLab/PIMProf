@@ -43,7 +43,7 @@ class CostSolver {
     static int _batchsize;
 
   private:
-    static BBLID _BBL_size;
+    static BBLID bbl_size;
 
   public:
     CostSolver();
@@ -62,7 +62,7 @@ class CostSolver {
 
     // static VOID AddCostTerm(const CostTerm &cost);
 
-    static VOID SetBBLSize(BBLID _BBL_size);
+    static VOID SetBBLSize(BBLID bbl_size);
 
     static VOID ReadControlFlowGraph(const std::string filename);
 

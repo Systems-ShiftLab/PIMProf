@@ -34,6 +34,12 @@ namespace PIMProf {
       private:
         std::stack<BBLID> bblidstack;
       public:
+        inline BBLScope()
+        {
+            std::cerr << "BBLScope allocated" << std::endl;
+            // push a fake global bblid
+            bblidstack.push(GLOBALBBLID);
+        }
         inline void push(BBLID bblid)
         {
             bblidstack.push(bblid);
@@ -45,6 +51,11 @@ namespace PIMProf {
         inline BBLID top()
         {
             return bblidstack.top();
+        }
+
+        inline ~BBLScope()
+        {
+            std::cerr << "BBLScope deallocated" << std::endl;
         }
     };
 
@@ -150,6 +161,7 @@ namespace PIMProf {
     };
 
     const string REDCOLOR = "\033[0;31m";
+    const string GREENCOLOR = "\033[0;32m";
     const string YELLOWCOLOR = "\033[0;33m";
     const string NOCOLOR = "\033[0m";
 
@@ -165,17 +177,22 @@ namespace PIMProf {
         return std::cerr;
     }
 
-    class ConfigReader {
+    inline std::ostream &infomsg()
+    {
+        std::cout << GREENCOLOR << "## PIMProf INFO: " << NOCOLOR;
+        return std::cout;
+    }
+
+    class ConfigReader: public INIReader {
       private:
-        INIReader reader;
         std::string filename;
       public:
         inline ConfigReader() {}
 
-        inline ConfigReader(std::string f) {
-            reader = INIReader(f);
-            filename = f;
-            INT32 error = reader.ParseError();
+        inline ConfigReader(std::string f)
+            : INIReader(f), filename(f)
+        {
+            INT32 error = ParseError();
             if (error == -1) {
                 errormsg() << ".ini file open error." << std::endl;
             }

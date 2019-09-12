@@ -5,96 +5,108 @@
 //
 //
 //===----------------------------------------------------------------------===//
-#include <vector>
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <string>
-#include <unistd.h>
-#include <cmath>
 
-
-#include "../LLVMAnalysis/Common.h"
-#include "INIReader.h"
 #include "InstructionLatency.h"
-#include "Cache.h"
 
 using namespace PIMProf;
-
-/* ===================================================================== */
-/* Static data structure */
-/* ===================================================================== */
-
-COST InstructionLatency::_instruction_latency[MAX_COST_SITE][MAX_INDEX];
-
-
-/* ===================================================================== */
-/* Global data structure */
-/* ===================================================================== */
-long long int instr_cnt = 0, mem_instr_cnt = 0, nonmem_instr_cnt = 0;
-extern BBLScope bbl_scope;
 
 /* ===================================================================== */
 /* InstructionLatency */
 /* ===================================================================== */
 
 
-InstructionLatency::InstructionLatency()
+void InstructionLatency::initialize(BBLScope *scope, BBLID bbl_size)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_INDEX; j++) {
             _instruction_latency[i][j] = 1;
         }
     }
+    _instr_cnt = 0;
+    _mem_instr_cnt = 0;
+    _nonmem_instr_cnt = 0;
+    _bbl_scope = scope;
+    _bbl_size = bbl_size;
+    SetBBLSize(_bbl_size);
+    canary = 1234;
+        infomsg() << (&_bbl_scope) << std::endl;
+        infomsg() << (_bbl_scope) << std::endl;
+        infomsg() << canary << std::endl;
 }
 
-InstructionLatency::InstructionLatency(const std::string filename)
+void InstructionLatency::initialize(BBLScope *scope, BBLID bbl_size, ConfigReader &reader)
 {
-    InstructionLatency();
-    ReadConfig(filename);
+    infomsg() << "start initialize" << std::endl;
+    initialize(scope, bbl_size);
+    ReadConfig(reader);
 }
 
 VOID InstructionLatency::SetBBLSize(BBLID bbl_size) {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        CostSolver::_BBL_instruction_cost[i].resize(bbl_size);
-        memset(&CostSolver::_BBL_instruction_cost[i][0], 0, bbl_size * sizeof CostSolver::_BBL_instruction_cost[i][0]);
+        _BBL_instruction_cost[i].resize(bbl_size);
+        memset(&_BBL_instruction_cost[i][0], 0, bbl_size * sizeof _BBL_instruction_cost[i][0]);
     }
 }
 
-VOID InstructionLatency::InstructionCount(UINT32 opcode, BOOL ismem)
+
+void InstructionLatency::instrument() {
+    INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
+}
+
+int temp_flag = false;
+BBLScope *temp_addr = NULL;
+
+
+VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem)
 {
-    instr_cnt++;
-    BBLID bblid = bbl_scope.top();
+    if (!temp_flag) {
+        infomsg() << (&self->_bbl_scope) << std::endl;
+        infomsg() << (self->_bbl_scope) << std::endl;
+        infomsg() << (&self->canary) << std::endl;
+        infomsg() << self->canary << std::endl;
+        temp_flag = true;
+        temp_addr = self->_bbl_scope;
+    }
+
+    if (temp_addr != self->_bbl_scope) {
+        infomsg() << "wow" << std::endl;
+        infomsg() << (&self->_bbl_scope) << std::endl;
+        infomsg() << self->_bbl_scope << std::endl;
+        infomsg() << (&self->canary) << std::endl;
+        infomsg() << self->canary << std::endl;
+        infomsg() << self->_bbl_scope->top() << std::endl;
+    }
+
+    self->_instr_cnt++;
+    BBLID bblid = self->_bbl_scope->top();
     if (bblid == GLOBALBBLID) return;
 
-
     if (ismem) {
-        mem_instr_cnt++;
+        self->_mem_instr_cnt++;
     }
     else {
-        nonmem_instr_cnt++;
+        self->_nonmem_instr_cnt++;
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            CostSolver::_BBL_instruction_cost[i][bblid] += _instruction_latency[i][opcode];
+            self->_BBL_instruction_cost[i][bblid] += self->_instruction_latency[i][opcode];
         }
     }
 }
 
-VOID InstructionLatency::InstructionInstrument(INS ins, VOID *v)
+VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
 {
+    InstructionLatency *self = (InstructionLatency *)void_self;
     UINT32 opcode = (UINT32)(INS_Opcode(ins));
     BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
+        IARG_PTR, (VOID *)self,
         IARG_ADDRINT, opcode,
         IARG_BOOL, ismem,
         IARG_END);
 }
 
 
-VOID InstructionLatency::ReadConfig(const std::string filename)
+VOID InstructionLatency::ReadConfig(ConfigReader &reader)
 {
-    INIReader reader(filename);
-    ASSERTX(!INIErrorMsg(reader.ParseError(), filename, std::cerr));
-    
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_INDEX; j++) {
             std::string opcodestr = OPCODE_StringShort(j);

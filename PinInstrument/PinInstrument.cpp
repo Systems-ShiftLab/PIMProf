@@ -5,17 +5,6 @@
 //
 //
 //===----------------------------------------------------------------------===//
-#include <vector>
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <string>
-#include <unistd.h>
-#include <cmath>
-
-
-#include "../LLVMAnalysis/Common.h"
-#include "INIReader.h"
 #include "PinInstrument.h"
 
 using namespace PIMProf;
@@ -41,7 +30,7 @@ KNOB<string> KnobOutput(
     "specify file name containing PIM offloading decision");
 
 INT32 Usage(std::ostream &out) {
-    out << "This pin tool estimates the performance of the given program on a CPU-PIM configuration."
+    out << "Invalid argument."
         << std::endl
         << KNOB_BASE::StringKnobSummary()
         << std::endl;
@@ -61,12 +50,14 @@ INT32 Usage(std::ostream &out) {
 /* PinInstrument */
 /* ===================================================================== */
 
-int PinInstrument::initialize(int argc, char *argv[]) {
+
+void PinInstrument::initialize(int argc, char *argv[])
+{
     PIN_InitSymbols();
 
     if(PIN_Init(argc, argv))
     {
-        return Usage(errormsg());
+        Usage(errormsg());
     }
 
     if (std::getenv("PIMPROF_ROOT") == NULL) {
@@ -85,15 +76,39 @@ int PinInstrument::initialize(int argc, char *argv[]) {
         outputfile = "offload_decision.txt";
         warningmsg() << "No output file name specified. Printing output to file offload_decision.txt." << std::endl;
     }
-    config_reader = ConfigReader(configfile);
-    return 0;
+
+    string controlflowfile = KnobControlFlow.Value();
+    if (controlflowfile == "") {
+        errormsg() << "Control flow graph file correpsonding to the input program not provided." << std::endl;
+        ASSERTX(0);
+    }
+    ReadControlFlowGraph(controlflowfile);
+
+    _inOpenMPRegion = false;
+    _config_reader = ConfigReader(configfile);
+    _instruction_latency.initialize(&_bbl_scope, _bbl_size, _config_reader);
+}
+
+void PinInstrument::ReadControlFlowGraph(const std::string filename)
+{
+    std::ifstream ifs;
+    ifs.open(filename.c_str());
+    std::string curline;
+
+    getline(ifs, curline);
+    std::stringstream ss(curline);
+    ss >> _bbl_size;
+    _bbl_size++; // bbl_size = Largest BBLID + 1
+}
+
+
+void PinInstrument::instrument()
+{
+    IMG_AddInstrumentFunction(ImageInstrument, (VOID *)this);
 }
 
 void PinInstrument::simulate()
 {
-    InstructionLatency::ReadConfig(configfile);
-    // MemoryLatency::ReadConfig(configfile);
-    // CostSolver::ReadConfig(configfile);
 
     // string controlflowfile = KnobControlFlow.Value();
     // if (controlflowfile == "") {
@@ -102,9 +117,8 @@ void PinInstrument::simulate()
     // }
     // CostSolver::ReadControlFlowGraph(controlflowfile);
 
-    IMG_AddInstrumentFunction(ImageInstrument, (VOID *)this);
-
-    INS_AddInstrumentFunction(InstructionLatency::InstructionInstrument, 0);
+    instrument();
+    _instruction_latency.instrument();
     // INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);
 
 
@@ -121,24 +135,19 @@ void PinInstrument::simulate()
 VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, BBLID bblid, INT32 isomp)
 {
     std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
-    self->bbl_scope.push(bblid);
+    self->_bbl_scope.push(bblid);
 }
 
 VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, BBLID bblid, INT32 isomp)
 {
     std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
-    ASSERTX(self->bbl_scope.top() == bblid);
-    self->bbl_scope.pop();
-    self->inOpenMPRegion = false;
+    ASSERTX(self->_bbl_scope.top() == bblid);
+    self->_bbl_scope.pop();
+    self->_inOpenMPRegion = false;
 }
 
 VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
 {
-    PinInstrument *self = (PinInstrument *)void_self;
-    // push a fake bblid
-    self->bbl_scope.push(GLOBALBBLID);
-    self->inOpenMPRegion = false;
-
     // find annotator head and tail by their names
     RTN annotator_head = RTN_FindByName(img, PIMProfAnnotatorHead.c_str());
     RTN annotator_tail = RTN_FindByName(img, PIMProfAnnotatorTail.c_str());
@@ -151,7 +160,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             annotator_head,
             IPOINT_BEFORE,
             (AFUNPTR)DoAtAnnotatorHead,
-            IARG_PTR, (VOID *)self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
+            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
             IARG_FUNCARG_CALLSITE_VALUE, 0, // Pass the first function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorHead
             IARG_FUNCARG_CALLSITE_VALUE, 1, // Pass the second function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorHead
             IARG_END);
@@ -162,7 +171,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             annotator_tail,
             IPOINT_BEFORE,
             (AFUNPTR)DoAtAnnotatorTail,
-            IARG_PTR, (VOID *)self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
+            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
             IARG_FUNCARG_CALLSITE_VALUE, 0, // The first argument of DoAtAnnotatorTail
             IARG_FUNCARG_CALLSITE_VALUE, 1, // The second argument of DoAtAnnotatorTail
             IARG_END);

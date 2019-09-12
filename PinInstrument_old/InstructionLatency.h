@@ -43,7 +43,7 @@ class InstructionLatency {
     /// Initialization with input config.
     InstructionLatency(const std::string filename);
 
-    static VOID SetBBLSize(BBLID _BBL_size);
+    static VOID SetBBLSize(BBLID bbl_size);
 
     /// Add up the cost of all instructions
     static VOID InstructionCount(UINT32 opcode, BOOL ismem);

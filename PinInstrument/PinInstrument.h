@@ -10,14 +10,22 @@
 #ifndef __PININSTRUMENT_H__
 #define __PININSTRUMENT_H__
 
+#include <vector>
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <string>
+#include <unistd.h>
+#include <cmath>
 #include <list>
 #include <set>
 #include "pin.H"
 
+#include "../LLVMAnalysis/Common.h"
 #include "PinUtil.h"
 
 // #include "MemoryLatency.h"
-// #include "InstructionLatency.h"
+#include "InstructionLatency.h"
 // #include "DataReuse.h"
 // #include "CostSolver.h"
 // #include "Cache.h"
@@ -26,29 +34,36 @@ namespace PIMProf {
 
 class PinInstrument {
   private:
-    // InstructionLatency instruction_latency;
+    InstructionLatency _instruction_latency;
     // MemoryLatency memory_latency;
     // DataReuse data_reuse;
     // CostSolver solver;
-    ConfigReader config_reader;
-    BBLScope bbl_scope;
-    bool inOpenMPRegion;
+    ConfigReader _config_reader;
+    BBLScope _bbl_scope;
+    bool _inOpenMPRegion;
+    BBLID _bbl_size;
 
-  // PinInstrument is a singleton class
-  private:
-    PinInstrument() {}
   public:
-    PinInstrument(PinInstrument const &) = delete;
-    PinInstrument& operator = (PinInstrument const &) = delete;
-    static PinInstrument &instance()
-    {
-        static PinInstrument inst;
-        return inst;
+    PinInstrument() {}
+
+  public:
+    void initialize(int argc, char *argv[]);
+    /// insert the instrumentation function before running simulation
+    void instrument();
+
+    /// run the actual simulation
+    void simulate();
+
+    inline BBLScope &getScope() {
+        return _bbl_scope;
     }
 
+    inline BBLID &getBBLSize() {
+        return _bbl_size;
+    }
+  
   public:
-    int initialize(int argc, char *argv[]);
-    void simulate();
+    void ReadControlFlowGraph(const std::string filename);
   
   // "self" enables us to use non-static members in static functions
   protected:

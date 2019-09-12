@@ -32,10 +32,10 @@ CACHE MemoryLatency::cache;
 /* MemoryLatency */
 /* ===================================================================== */
 
-VOID MemoryLatency::SetBBLSize(BBLID _BBL_size) {
+VOID MemoryLatency::SetBBLSize(BBLID bbl_size) {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        CostSolver::_BBL_memory_cost[i].resize(_BBL_size);
-        memset(&CostSolver::_BBL_memory_cost[i][0], 0, _BBL_size * sizeof CostSolver::_BBL_memory_cost[i][0]);
+        CostSolver::_BBL_memory_cost[i].resize(bbl_size);
+        memset(&CostSolver::_BBL_memory_cost[i][0], 0, bbl_size * sizeof CostSolver::_BBL_memory_cost[i][0]);
     }
 }
 

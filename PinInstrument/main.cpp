@@ -21,13 +21,19 @@
 using namespace CONTROLLER;
 using namespace PIMProf;
 
+// PinInstrument instance has to be a global variable so that
+// it can still stay alive when we are out of the scope of main()
+// and in the scope of Pin.
+PinInstrument instance;
+
 /* ===================================================================== */
 /* main */
 /* ===================================================================== */
 
 int main(int argc, char *argv[])
 {
-    PinInstrument::instance().initialize(argc, argv);
-    PinInstrument::instance().simulate();
+    instance.initialize(argc, argv);
+    instance.simulate();
+    cout << "wowow" << std::endl;
     return 0;
 }

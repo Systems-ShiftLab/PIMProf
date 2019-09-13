@@ -28,10 +28,6 @@ void InstructionLatency::initialize(BBLScope *scope, BBLID bbl_size)
     _bbl_scope = scope;
     _bbl_size = bbl_size;
     SetBBLSize(_bbl_size);
-    canary = 1234;
-        infomsg() << (&_bbl_scope) << std::endl;
-        infomsg() << (_bbl_scope) << std::endl;
-        infomsg() << canary << std::endl;
 }
 
 void InstructionLatency::initialize(BBLScope *scope, BBLID bbl_size, ConfigReader &reader)
@@ -53,30 +49,9 @@ void InstructionLatency::instrument() {
     INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
 }
 
-int temp_flag = false;
-BBLScope *temp_addr = NULL;
-
 
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem)
 {
-    if (!temp_flag) {
-        infomsg() << (&self->_bbl_scope) << std::endl;
-        infomsg() << (self->_bbl_scope) << std::endl;
-        infomsg() << (&self->canary) << std::endl;
-        infomsg() << self->canary << std::endl;
-        temp_flag = true;
-        temp_addr = self->_bbl_scope;
-    }
-
-    if (temp_addr != self->_bbl_scope) {
-        infomsg() << "wow" << std::endl;
-        infomsg() << (&self->_bbl_scope) << std::endl;
-        infomsg() << self->_bbl_scope << std::endl;
-        infomsg() << (&self->canary) << std::endl;
-        infomsg() << self->canary << std::endl;
-        infomsg() << self->_bbl_scope->top() << std::endl;
-    }
-
     self->_instr_cnt++;
     BBLID bblid = self->_bbl_scope->top();
     if (bblid == GLOBALBBLID) return;

@@ -48,8 +48,6 @@ class InstructionLatency {
     BBLScope *_bbl_scope;
     BBLID _bbl_size;
 
-    int canary;
-
   public:
     InstructionLatency() {
         infomsg() << "InstructionLatency allocated" << std::endl;

@@ -109,14 +109,6 @@ void PinInstrument::instrument()
 
 void PinInstrument::simulate()
 {
-
-    // string controlflowfile = KnobControlFlow.Value();
-    // if (controlflowfile == "") {
-    //     std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR << "Control flow graph file correpsonding to the input program not provided.\n\n";
-    //     ASSERTX(0);
-    // }
-    // CostSolver::ReadControlFlowGraph(controlflowfile);
-
     instrument();
     _instruction_latency.instrument();
     // INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);

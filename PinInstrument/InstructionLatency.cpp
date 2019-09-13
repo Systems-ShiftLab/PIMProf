@@ -37,7 +37,7 @@ void InstructionLatency::initialize(BBLScope *scope, BBLID bbl_size, ConfigReade
     ReadConfig(reader);
 }
 
-VOID InstructionLatency::SetBBLSize(BBLID bbl_size) {
+void InstructionLatency::SetBBLSize(BBLID bbl_size) {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         _BBL_instruction_cost[i].resize(bbl_size);
         memset(&_BBL_instruction_cost[i][0], 0, bbl_size * sizeof _BBL_instruction_cost[i][0]);
@@ -80,7 +80,7 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
 }
 
 
-VOID InstructionLatency::ReadConfig(ConfigReader &reader)
+void InstructionLatency::ReadConfig(ConfigReader &reader)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_INDEX; j++) {
@@ -113,7 +113,7 @@ std::ostream& InstructionLatency::WriteConfig(std::ostream& out)
     return out;
 }
 
-VOID InstructionLatency::WriteConfig(const std::string filename)
+void InstructionLatency::WriteConfig(const std::string filename)
 {
     std::ofstream out;
     out.open(filename.c_str(), ios_base::out);

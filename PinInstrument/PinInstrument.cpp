@@ -10,34 +10,6 @@
 using namespace PIMProf;
 
 /* ===================================================================== */
-/* Commandline Switches */
-/* ===================================================================== */
-
-KNOB<string> KnobConfig(
-    KNOB_MODE_WRITEONCE,
-    "pintool",
-    "c", "",
-    "specify config file name");
-KNOB<string> KnobControlFlow(
-    KNOB_MODE_WRITEONCE,
-    "pintool",
-    "b", "",
-    "specify file name containing control flow graph information");
-KNOB<string> KnobOutput(
-    KNOB_MODE_WRITEONCE,
-    "pintool",
-    "o", "",
-    "specify file name containing PIM offloading decision");
-
-INT32 Usage(std::ostream &out) {
-    out << "Invalid argument."
-        << std::endl
-        << KNOB_BASE::StringKnobSummary()
-        << std::endl;
-    return -1;
-}
-
-/* ===================================================================== */
 /* Static data structure */
 /* ===================================================================== */
 
@@ -55,37 +27,12 @@ void PinInstrument::initialize(int argc, char *argv[])
 {
     PIN_InitSymbols();
 
-    if(PIN_Init(argc, argv))
-    {
-        Usage(errormsg());
-    }
-
-    if (std::getenv("PIMPROF_ROOT") == NULL) {
-        errormsg() << "Environment variable PIMPROF_ROOT not set." << std::endl;
-        ASSERTX(0);
-    }
-    string rootdir = std::getenv("PIMPROF_ROOT");
-    string configfile = KnobConfig.Value();
-    string outputfile = KnobOutput.Value();
-
-    if (configfile == "") {
-        configfile = rootdir + "/PinInstrument/defaultconfig.ini";
-        warningmsg() << "No config file provided. Using default config file." << std::endl;
-    }
-    if (outputfile == "") {
-        outputfile = "offload_decision.txt";
-        warningmsg() << "No output file name specified. Printing output to file offload_decision.txt." << std::endl;
-    }
-
-    string controlflowfile = KnobControlFlow.Value();
-    if (controlflowfile == "") {
-        errormsg() << "Control flow graph file correpsonding to the input program not provided." << std::endl;
-        ASSERTX(0);
-    }
-    ReadControlFlowGraph(controlflowfile);
+    _command_line_parser.initialize(argc, argv);
+    
+    ReadControlFlowGraph(_command_line_parser.controlflowfile());
 
     _inOpenMPRegion = false;
-    _config_reader = ConfigReader(configfile);
+    _config_reader = ConfigReader(_command_line_parser.configfile());
     _instruction_latency.initialize(&_bbl_scope, _bbl_size, _config_reader);
 }
 

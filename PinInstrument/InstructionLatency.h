@@ -45,16 +45,12 @@ class InstructionLatency {
     long long int _instr_cnt;
     long long int _mem_instr_cnt;
     long long int _nonmem_instr_cnt;
+
+    /// Reference to PinInstrument data
     BBLScope *_bbl_scope;
     BBLID _bbl_size;
 
   public:
-    InstructionLatency() {
-        infomsg() << "InstructionLatency allocated" << std::endl;
-    }
-    ~InstructionLatency() {
-        infomsg() << "InstructionLatency deallocated" << std::endl;
-    }
     /// Default initialization.
     /// Initialize _instruction_latency with hard-coded instruction latency.
     void initialize(BBLScope *scope, BBLID bbl_size);
@@ -62,7 +58,7 @@ class InstructionLatency {
     /// Initialization with input config.
     void initialize(BBLScope *scope, BBLID bbl_size, ConfigReader &reader);
 
-    VOID SetBBLSize(BBLID bbl_size);
+    void SetBBLSize(BBLID bbl_size);
 
   public:
     /// insert the instrumentation function before running simulation
@@ -71,13 +67,13 @@ class InstructionLatency {
   public:
     /// Read instruction latency config to _instruction_latency from config_reader.
     /// Invalid values (including negative latency, non-integer values) will be ignored.
-    VOID ReadConfig(ConfigReader &reader);
+    void ReadConfig(ConfigReader &reader);
 
     /// Write the current instruction latency config to ofstream or file.
     /// If no modification is made, then this will output the 
     /// default instruction latency config PIMProf will use.
     std::ostream& WriteConfig(std::ostream& out);
-    VOID WriteConfig(const std::string filename);
+    void WriteConfig(const std::string filename);
 
   protected:
   /// Add up the cost of all instructions

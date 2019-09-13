@@ -34,11 +34,14 @@ namespace PIMProf {
 
 class PinInstrument {
   private:
+    CommandLineParser _command_line_parser;
+    ConfigReader _config_reader;
+
     InstructionLatency _instruction_latency;
     // MemoryLatency memory_latency;
     // DataReuse data_reuse;
     // CostSolver solver;
-    ConfigReader _config_reader;
+
     BBLScope _bbl_scope;
     bool _inOpenMPRegion;
     BBLID _bbl_size;

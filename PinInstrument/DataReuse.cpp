@@ -5,24 +5,9 @@
 //
 //
 //===----------------------------------------------------------------------===//
-#include <vector>
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <string>
-#include <unistd.h>
-#include <cmath>
-
 #include "DataReuse.h"
 
 using namespace PIMProf;
-
-/* ===================================================================== */
-/* Static data structure */
-/* ===================================================================== */
-
-TrieNode *DataReuse::_root;
-std::vector<TrieNode *> DataReuse::_leaves;
 
 /* ===================================================================== */
 /* DataReuse */
@@ -38,7 +23,23 @@ DataReuse::~DataReuse()
     DeleteTrie(_root);
 }
 
-VOID DataReuse::UpdateTrie(TrieNode *root, DataReuseSegment &seg)
+void DataReuse::initialize(ConfigReader &reader)
+{
+    ReadConfig(reader);
+}
+
+void DataReuse::ReadConfig(ConfigReader &reader)
+{
+    int size = reader.GetInteger("DataReuse", "BatchCount", -1);
+    ASSERTX(size >= 0);
+    _batchcount = size;
+
+    size = reader.GetInteger("DataReuse", "BatchSize", -1);
+    ASSERTX(size > 0);
+    _batchsize = size;
+}
+
+void DataReuse::UpdateTrie(TrieNode *root, DataReuseSegment &seg)
 {
     // A reuse chain segment of size 1 can be removed
     if (seg.size() <= 1) return;
@@ -71,7 +72,7 @@ VOID DataReuse::UpdateTrie(TrieNode *root, DataReuseSegment &seg)
     temp->_count += seg.getCount();
 }
 
-VOID DataReuse::ExportSegment(DataReuseSegment &seg, TrieNode *leaf)
+void DataReuse::ExportSegment(DataReuseSegment &seg, TrieNode *leaf)
 {
     ASSERTX(leaf->_isLeaf);
     seg.setHead(leaf->_curID);
@@ -84,7 +85,7 @@ VOID DataReuse::ExportSegment(DataReuseSegment &seg, TrieNode *leaf)
     }
 }
 
-VOID DataReuse::DeleteTrie(TrieNode *root)
+void DataReuse::DeleteTrie(TrieNode *root)
 {
     if (!root->_isLeaf) {
         std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
@@ -96,7 +97,7 @@ VOID DataReuse::DeleteTrie(TrieNode *root)
     delete root;
 }
 
-VOID DataReuse::PrintTrie(std::ostream &out, TrieNode *root, int parent, int &count)
+void DataReuse::PrintTrie(std::ostream &out, TrieNode *root, int parent, int &count)
 {
     if (root->_isLeaf) {
         out << "    V_" << count << " [shape=box, label=\"head = " << root->_curID << "\n cnt = " << root->_count << "\"];" << std::endl;

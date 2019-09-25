@@ -9,13 +9,19 @@
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
+#include <fstream>
+#include <iostream>
 #include <string>
 #include <list>
 #include <vector>
 #include <set>
 
-#include "PinUtil.h"
 #include "pin.H"
+#include "PinUtil.h"
+#include "CostPackage.h"
+
+
+#include "INIReader.h"
 
 /// @brief Checks if n is a power of 2.
 /// @returns true if n is power of 2
@@ -73,6 +79,8 @@ static inline INT32 CeilLog2(UINT32 n)
 
 namespace PIMProf {
 
+// forward declaration
+class CACHE;
 
 /// @brief Cache tag
 /// dynamic data structure should only be allocated on construction
@@ -82,11 +90,13 @@ class CACHE_TAG
   private:
     ADDRINT _tag;
     DataReuseSegment _seg;
+    CACHE *_cache;
 
   public:
-    CACHE_TAG(ADDRINT tagaddr = 0)
+    CACHE_TAG(CACHE *cache, ADDRINT tagaddr = 0)
     {
         _tag = tagaddr;
+        _cache = cache;
     }
 
     inline bool operator == (const ADDRINT &rhs) const { return _tag == rhs; }
@@ -95,6 +105,8 @@ class CACHE_TAG
        _tag = tagaddr;
     }
     inline ADDRINT GetTag() const { return _tag; }
+
+    inline CACHE *GetParent() { return _cache; }
 
     inline VOID InsertOnHit(BBLID bblid, ACCESS_TYPE accessType);
 
@@ -106,6 +118,7 @@ class CACHE_SET
 {
   protected:
     static const UINT32 MAX_ASSOCIATIVITY = 32;
+    CACHE *_cache;
   public:
     virtual ~CACHE_SET() {};
     virtual VOID SetAssociativity(UINT32 associativity) = 0;
@@ -122,10 +135,11 @@ class DIRECT_MAPPED : public CACHE_SET
     CACHE_TAG *_tag;
 
   public:
-    inline DIRECT_MAPPED(UINT32 associativity = 1) 
+    inline DIRECT_MAPPED(CACHE *cache, UINT32 associativity = 1) 
     {
         ASSERTX(associativity == 1);
-        _tag = new CACHE_TAG(0);
+        _tag = new CACHE_TAG(cache, 0);
+        _cache = cache;
     }
 
     inline ~DIRECT_MAPPED()
@@ -161,7 +175,7 @@ class ROUND_ROBIN : public CACHE_SET
 
   public:
     
-    inline ROUND_ROBIN(UINT32 associativity)
+    inline ROUND_ROBIN(CACHE *cache, UINT32 associativity)
         : _tagsLastIndex(associativity - 1)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
@@ -169,8 +183,9 @@ class ROUND_ROBIN : public CACHE_SET
 
         for (INT32 index = _tagsLastIndex; index >= 0; index--)
         {
-            _tags[index] = new CACHE_TAG(0);
+            _tags[index] = new CACHE_TAG(cache, 0);
         }
+        _cache = cache;
     }
 
     inline ~ROUND_ROBIN()
@@ -232,15 +247,16 @@ class LRU : public CACHE_SET
     CacheTagList _tags;
 
   public:
-    inline LRU(UINT32 associativity = MAX_ASSOCIATIVITY)
+    inline LRU(CACHE *cache, UINT32 associativity = MAX_ASSOCIATIVITY)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
         for (UINT32 i = 0; i < associativity; i++)
         {
-            CACHE_TAG *tag = new CACHE_TAG(0);
+            CACHE_TAG *tag = new CACHE_TAG(cache, 0);
             tag->SetTag(0);
             _tags.push_back(tag);
         }
+        _cache = cache;
     }
 
     inline ~LRU()
@@ -264,7 +280,7 @@ class LRU : public CACHE_SET
         }
         for (UINT32 i = 0; i < associativity; i++)
         {
-            CACHE_TAG *tag = new CACHE_TAG(0);
+            CACHE_TAG *tag = new CACHE_TAG(_cache, 0);
             _tags.push_back(tag);
         }
     }
@@ -312,7 +328,7 @@ class LRU : public CACHE_SET
         }
         for (UINT32 i = 0; i < associativity; i++)
         {
-            CACHE_TAG *tag = new CACHE_TAG(0);
+            CACHE_TAG *tag = new CACHE_TAG(_cache, 0);
             _tags.push_back(tag);
         }
     }
@@ -336,6 +352,7 @@ class CACHE_LEVEL_BASE
     CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
 
   protected:
+    CACHE *_cache;
     // input params
     const std::string _name;
     const UINT32 _cacheSize;
@@ -365,7 +382,7 @@ class CACHE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    CACHE_LEVEL_BASE(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
+    CACHE_LEVEL_BASE(CACHE *cache, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
 
     // accessors
     UINT32 CacheSize() const { return _cacheSize; }
@@ -430,11 +447,10 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
+    CACHE_LEVEL(CACHE *cache, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
     ~CACHE_LEVEL();
 
     // modifiers
-    
     VOID AddMemCost(BOOL hit, CACHE_LEVEL *lvl);
 
     /// Cache access from addr to addr+size-1/*!
@@ -454,7 +470,6 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
 
 class CACHE 
 {
-  friend class CostSolver;
   public:
     static const UINT32 MAX_LEVEL = 6;
     enum {
@@ -462,18 +477,22 @@ class CACHE
     };
     static const std::string _name[MAX_LEVEL];
   private:
-    static CACHE_LEVEL *_cache[MAX_LEVEL];
+    CACHE_LEVEL *_cache[MAX_LEVEL];
+
+  public:
+    /// Reference to PinInstrument data
+    CostPackage *_cost_package;
 
   // forbid copy constructor
   private:
     CACHE(const CACHE &);
-
   public:
     CACHE();
-    CACHE(const std::string filename);
     ~CACHE();
+  public:
+    void initialize(CostPackage *cost_package, ConfigReader &reader);
 
-    VOID ReadConfig(std::string filename);
+    void ReadConfig(ConfigReader &reader);
 
     /// Write the current cache config to ofstream or file.
     /// If no modification is made, then this will output the 
@@ -495,10 +514,6 @@ class CACHE
     /// Do on a single-line data cache reference
     VOID DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 };
-
-std::string StringInt(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
-std::string StringHex(UINT64 val, UINT32 width = 0, CHAR padding = ' ');
-std::string StringString(std::string val, UINT32 width = 0, CHAR padding = ' ');
 
 } // namespace PIMProf
 

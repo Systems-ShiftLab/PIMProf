@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InstructionLatency.h"
+#include "Simulation.h"
 
 using namespace PIMProf;
 

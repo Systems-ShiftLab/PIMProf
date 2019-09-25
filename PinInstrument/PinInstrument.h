@@ -25,7 +25,7 @@
 #include "PinUtil.h"
 #include "CostPackage.h"
 #include "Cache.h"
-#include "InstructionLatency.h"
+#include "Simulation.h"
 #include "DataReuse.h"
 #include "CostSolver.h"
 

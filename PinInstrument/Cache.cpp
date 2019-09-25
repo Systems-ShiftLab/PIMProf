@@ -5,11 +5,7 @@
 //
 //
 //===----------------------------------------------------------------------===//
-#include <fstream>
-#include <iostream>
 
-#include "INIReader.h"
-#include "PinInstrument.h"
 #include "Cache.h"
 
 using namespace PIMProf;
@@ -21,18 +17,14 @@ using namespace PIMProf;
 const std::string CACHE::_name[CACHE::MAX_LEVEL] = {
         "ITLB", "DTLB", "IL1", "DL1", "UL2", "UL3"
     };
-CACHE_LEVEL *CACHE::_cache[CACHE::MAX_LEVEL];
 
-/* ===================================================================== */
-/* Global data structure */
-/* ===================================================================== */
-extern BBLScope bbl_scope;
 
 /* ===================================================================== */
 /* Cache */
 /* ===================================================================== */
 
-std::string PIMProf::StringInt(UINT64 val, UINT32 width, CHAR padding)
+
+std::string StringInt(UINT64 val, UINT32 width=0, CHAR padding=' ')
 {
     std::ostringstream ostr;
     ostr.setf(std::ios::fixed,std::ios::floatfield);
@@ -41,7 +33,7 @@ std::string PIMProf::StringInt(UINT64 val, UINT32 width, CHAR padding)
     return ostr.str();
 }
 
-std::string PIMProf::StringHex(UINT64 val, UINT32 width, CHAR padding)
+std::string StringHex(UINT64 val, UINT32 width=0, CHAR padding=' ')
 {
     std::ostringstream ostr;
     ostr.setf(std::ios::fixed,std::ios::floatfield);
@@ -50,7 +42,7 @@ std::string PIMProf::StringHex(UINT64 val, UINT32 width, CHAR padding)
     return ostr.str();
 }
 
-std::string PIMProf::StringString(std::string val, UINT32 width, CHAR padding)
+std::string StringString(std::string val, UINT32 width=0, CHAR padding=' ')
 {
     std::ostringstream ostr;
     ostr.setf(std::ios::fixed,std::ios::floatfield);
@@ -67,7 +59,7 @@ VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
     if (bblid != GLOBALBBLID) {
         _seg.insert(bblid);
         if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-            DataReuse::UpdateTrie(DataReuse::getRoot(), _seg);
+            _cache->_cost_package->_data_reuse.UpdateTrie(_cache->_cost_package->_data_reuse.getRoot(), _seg);
             _seg.clear();
             _seg.insert(bblid);
         }
@@ -75,7 +67,7 @@ VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
 }
 
 VOID CACHE_TAG::SplitOnMiss() {
-    DataReuse::UpdateTrie(DataReuse::getRoot(), _seg);
+    _cache->_cost_package->_data_reuse.UpdateTrie(_cache->_cost_package->_data_reuse.getRoot(), _seg);
     _seg.clear();
 }
 
@@ -83,8 +75,9 @@ VOID CACHE_TAG::SplitOnMiss() {
 /* Base class for cache level */
 /* ===================================================================== */
 
-CACHE_LEVEL_BASE::CACHE_LEVEL_BASE(std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
-  : _name(name),
+CACHE_LEVEL_BASE::CACHE_LEVEL_BASE(CACHE *cache, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
+  : _cache(cache),
+    _name(name),
     _cacheSize(cacheSize),
     _lineSize(lineSize),
     _associativity(associativity),
@@ -150,27 +143,29 @@ std::ostream & CACHE_LEVEL_BASE::StatsLong(std::ostream & out) const
 /* Cache level */
 /* ===================================================================== */
 
-CACHE_LEVEL::CACHE_LEVEL(std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
-    : CACHE_LEVEL_BASE(name, cacheSize, lineSize, associativity), _replacement_policy(policy), STORE_ALLOCATION(allocation)
+CACHE_LEVEL::CACHE_LEVEL(CACHE *cache, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
+  : CACHE_LEVEL_BASE(cache, name, cacheSize, lineSize, associativity),
+    _replacement_policy(policy),
+    STORE_ALLOCATION(allocation)
 {
     // NumSets = cacheSize / (associativity * lineSize)
     if (policy == "direct_mapped") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            DIRECT_MAPPED *_set = new DIRECT_MAPPED(associativity);
+            DIRECT_MAPPED *_set = new DIRECT_MAPPED(cache, associativity);
             _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
     }
     else if (policy == "round_robin") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            ROUND_ROBIN *_set = new ROUND_ROBIN(associativity);
+            ROUND_ROBIN *_set = new ROUND_ROBIN(cache, associativity);
             _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
     }
     else if (policy == "lru") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            LRU *_set = new LRU(associativity);
+            LRU *_set = new LRU(cache, associativity);
             _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
@@ -196,16 +191,16 @@ CACHE_LEVEL::~CACHE_LEVEL()
 
 VOID CACHE_LEVEL::AddMemCost(BOOL hit, CACHE_LEVEL *lvl)
 {
-    BBLID bblid = bbl_scope.top();
+    BBLID bblid = _cache->_cost_package->_bbl_scope.top();
     if (bblid != GLOBALBBLID) {
         if (hit) {
             for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-                CostSolver::_BBL_memory_cost[i][bblid] += lvl->_hitcost[i];
+                _cache->_cost_package->_BBL_memory_cost[i][bblid] += lvl->_hitcost[i];
             }
         }
         else if (lvl->_name == "UL3") {
             for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-                CostSolver::_BBL_memory_cost[i][bblid] += CostSolver::_memory_cost[i];
+                _cache->_cost_package->_BBL_memory_cost[i][bblid] += _cache->_cost_package->_memory_cost[i];
             }
         }
     }
@@ -249,7 +244,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         tag->SplitOnMiss();
     }
     if (hit) {
-        tag->InsertOnHit(bbl_scope.top(), accessType);
+        tag->InsertOnHit(_cache->_cost_package->_bbl_scope.top(), accessType);
     }
 
     CACHE_LEVEL::AddMemCost(hit, this);
@@ -287,11 +282,6 @@ CACHE::CACHE()
 {
 }
 
-CACHE::CACHE(const std::string filename)
-{
-    ReadConfig(filename);
-}
-
 CACHE::~CACHE()
 {
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
@@ -300,10 +290,14 @@ CACHE::~CACHE()
     }
 }
 
-VOID CACHE::ReadConfig(std::string filename)
+void CACHE::initialize(CostPackage *cost_package, ConfigReader &reader)
 {
-    INIReader reader(filename);
-    ASSERTX(!INIErrorMsg(reader.ParseError(), filename, std::cerr));
+    _cost_package = cost_package;
+    ReadConfig(reader);
+}
+
+void CACHE::ReadConfig(ConfigReader &reader)
+{
     for (UINT32 i = 0; i < MAX_LEVEL; i++) {
         std::string name = _name[i];
         UINT32 linesize = reader.GetInteger(name, "linesize", -1);
@@ -322,7 +316,7 @@ VOID CACHE::ReadConfig(std::string filename)
                 hitcost[j] = 0;
             }
         }
-        _cache[i] = new CACHE_LEVEL(name, policy, cachesize, linesize, associativity, allocation, hitcost);
+        _cache[i] = new CACHE_LEVEL(this, name, policy, cachesize, linesize, associativity, allocation, hitcost);
     }
 }
 
@@ -332,7 +326,7 @@ std::ostream& CACHE::WriteConfig(std::ostream& out)
     return out;
 }
 
-VOID CACHE::WriteConfig(const std::string filename)
+void CACHE::WriteConfig(const std::string filename)
 {
     std::ofstream out;
     out.open(filename.c_str(), ios_base::out);
@@ -347,7 +341,7 @@ std::ostream& CACHE::WriteStats(std::ostream& out)
     }
     return out;
 }
-VOID CACHE::WriteStats(const std::string filename)
+void CACHE::WriteStats(const std::string filename)
 {
     std::ofstream out;
     out.open(filename.c_str(), ios_base::out);

@@ -110,6 +110,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
+    infomsg() << self->_command_line_parser.outputfile().c_str() << std::endl;
     std::ofstream ofs(self->_command_line_parser.outputfile().c_str(), std::ofstream::out);
     CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
     ofs.close();

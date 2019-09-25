@@ -8,8 +8,8 @@
 
 
 
-#ifndef __INSTRUCTIONLATENCY_H__
-#define __INSTRUCTIONLATENCY_H__
+#ifndef __SIMULATION_H__
+#define __SIMULATION_H__
 
 #include <vector>
 #include <iostream>
@@ -115,4 +115,4 @@ class MemoryLatency {
 
 } // namespace PIMProf
 
-#endif // __INSTRUCTIONLATENCY_H__
+#endif // __SIMULATION_H__

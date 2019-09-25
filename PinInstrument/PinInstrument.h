@@ -23,12 +23,12 @@
 
 #include "../LLVMAnalysis/Common.h"
 #include "PinUtil.h"
-
-// #include "MemoryLatency.h"
+#include "CostPackage.h"
+#include "Cache.h"
 #include "InstructionLatency.h"
-// #include "DataReuse.h"
-// #include "CostSolver.h"
-// #include "Cache.h"
+#include "DataReuse.h"
+#include "CostSolver.h"
+
 
 namespace PIMProf {
 
@@ -38,13 +38,13 @@ class PinInstrument {
     ConfigReader _config_reader;
 
     InstructionLatency _instruction_latency;
-    // MemoryLatency memory_latency;
-    // DataReuse data_reuse;
-    // CostSolver solver;
+    MemoryLatency _memory_latency;
+    CostSolver _cost_solver;
 
-    BBLScope _bbl_scope;
-    bool _inOpenMPRegion;
-    BBLID _bbl_size;
+    CACHE _cache;
+
+    CostPackage _cost_package;
+
 
   public:
     PinInstrument() {}
@@ -56,14 +56,6 @@ class PinInstrument {
 
     /// run the actual simulation
     void simulate();
-
-    inline BBLScope &getScope() {
-        return _bbl_scope;
-    }
-
-    inline BBLID &getBBLSize() {
-        return _bbl_size;
-    }
   
   public:
     void ReadControlFlowGraph(const std::string filename);

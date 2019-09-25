@@ -10,15 +10,6 @@
 using namespace PIMProf;
 
 /* ===================================================================== */
-/* Static data structure */
-/* ===================================================================== */
-
-// MemoryLatency PinInstrument::memory_latency;
-// InstructionLatency PinInstrument::instruction_latency;
-// DataReuse PinInstrument::data_reuse;
-// CostSolver PinInstrument::solver;
-
-/* ===================================================================== */
 /* PinInstrument */
 /* ===================================================================== */
 
@@ -31,9 +22,13 @@ void PinInstrument::initialize(int argc, char *argv[])
     
     ReadControlFlowGraph(_command_line_parser.controlflowfile());
 
-    _inOpenMPRegion = false;
     _config_reader = ConfigReader(_command_line_parser.configfile());
-    _instruction_latency.initialize(&_bbl_scope, _bbl_size, _config_reader);
+    _cost_package.initialize(_config_reader);
+    _cache.initialize(&_cost_package, _config_reader);
+    _instruction_latency.initialize(&_cost_package, _config_reader);
+    _memory_latency.initialize(&_cache, &_cost_package, _config_reader);
+    _cost_solver.initialize(&_cost_package, _config_reader);
+
 }
 
 void PinInstrument::ReadControlFlowGraph(const std::string filename)
@@ -44,28 +39,22 @@ void PinInstrument::ReadControlFlowGraph(const std::string filename)
 
     getline(ifs, curline);
     std::stringstream ss(curline);
-    ss >> _bbl_size;
-    _bbl_size++; // bbl_size = Largest BBLID + 1
+    ss >> _cost_package._bbl_size;
+    _cost_package._bbl_size++; // bbl_size = Largest BBLID + 1
 }
 
 
 void PinInstrument::instrument()
 {
     IMG_AddInstrumentFunction(ImageInstrument, (VOID *)this);
+    PIN_AddFiniFunction(PinInstrument::FinishInstrument, (VOID *)this);
 }
 
 void PinInstrument::simulate()
 {
     instrument();
     _instruction_latency.instrument();
-    // INS_AddInstrumentFunction(MemoryLatency::InstructionInstrument, 0);
-
-
-    // PIN_AddFiniFunction(MemoryLatency::FinishInstrument, 0);
-
-    // char *outputfile_char = new char[outputfile.length() + 1];
-    // strcpy(outputfile_char, outputfile.c_str());
-    // PIN_AddFiniFunction(PinInstrument::FinishInstrument, (VOID *)(outputfile_char));
+    _memory_latency.instrument();
 
     // Never returns
     PIN_StartProgram();
@@ -74,15 +63,15 @@ void PinInstrument::simulate()
 VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, BBLID bblid, INT32 isomp)
 {
     std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
-    self->_bbl_scope.push(bblid);
+    self->_cost_package._bbl_scope.push(bblid);
 }
 
 VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, BBLID bblid, INT32 isomp)
 {
     std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
-    ASSERTX(self->_bbl_scope.top() == bblid);
-    self->_bbl_scope.pop();
-    self->_inOpenMPRegion = false;
+    ASSERTX(self->_cost_package._bbl_scope.top() == bblid);
+    self->_cost_package._bbl_scope.pop();
+    self->_cost_package._inOpenMPRegion = false;
 }
 
 VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
@@ -120,18 +109,17 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
 
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
 {
-    // char *outputfile = (char *)v;
-    // std::ofstream ofs(outputfile, std::ofstream::out);
-    // delete outputfile;
-    // CostSolver::DECISION decision = CostSolver::PrintSolution(ofs);
-    // ofs.close();
+    PinInstrument *self = (PinInstrument *)void_self;
+    std::ofstream ofs(self->_command_line_parser.outputfile().c_str(), std::ofstream::out);
+    CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
+    ofs.close();
     
-    // ofs.open("BBLBlockCost.out", std::ofstream::out);
+    ofs.open("BBLBlockCost.out", std::ofstream::out);
 
-    // CostSolver::PrintBBLDecisionStat(ofs, decision, false);
+    self->_cost_solver.PrintBBLDecisionStat(ofs, decision, false);
     
-    // ofs.close();
-    // ofs.open("BBLReuseCost.dot", std::ofstream::out);
-    // DataReuse::print(ofs, DataReuse::getRoot());
-    // ofs.close();
+    ofs.close();
+    ofs.open("BBLReuseCost.dot", std::ofstream::out);
+    self->_cost_package._data_reuse.print(ofs, self->_cost_package._data_reuse.getRoot());
+    ofs.close();
 }

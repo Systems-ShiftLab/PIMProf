@@ -24,39 +24,27 @@
 
 #include "pin.H"
 #include "../LLVMAnalysis/Common.h"
+
 #include "PinUtil.h"
+#include "CostPackage.h"
+#include "Cache.h"
 
 namespace PIMProf {
 class InstructionLatency {
     friend class PinInstrument;
-  public:
-    static const UINT32 MAX_INDEX = 4096;
-    static const UINT32 INDEX_SPECIAL = 3000;
-    static const UINT32 MAX_MEM_SIZE = 512;
 
   private:
-    /// Construction of latency table follows the opcode generation function in
-    /// $(PIN_ROOT)/source/tools/SimpleExamples/opcodemix.cpp
-    COST _instruction_latency[MAX_COST_SITE][MAX_INDEX];
-
-    std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
-    COST _instruction_multiplier[MAX_COST_SITE];
-
-    long long int _instr_cnt;
-    long long int _mem_instr_cnt;
-    long long int _nonmem_instr_cnt;
 
     /// Reference to PinInstrument data
-    BBLScope *_bbl_scope;
-    BBLID _bbl_size;
+    CostPackage *_cost_package;
 
   public:
     /// Default initialization.
     /// Initialize _instruction_latency with hard-coded instruction latency.
-    void initialize(BBLScope *scope, BBLID bbl_size);
+    void initialize(CostPackage *cost_package);
 
     /// Initialization with input config.
-    void initialize(BBLScope *scope, BBLID bbl_size, ConfigReader &reader);
+    void initialize(CostPackage *cost_package, ConfigReader &reader);
 
     void SetBBLSize(BBLID bbl_size);
 
@@ -82,6 +70,47 @@ class InstructionLatency {
     /// The instrumentation function for normal instructions
   static VOID InstructionInstrument(INS ins, VOID *void_self);
 
+};
+
+
+class MemoryLatency {
+  private:
+    CACHE *_cache;
+    /// Reference to PinInstrument data
+    CostPackage *_cost_package;
+
+  public:
+    void initialize(CACHE *cache, CostPackage *cost_package, ConfigReader &reader);
+    void instrument();
+
+  public:
+    /// Read cache config from ofstream or file.
+    void ReadConfig(ConfigReader &reader);
+
+    /// Write the current cache config to ofstream or file.
+    /// If no modification is made, then this will output the 
+    /// default cache config PIMProf will use.
+    std::ostream& WriteConfig(std::ostream& out);
+    void WriteConfig(const std::string filename);
+
+    void SetBBLSize(BBLID bbl_size);
+
+  protected:
+
+    /// Do on instruction cache reference
+    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr);
+
+    /// Do on multi-line data cache references
+    static VOID DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+
+    /// Do on a single-line data cache reference
+    static VOID DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+
+    /// The instrumentation function for memory instructions
+    static VOID InstructionInstrument(INS ins, VOID *void_self);
+
+    /// Finalization
+    static VOID FinishInstrument(INT32 code, VOID * void_self);
 };
 
 } // namespace PIMProf

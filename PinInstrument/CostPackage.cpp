@@ -16,5 +16,4 @@ using namespace PIMProf;
 void CostPackage::initialize(ConfigReader &reader)
 {
     _inOpenMPRegion = false;
-    _data_reuse.initialize(reader);
 }

@@ -23,22 +23,6 @@ DataReuse::~DataReuse()
     DeleteTrie(_root);
 }
 
-void DataReuse::initialize(ConfigReader &reader)
-{
-    ReadConfig(reader);
-}
-
-void DataReuse::ReadConfig(ConfigReader &reader)
-{
-    int size = reader.GetInteger("DataReuse", "BatchCount", -1);
-    ASSERTX(size >= 0);
-    _batchcount = size;
-
-    size = reader.GetInteger("DataReuse", "BatchSize", -1);
-    ASSERTX(size > 0);
-    _batchsize = size;
-}
-
 void DataReuse::UpdateTrie(TrieNode *root, DataReuseSegment &seg)
 {
     // A reuse chain segment of size 1 can be removed

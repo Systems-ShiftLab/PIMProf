@@ -62,13 +62,13 @@ void PinInstrument::simulate()
 
 VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, BBLID bblid, INT32 isomp)
 {
-    std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
+    // std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
     self->_cost_package._bbl_scope.push(bblid);
 }
 
 VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, BBLID bblid, INT32 isomp)
 {
-    std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
+    // std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
     ASSERTX(self->_cost_package._bbl_scope.top() == bblid);
     self->_cost_package._bbl_scope.pop();
     self->_cost_package._inOpenMPRegion = false;

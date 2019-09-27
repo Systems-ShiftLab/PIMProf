@@ -147,15 +147,9 @@ class DataReuse {
     TrieNode *_root;
     std::vector<TrieNode *> _leaves;
 
-    int _batchcount;
-    int _batchsize;
-
   public:
     DataReuse();
     ~DataReuse();
-   
-  public:
-    void initialize(ConfigReader &reader);
 
   public:
     void UpdateTrie(TrieNode *root, DataReuseSegment &seg);

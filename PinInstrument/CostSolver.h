@@ -39,9 +39,6 @@ class CostSolver {
     int _batchcount;
     int _batchsize;
 
-  private:
-    BBLID bbl_size;
-
   public:
     void initialize(CostPackage *cost_package, ConfigReader &reader);
 
@@ -51,7 +48,7 @@ class CostSolver {
 
     COST Cost(const DECISION &decision, TrieNode *reusetree);
 
-    DECISION FindOptimal(TrieNode *reusetree);
+    DECISION FindOptimal();
 
     VOID ReadConfig(ConfigReader &reader);
 

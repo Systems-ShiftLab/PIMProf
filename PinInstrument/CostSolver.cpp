@@ -62,8 +62,8 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     PrintDecisionStat(std::cout, decision, "Pure greedy");
 
     // Optimal
-    result = FindOptimal(_cost_package->_data_reuse.getRoot());
-    PrintDecision(infomsg(), decision, true);
+    result = FindOptimal();
+    PrintDecision(infomsg(), result, true);
     PrintDecision(out, result, false);
     PrintDecisionStat(std::cout, result, "PIMProf opt");
 
@@ -110,7 +110,6 @@ VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
                 TrieBFS(cost, decision, it->first, it->second, false);
             }
         }
-        
     }
 }
 
@@ -139,9 +138,8 @@ bool CostSolverComparator(const TrieNode *l, const TrieNode *r)
     return l->_count > r->_count;
 }
 
-CostSolver::DECISION CostSolver::FindOptimal(TrieNode *reusetree)
+CostSolver::DECISION CostSolver::FindOptimal()
 {
-
     std::sort(_cost_package->_data_reuse.getLeaves().begin(), _cost_package->_data_reuse.getLeaves().end(), CostSolverComparator);
 
     COST cur_total = FLT_MAX;
@@ -226,6 +224,7 @@ CostSolver::DECISION CostSolver::FindOptimal(TrieNode *reusetree)
 
     cur_total = Cost(decision, _cost_package->_data_reuse.getRoot());
     std::cout << cur_total << std::endl;
+    // iterate over the remaining BBs 10 times until convergence
     for (int j = 0; j < 10; j++) {
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             BBLID id = i;
@@ -282,6 +281,14 @@ VOID CostSolver::ReadConfig(ConfigReader &reader)
         ASSERTX(cost >= 0);
         _cost_package->_instruction_multiplier[i] = cost;
     }
+
+    int size = reader.GetInteger("DataReuse", "BatchCount", -1);
+    ASSERTX(size >= 0);
+    _batchcount = size;
+
+    size = reader.GetInteger("DataReuse", "BatchSize", -1);
+    ASSERTX(size > 0);
+    _batchsize = size;
 }
 
 VOID CostSolver::SetBBLSize(BBLID bbl_size) {
@@ -294,7 +301,7 @@ VOID CostSolver::SetBBLSize(BBLID bbl_size) {
 std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
 {
     if (toscreen == true) {
-        for (UINT32 i = 0; i < bbl_size; i++) {
+        for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             out << i << ":";
             out << (decision[i] == CPU ? "C" : "");
             out << (decision[i] == PIM ? "P" : "");
@@ -303,7 +310,7 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
         out << std::endl;
     }
     else {
-        for (UINT32 i = 0; i < bbl_size; i++) {
+        for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             out << i << " ";
             out << (decision[i] == CPU ? "C" : "");
             out << (decision[i] == PIM ? "P" : "");

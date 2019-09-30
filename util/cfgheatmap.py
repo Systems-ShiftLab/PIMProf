@@ -47,17 +47,21 @@ def cfgheatmap(cfg, costdiff, decision, lb, ub):
 
 def heatmap(costdiff, decision, lb, ub):
     N = 10
-    costslice = [0] * (lb % N) + costdiff[lb:ub+1] + [0] * (N - ub % N - 1)
-    decisionslice = [""] * (lb % N) + decision[lb:ub+1] + [""] * (N - ub % N - 1)
-
-    fig, ax = plt.subplots(figsize=(11, 20))
+    #costslice = [0] * (lb % N) + costdiff[lb:ub+1] + [0] * (N - ub % N - 1)
+    #decisionslice = [""] * (lb % N) + decision[lb:ub+1] + [""] * (N - ub % N - 1)
+    costslice = costdiff[lb:ub+1] + [0] * (N - (ub-lb) % N - 1)
+    decisionslice = decision[lb:ub+1] + [""] * (N - (ub-lb) % N - 1)
+    #fig, ax = plt.subplots(figsize=(11, 20))
+    fig, ax = plt.subplots()
+    ax.xaxis.tick_top()
 
     costslice = [(log10(abs(i)) if abs(i) > 1 else 0) * np.sign(i) for i in costslice]
     print(costslice)
     decisionslice = [("" if i != "P" else "PIM") for i in decisionslice]
     costarr = np.reshape(np.array(costslice), (-1, N))
     decisionarr = np.reshape(np.array(decisionslice), (-1, N))
-    ytick = range(lb - lb % N, ub + N - ub % N, N)
+    #ytick = range(lb - lb % N, ub + N - ub % N, N)
+    ytick = range(0, int((ub-lb + N - (ub-lb) % N)/N))
     print([i for i in ytick])
 
     print(costarr)
@@ -67,13 +71,17 @@ def heatmap(costdiff, decision, lb, ub):
     sb.heatmap(costarr, cmap="RdBu",
         vmin=-lim, vmax=lim, center=0,
         fmt="s", annot=decisionarr,
-        cbar_kws={"ticks": [-7, -6, -3, 0, 3, 6, 7]},
+        # cbar_kws={"ticks": [-7, -6, -3, 0, 3, 6, 7]},
+        cbar_kws={"ticks": [-7, 0, 7]},
         yticklabels=ytick,
     )
 
     cb = ax.collections[-1].colorbar
     cb.ax.yaxis.set_ticks_position("none")
-    cb.ax.set_yticklabels(["CPU friendly","-1e6","-1e3","0","1e3","1e6","PIM friendly"])
+    #cb.ax.set_yticklabels(["CPU friendly","-1e6","-1e3","0","1e3","1e6","PIM friendly"])
+    cb.ax.set_yticklabels(["CPU friendly","Neutral","PIM friendly"])
+
+    plt.title("Each block (X, Y) represents a basic block.", y=-0.15)
 
     plt.savefig("cfgheatmap.pdf", format="pdf")
     plt.show()

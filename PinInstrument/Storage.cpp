@@ -67,18 +67,10 @@ VOID CACHE_TAG::SplitOnMiss() {
 /* Base class for storage level */
 /* ===================================================================== */
 
-STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
+STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, std::string name)
   : _storage(storage),
-    _name(name),
-    _cacheSize(cacheSize),
-    _lineSize(lineSize),
-    _associativity(associativity),
-    _lineShift(FloorLog2(lineSize)),
-    _setIndexMask((cacheSize / (associativity * lineSize)) - 1)
+    _name(name)
 {
-    ASSERTX(IsPower2(_lineSize));
-    ASSERTX(IsPower2(_setIndexMask + 1));
-
     for (UINT32 accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
     {
         _access[accessType][false] = 0;
@@ -120,13 +112,6 @@ std::ostream & STORAGE_LEVEL_BASE::StatsLong(std::ostream & out) const
     out << StringString("Total Miss Rate: ", headerWidth, ' ')
         << StringFlt(100.0 * Misses() / Accesses(), 2, numberWidth-1) << "%" << std::endl;
 
-    out << StringString("Flushes:         ", headerWidth, ' ')
-        << StringInt(Flushes(), numberWidth) << std::endl;
-    out << StringString("Stat Resets:     ", headerWidth, ' ')
-        << StringInt(Resets(), numberWidth) << std::endl;
-
-    out << std::endl;
-
     return out;
 }
 
@@ -136,10 +121,17 @@ std::ostream & STORAGE_LEVEL_BASE::StatsLong(std::ostream & out) const
 /* ===================================================================== */
 
 CACHE_LEVEL::CACHE_LEVEL(STORAGE *storage, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
-  : STORAGE_LEVEL_BASE(storage, name, cacheSize, lineSize, associativity),
+  : STORAGE_LEVEL_BASE(storage, name),
+    _cacheSize(cacheSize),
+    _lineSize(lineSize),
+    _associativity(associativity),
     _replacement_policy(policy),
-    STORE_ALLOCATION(allocation)
+    STORE_ALLOCATION(allocation),
+    _lineShift(FloorLog2(lineSize)),
+    _setIndexMask((cacheSize / (associativity * lineSize)) - 1)
 {
+    ASSERTX(IsPower2(_lineSize));
+    ASSERTX(IsPower2(_setIndexMask + 1));
     // NumSets = cacheSize / (associativity * lineSize)
     if (policy == "direct_mapped") {
         for (UINT32 i = 0; i < NumSets(); i++) {
@@ -252,6 +244,18 @@ VOID CACHE_LEVEL::Flush()
     IncFlushCounter();
 }
 
+std::ostream & CACHE_LEVEL::StatsLong(std::ostream &out) const
+{
+    const UINT32 headerWidth = 19;
+    const UINT32 numberWidth = 10;
+    STORAGE_LEVEL_BASE::StatsLong(out);
+    out << StringString("Flushes:         ", headerWidth, ' ')
+        << StringInt(Flushes(), numberWidth) << std::endl;
+    out << StringString("Stat Resets:     ", headerWidth, ' ')
+        << StringInt(Resets(), numberWidth) << std::endl;
+    return out;
+}
+
 VOID CACHE_LEVEL::ResetStats()
 {
     for (UINT32 accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
@@ -266,7 +270,7 @@ VOID CACHE_LEVEL::ResetStats()
 /* Memory Level */
 /* ===================================================================== */
 MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, std::string name, COST hitcost[MAX_COST_SITE])
-  : STORAGE_LEVEL_BASE(storage, name, 64, 64, 1) // make the constructor happy
+  : STORAGE_LEVEL_BASE(storage, name)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++)
         _hitcost[i] = hitcost[i];
@@ -283,19 +287,9 @@ VOID MEMORY_LEVEL::AddMemCost()
 
 BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
-    const ADDRINT highAddr = addr + size;
-    BOOL allHit = true;
-
-    const ADDRINT lineSize = LineSize();
-    const ADDRINT notLineMask = ~(lineSize - 1);
-    do
-    {
-        allHit &= AccessSingleLine(addr, accessType);
-        addr = (addr & notLineMask) + lineSize; // start of next cache line
-
-    } while (addr < highAddr);
-
-    return allHit;
+    // TODO: Implement this later
+    ASSERTX(0);
+    return true;
 }
 
 

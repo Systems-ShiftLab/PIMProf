@@ -365,15 +365,6 @@ class STORAGE_LEVEL_BASE
   protected:
     // input params
     const std::string _name;
-    const UINT32 _cacheSize;
-    const UINT32 _lineSize;
-    const UINT32 _associativity;
-    UINT32 _numberOfFlushes;
-    UINT32 _numberOfResets;
-
-    // computed params
-    const UINT32 _lineShift;
-    const UINT32 _setIndexMask;
 
     CACHE_STATS SumAccess(bool hit) const
     {
@@ -387,51 +378,17 @@ class STORAGE_LEVEL_BASE
         return sum;
     }
 
-  protected:
-    UINT32 NumSets() const { return _setIndexMask + 1; }
-
   public:
     // constructors/destructors
-    STORAGE_LEVEL_BASE(STORAGE *storage, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
+    STORAGE_LEVEL_BASE(STORAGE *storage, std::string name);
     virtual ~STORAGE_LEVEL_BASE() = default;
 
-    // accessors
-    UINT32 CacheSize() const { return _cacheSize; }
-    UINT32 LineSize() const { return _lineSize; }
-    UINT32 Associativity() const { return _associativity; }
-    //
     CACHE_STATS Hits(ACCESS_TYPE accessType) const { return _access[accessType][true]; }
     CACHE_STATS Misses(ACCESS_TYPE accessType) const { return _access[accessType][false]; }
     CACHE_STATS Accesses(ACCESS_TYPE accessType) const { return Hits(accessType) + Misses(accessType); }
     CACHE_STATS Hits() const { return SumAccess(true); }
     CACHE_STATS Misses() const { return SumAccess(false); }
     CACHE_STATS Accesses() const { return Hits() + Misses(); }
-
-    CACHE_STATS Flushes() const { return _numberOfFlushes; }
-    CACHE_STATS Resets() const { return _numberOfResets; }
-
-    VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex) const
-    {
-        tagaddr = addr >> _lineShift;
-        setIndex = tagaddr & _setIndexMask;
-    }
-
-    VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex, UINT32 &lineIndex) const
-    {
-        const UINT32 lineMask = _lineSize - 1;
-        lineIndex = addr & lineMask;
-        SplitAddress(addr, tagaddr, setIndex);
-    }
-
-    VOID IncFlushCounter()
-    {
-        _numberOfFlushes += 1;
-    }
-
-    VOID IncResetCounter()
-    {
-        _numberOfResets += 1;
-    }
 
     /// @brief Stats output method
     std::ostream &StatsLong(std::ostream &out) const;
@@ -445,19 +402,66 @@ class STORAGE_LEVEL_BASE
 class CACHE_LEVEL : public STORAGE_LEVEL_BASE
 {
   private:
-    std::string _replacement_policy;
     std::vector<CACHE_SET *> _sets;
+
+  protected:
+    const UINT32 _cacheSize;
+    const UINT32 _lineSize;
+    const UINT32 _associativity;
+    std::string _replacement_policy;
     UINT32 STORE_ALLOCATION;
+    UINT32 _numberOfFlushes;
+    UINT32 _numberOfResets;
+
+    // computed params
+    const UINT32 _lineShift;
+    const UINT32 _setIndexMask;
   
   // forbid copy constructor
   private:
     CACHE_LEVEL(const CACHE_LEVEL &);
+
+  protected:
+    UINT32 NumSets() const { return _setIndexMask + 1; }
 
   public:
     // constructors/destructors
     CACHE_LEVEL(STORAGE *storage, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
     ~CACHE_LEVEL();
 
+  public:
+    // accessors
+    inline UINT32 CacheSize() const { return _cacheSize; }
+    inline UINT32 LineSize() const { return _lineSize; }
+    inline UINT32 Associativity() const { return _associativity; }
+
+    inline CACHE_STATS Flushes() const { return _numberOfFlushes; }
+    inline CACHE_STATS Resets() const { return _numberOfResets; }
+
+    inline VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex) const
+    {
+        tagaddr = addr >> _lineShift;
+        setIndex = tagaddr & _setIndexMask;
+    }
+
+    inline VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex, UINT32 &lineIndex) const
+    {
+        const UINT32 lineMask = _lineSize - 1;
+        lineIndex = addr & lineMask;
+        SplitAddress(addr, tagaddr, setIndex);
+    }
+
+    inline VOID IncFlushCounter()
+    {
+        _numberOfFlushes += 1;
+    }
+
+    inline VOID IncResetCounter()
+    {
+        _numberOfResets += 1;
+    }
+  
+  public:
     // modifiers
     VOID AddMemCost();
 
@@ -474,6 +478,7 @@ class CACHE_LEVEL : public STORAGE_LEVEL_BASE
     inline std::string getReplacementPolicy() {
         return _replacement_policy;
     }
+    std::ostream &StatsLong(std::ostream &out) const;
 };
 
 class MEMORY_LEVEL : public STORAGE_LEVEL_BASE

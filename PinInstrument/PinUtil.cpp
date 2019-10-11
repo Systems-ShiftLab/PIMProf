@@ -9,6 +9,14 @@
 #include "PinUtil.h"
 
 using namespace PIMProf;
+/* ===================================================================== */
+/* Typedefs and constants */
+/* ===================================================================== */
+const std::string PIMProf::CostSiteName[MAX_COST_SITE] = { "CPU", "PIM" };
+
+const std::string PIMProf::StorageLevelName[MAX_LEVEL] = {
+    "IL1", "DL1", "UL2", "UL3", "MEM"
+};
 
 /* ===================================================================== */
 /* Local command line switches */

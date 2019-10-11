@@ -17,15 +17,19 @@ typedef FLT64 COST;
 typedef UINT32 BBLID;
 
 
-static const UINT32 MAX_COST_SITE = 2;
 enum CostSite {
-    CPU = 0,
-    PIM = 1,
+    CPU, PIM, MAX_COST_SITE,
     INVALID = 0x3fffffff // a placeholder that does not count as a cost site
 };
-static const std::string CostSiteName[MAX_COST_SITE] = { "CPU", "PIM" };
+extern const std::string CostSiteName[MAX_COST_SITE];
 
-static const BBLID GLOBALBBLID = 0x7FFFFFFF;
+// MAX_LEVEL comes last to indicate the number of entries in this enum
+enum {
+    IL1, DL1, UL2, UL3, MEM, MAX_LEVEL
+};
+extern const std::string StorageLevelName[MAX_LEVEL];
+
+const BBLID GLOBALBBLID = 0x7FFFFFFF;
 
 enum ACCESS_TYPE
 {
@@ -137,19 +141,21 @@ class ConfigReader: public INIReader {
     {
         INT32 error = ParseError();
         if (error == -1) {
-            errormsg() << ".ini file open error." << std::endl;
+            errormsg() << ".ini file: Open error." << std::endl;
         }
         else if (error == -2) {
-            errormsg() << ".ini file memory allocation for parsing error." << std::endl;
+            errormsg() << ".ini file: Memory allocation error." << std::endl;
         } 
         
         else if (error > 0) {
-            errormsg() << ".ini file parsing failure on line "
+            errormsg() << ".ini file: Parsing failure on line "
                 << error 
                 << "." << std::endl;
         }
-        if (error)
+        if (error) {
             errormsg() << "Filename: " << filename << std::endl;
+            ASSERTX(0);
+        }
     }
 };
 

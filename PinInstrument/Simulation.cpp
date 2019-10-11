@@ -91,6 +91,10 @@ void InstructionLatency::ReadConfig(ConfigReader &reader)
                 if (latency >= 0) {
                     _cost_package->_instruction_latency[i][j] = latency;
                 }
+                else {
+                    errormsg() << "InstructionLatency: Invalid latency." << std::endl;
+                    ASSERTX(0);
+                }
             }
         }
     }
@@ -130,7 +134,6 @@ void MemoryLatency::initialize(CACHE *cache, CostPackage *cost_package, ConfigRe
 {
     _cache = cache;
     _cost_package = cost_package;
-    ReadConfig(reader);
     SetBBLSize(_cost_package->_bbl_size);
 }
 
@@ -147,36 +150,6 @@ VOID MemoryLatency::SetBBLSize(BBLID bbl_size) {
         _cost_package->_BBL_memory_cost[i].resize(bbl_size);
         memset(&_cost_package->_BBL_memory_cost[i][0], 0, bbl_size * sizeof _cost_package->_BBL_memory_cost[i][0]);
     }
-}
-
-VOID MemoryLatency::ReadConfig(ConfigReader &reader)
-{
-    _cache->ReadConfig(reader);
-
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        COST cost = reader.GetReal("Memory", CostSiteName[i] + "memorycost", -1);
-        if (cost >= 0) {
-            _cost_package->_memory_cost[i] = cost;
-        }
-    }
-}
-
-std::ostream& MemoryLatency::WriteConfig(std::ostream& out)
-{
-    // for (UINT32 i = 0; i < MAX_LEVEL; i++) {
-    //     out << "[" << _name[i] << "]" << std::endl;
-    //         << "linesize = " << _cache[i]->
-    // }
-    out << "Not implemented" << std::endl;
-    return out;
-}
-
-VOID MemoryLatency::WriteConfig(const std::string filename)
-{
-    ofstream out;
-    out.open(filename.c_str(), ios_base::out);
-    WriteConfig(out);
-    out.close();
 }
 
 

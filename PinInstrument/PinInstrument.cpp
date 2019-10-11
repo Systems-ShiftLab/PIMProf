@@ -13,7 +13,9 @@ using namespace PIMProf;
 /* PinInstrument */
 /* ===================================================================== */
 
-
+// Because PinInstrument has to be a global variable
+// and is dependent on the command line argument,
+// we have to use a separate function to initialize it.
 void PinInstrument::initialize(int argc, char *argv[])
 {
     PIN_InitSymbols();

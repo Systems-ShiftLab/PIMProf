@@ -344,15 +344,25 @@ enum STORE_ALLOCATION
 };
 }
 
-/// @brief Generic cache base class; no allocate specialization, no cache set specialization
-class CACHE_LEVEL_BASE
+/// @brief Generic base class of storage level; no allocate specialization, no cache set specialization; the memory is imitated with this class as well.
+class STORAGE_LEVEL_BASE
 {
+    friend class CACHE;
   protected:
     static const UINT32 HIT_MISS_NUM = 2;
     CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
 
   protected:
     CACHE *_cache;
+    STORAGE_LEVEL_BASE *_next_level;
+    // _hitcost should be assigned to zero if not used
+    COST _hitcost[MAX_COST_SITE];
+
+  public:
+    virtual BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType) = 0;
+    virtual BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType) = 0;
+
+  protected:
     // input params
     const std::string _name;
     const UINT32 _cacheSize;
@@ -382,7 +392,8 @@ class CACHE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    CACHE_LEVEL_BASE(CACHE *cache, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
+    STORAGE_LEVEL_BASE(CACHE *cache, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
+    virtual ~STORAGE_LEVEL_BASE() = default;
 
     // accessors
     UINT32 CacheSize() const { return _cacheSize; }
@@ -425,21 +436,18 @@ class CACHE_LEVEL_BASE
     /// @brief Stats output method
     std::ostream &StatsLong(std::ostream &out) const;
     VOID CountMemoryCost(std::vector<COST> (&_BBL_cost)[MAX_COST_SITE], int cache_level) const;
-
-    
 };
 
 
 /// @brief Templated cache class with specific cache set allocation policies
 /// All that remains to be done here is allocate and deallocate the right
 /// type of cache sets.
-class CACHE_LEVEL : public CACHE_LEVEL_BASE
+class CACHE_LEVEL : public STORAGE_LEVEL_BASE
 {
   private:
     std::string _replacement_policy;
     std::vector<CACHE_SET *> _sets;
     UINT32 STORE_ALLOCATION;
-    COST _hitcost[MAX_COST_SITE];
   
   // forbid copy constructor
   private:
@@ -451,7 +459,7 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
     ~CACHE_LEVEL();
 
     // modifiers
-    VOID AddMemCost(BOOL hit, CACHE_LEVEL *lvl);
+    VOID AddMemCost();
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
@@ -468,24 +476,38 @@ class CACHE_LEVEL : public CACHE_LEVEL_BASE
     }
 };
 
-class CACHE 
-{
-  public:
-    static const UINT32 MAX_LEVEL = 6;
-    enum {
-        ITLB, DTLB, IL1, DL1, UL2, UL3
-    };
-    static const std::string _name[MAX_LEVEL];
+class MEMORY_LEVEL : public STORAGE_LEVEL_BASE
+{  
+  // forbid copy constructor
   private:
-    CACHE_LEVEL *_cache[MAX_LEVEL];
+    MEMORY_LEVEL(const MEMORY_LEVEL &);
+
+  public:
+    // constructors/destructors
+    MEMORY_LEVEL(CACHE *cache, std::string name, COST hitcost[MAX_COST_SITE]);
+
+    // modifiers
+    VOID AddMemCost();
+
+    /// Cache access from addr to addr+size-1/*!
+    /// @return true if all accessed cache lines hit
+    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+
+    /// Cache access at addr that does not span cache lines
+    /// @return true if accessed cache line hits
+    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
+};
+
+class CACHE
+{
+  private:
+    // point to the corresponding level of storage, if any.
+    STORAGE_LEVEL_BASE *_cache[MAX_COST_SITE][MAX_LEVEL];
 
   public:
     /// Reference to PinInstrument data
     CostPackage *_cost_package;
 
-  // forbid copy constructor
-  private:
-    CACHE(const CACHE &);
   public:
     CACHE();
     ~CACHE();

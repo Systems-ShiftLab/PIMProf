@@ -87,12 +87,6 @@ class MemoryLatency {
     /// Read cache config from ofstream or file.
     void ReadConfig(ConfigReader &reader);
 
-    /// Write the current cache config to ofstream or file.
-    /// If no modification is made, then this will output the 
-    /// default cache config PIMProf will use.
-    std::ostream& WriteConfig(std::ostream& out);
-    void WriteConfig(const std::string filename);
-
     void SetBBLSize(BBLID bbl_size);
 
   protected:

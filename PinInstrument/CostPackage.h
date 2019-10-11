@@ -46,8 +46,6 @@ class CostPackage {
     std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
 
 
-    /// the unit cost of a single memory operation
-    COST _memory_cost[MAX_COST_SITE];
     /// the total memory cost of each BB
     std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
 

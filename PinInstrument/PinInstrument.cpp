@@ -26,9 +26,9 @@ void PinInstrument::initialize(int argc, char *argv[])
 
     _config_reader = ConfigReader(_command_line_parser.configfile());
     _cost_package.initialize(_config_reader);
-    _cache.initialize(&_cost_package, _config_reader);
+    _storage.initialize(&_cost_package, _config_reader);
     _instruction_latency.initialize(&_cost_package, _config_reader);
-    _memory_latency.initialize(&_cache, &_cost_package, _config_reader);
+    _memory_latency.initialize(&_storage, &_cost_package, _config_reader);
     _cost_solver.initialize(&_cost_package, _config_reader);
 
 }

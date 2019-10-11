@@ -24,7 +24,7 @@
 #include "../LLVMAnalysis/Common.h"
 #include "PinUtil.h"
 #include "CostPackage.h"
-#include "Cache.h"
+#include "Storage.h"
 #include "Simulation.h"
 #include "DataReuse.h"
 #include "CostSolver.h"
@@ -41,7 +41,7 @@ class PinInstrument {
     MemoryLatency _memory_latency;
     CostSolver _cost_solver;
 
-    CACHE _cache;
+    STORAGE _storage;
 
     CostPackage _cost_package;
 

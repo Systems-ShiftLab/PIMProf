@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Cache.h"
+#include "Storage.h"
 
 using namespace PIMProf;
 
@@ -51,7 +51,7 @@ VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
         _seg.insert(bblid);
         // split then insert on store
         if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-            _cache->_cost_package->_data_reuse.UpdateTrie(_cache->_cost_package->_data_reuse.getRoot(), _seg);
+            _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), _seg);
             _seg.clear();
             _seg.insert(bblid);
         }
@@ -59,16 +59,16 @@ VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
 }
 
 VOID CACHE_TAG::SplitOnMiss() {
-    _cache->_cost_package->_data_reuse.UpdateTrie(_cache->_cost_package->_data_reuse.getRoot(), _seg);
+    _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), _seg);
     _seg.clear();
 }
 
 /* ===================================================================== */
-/* Base class for cache level */
+/* Base class for storage level */
 /* ===================================================================== */
 
-STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(CACHE *cache, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
-  : _cache(cache),
+STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity)
+  : _storage(storage),
     _name(name),
     _cacheSize(cacheSize),
     _lineSize(lineSize),
@@ -135,29 +135,29 @@ std::ostream & STORAGE_LEVEL_BASE::StatsLong(std::ostream & out) const
 /* Cache level */
 /* ===================================================================== */
 
-CACHE_LEVEL::CACHE_LEVEL(CACHE *cache, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
-  : STORAGE_LEVEL_BASE(cache, name, cacheSize, lineSize, associativity),
+CACHE_LEVEL::CACHE_LEVEL(STORAGE *storage, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
+  : STORAGE_LEVEL_BASE(storage, name, cacheSize, lineSize, associativity),
     _replacement_policy(policy),
     STORE_ALLOCATION(allocation)
 {
     // NumSets = cacheSize / (associativity * lineSize)
     if (policy == "direct_mapped") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            DIRECT_MAPPED *_set = new DIRECT_MAPPED(cache, associativity);
+            DIRECT_MAPPED *_set = new DIRECT_MAPPED(storage, associativity);
             _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
     }
     else if (policy == "round_robin") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            ROUND_ROBIN *_set = new ROUND_ROBIN(cache, associativity);
+            ROUND_ROBIN *_set = new ROUND_ROBIN(storage, associativity);
             _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
     }
     else if (policy == "lru") {
         for (UINT32 i = 0; i < NumSets(); i++) {
-            LRU *_set = new LRU(cache, associativity);
+            LRU *_set = new LRU(storage, associativity);
             _set->SetAssociativity(associativity);
             _sets.push_back(_set);
         }
@@ -183,10 +183,10 @@ CACHE_LEVEL::~CACHE_LEVEL()
 
 VOID CACHE_LEVEL::AddMemCost()
 {
-    BBLID bblid = _cache->_cost_package->_bbl_scope.top();
+    BBLID bblid = _storage->_cost_package->_bbl_scope.top();
     if (bblid != GLOBALBBLID) {
         for (UINT32 i = 0; i < MAX_COST_SITE; i++)
-            _cache->_cost_package->_BBL_memory_cost[i][bblid] += _hitcost[i];
+            _storage->_cost_package->_BBL_memory_cost[i][bblid] += _hitcost[i];
     }
 } 
 
@@ -236,7 +236,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         _next_level->AccessSingleLine(addr, accessType);
     }
     if (hit) {
-        // tag->InsertOnHit(_cache->_cost_package->_bbl_scope.top(), accessType);
+        // tag->InsertOnHit(_storage->_cost_package->_bbl_scope.top(), accessType);
     }
 
     return hit;
@@ -265,8 +265,8 @@ VOID CACHE_LEVEL::ResetStats()
 /* ===================================================================== */
 /* Memory Level */
 /* ===================================================================== */
-MEMORY_LEVEL::MEMORY_LEVEL(CACHE *cache, std::string name, COST hitcost[MAX_COST_SITE])
-  : STORAGE_LEVEL_BASE(cache, name, 64, 64, 1) // make the constructor happy
+MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, std::string name, COST hitcost[MAX_COST_SITE])
+  : STORAGE_LEVEL_BASE(storage, name, 64, 64, 1) // make the constructor happy
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++)
         _hitcost[i] = hitcost[i];
@@ -274,10 +274,10 @@ MEMORY_LEVEL::MEMORY_LEVEL(CACHE *cache, std::string name, COST hitcost[MAX_COST
 
 VOID MEMORY_LEVEL::AddMemCost()
 {
-    BBLID bblid = _cache->_cost_package->_bbl_scope.top();
+    BBLID bblid = _storage->_cost_package->_bbl_scope.top();
     if (bblid != GLOBALBBLID) {
         for (UINT32 i = 0; i < MAX_COST_SITE; i++)
-            _cache->_cost_package->_BBL_memory_cost[i][bblid] += _hitcost[i];
+            _storage->_cost_package->_BBL_memory_cost[i][bblid] += _hitcost[i];
     }
 }
 
@@ -309,29 +309,29 @@ BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 
 
 /* ===================================================================== */
-/* Cache */
+/* Storage */
 /* ===================================================================== */
 
-CACHE::CACHE()
+STORAGE::STORAGE()
 {
-    memset(_cache, 0, sizeof(_cache));
+    memset(_storage, 0, sizeof(_storage));
 }
 
-CACHE::~CACHE()
+STORAGE::~STORAGE()
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_LEVEL; j++)
-            delete _cache[i][j];
+            delete _storage[i][j];
     }
 }
 
-void CACHE::initialize(CostPackage *cost_package, ConfigReader &reader)
+void STORAGE::initialize(CostPackage *cost_package, ConfigReader &reader)
 {
     _cost_package = cost_package;
     ReadConfig(reader);
 }
 
-void CACHE::ReadConfig(ConfigReader &reader)
+void STORAGE::ReadConfig(ConfigReader &reader)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         INT32 last_level = -1;
@@ -344,21 +344,25 @@ void CACHE::ReadConfig(ConfigReader &reader)
             }
             last_level = j - 1;
 
-            bool readerror = false;
-            INT32 linesize = reader.GetInteger(name, "linesize", -1);
-            readerror |= (linesize == -1);
-            INT32 cachesize = reader.GetInteger(name, "cachesize", -1);
-            readerror |= (cachesize == -1);
-            INT32 associativity = reader.GetInteger(name, "associativity", -1);
-            readerror |= (associativity == -1);
-            INT32 allocation = reader.GetInteger(name, "allocation", -1);
-            readerror |= (allocation == -1);
-            std::string policy = reader.Get(name, "policy", "");
-            readerror |= (policy == "");
+            std::string attributes[5] = {"linesize", "cachesize", "associativity", "allocation", "policy"};
+            bool readerror[5] = {0};
 
-            if (readerror) {
-                errormsg() << "Cache: Invalid attribute in cache level `" << name <<"`" << std::endl;
-                ASSERTX(0);
+            INT32 linesize = reader.GetInteger(name, attributes[0], -1);
+            readerror[0] = (linesize == -1);
+            INT32 cachesize = reader.GetInteger(name, attributes[1], -1);
+            readerror[1] = (cachesize == -1);
+            INT32 associativity = reader.GetInteger(name, attributes[2], -1);
+            readerror[2] = (associativity == -1);
+            INT32 allocation = reader.GetInteger(name, attributes[3], -1);
+            readerror[3] = (allocation == -1);
+            std::string policy = reader.Get(name, attributes[4], "");
+            readerror[4] = (policy == "");
+
+            for (UINT32 i = 0; i < 5; i++) {
+                if (readerror[i]) {
+                    errormsg() << "Cache: Invalid attribute `" << attributes[i] << "` in cache level `" << name <<"`" << std::endl;
+                    ASSERTX(0);
+                }
             }
 
             COST hitcost[MAX_COST_SITE];
@@ -371,14 +375,14 @@ void CACHE::ReadConfig(ConfigReader &reader)
                 errormsg() << "Cache: Invalid hitcost in cache level `" << name <<"`" << std::endl;
                 ASSERTX(0);
             }
-            _cache[i][j] = new CACHE_LEVEL(this, name, policy, cachesize, linesize, associativity, allocation, hitcost);
-            // _cache[i][0:j] are not NULL for sure.
+            _storage[i][j] = new CACHE_LEVEL(this, name, policy, cachesize, linesize, associativity, allocation, hitcost);
+            // _storage[i][0:j] are not NULL for sure.
             if (j == UL2) {
-                _cache[i][IL1]->_next_level = _cache[i][j];
-                _cache[i][DL1]->_next_level = _cache[i][j];
+                _storage[i][IL1]->_next_level = _storage[i][j];
+                _storage[i][DL1]->_next_level = _storage[i][j];
             }
             if (j == UL3) {
-                _cache[i][UL2]->_next_level = _cache[i][j];
+                _storage[i][UL2]->_next_level = _storage[i][j];
             }
         }
 
@@ -394,24 +398,24 @@ void CACHE::ReadConfig(ConfigReader &reader)
             errormsg() << "Memory: Invalid hitcost in memory." << std::endl;
             ASSERTX(0);
         }
-        _cache[i][MEM] = new MEMORY_LEVEL(this, name, hitcost);
+        _storage[i][MEM] = new MEMORY_LEVEL(this, name, hitcost);
         if (last_level == DL1) {
-            _cache[i][IL1]->_next_level = _cache[i][MEM];
-            _cache[i][DL1]->_next_level = _cache[i][MEM];
+            _storage[i][IL1]->_next_level = _storage[i][MEM];
+            _storage[i][DL1]->_next_level = _storage[i][MEM];
         }
         else if (last_level != -1) {
-            _cache[i][last_level]->_next_level = _cache[i][MEM];
+            _storage[i][last_level]->_next_level = _storage[i][MEM];
         }
     }
 }
 
-std::ostream& CACHE::WriteConfig(std::ostream& out)
+std::ostream& STORAGE::WriteConfig(std::ostream& out)
 {
     // TODO
     return out;
 }
 
-void CACHE::WriteConfig(const std::string filename)
+void STORAGE::WriteConfig(const std::string filename)
 {
     std::ofstream out;
     out.open(filename.c_str(), ios_base::out);
@@ -419,16 +423,16 @@ void CACHE::WriteConfig(const std::string filename)
     out.close();
 }
 
-std::ostream& CACHE::WriteStats(std::ostream& out)
+std::ostream& STORAGE::WriteStats(std::ostream& out)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_LEVEL; j++) {
-            _cache[i][j]->StatsLong(out);
+            _storage[i][j]->StatsLong(out);
         }
     }
     return out;
 }
-void CACHE::WriteStats(const std::string filename)
+void STORAGE::WriteStats(const std::string filename)
 {
     std::ofstream out;
     out.open(filename.c_str(), ios_base::out);
@@ -436,39 +440,40 @@ void CACHE::WriteStats(const std::string filename)
     out.close();
 }
 
-VOID CACHE::InstrCacheRef(ADDRINT addr)
+VOID STORAGE::InstrCacheRef(ADDRINT addr)
 {
     const ACCESS_TYPE accessType = ACCESS_TYPE_LOAD;
 
     // TODO: We do not consider TLB cost for now.
-    // _cache[ITLB]->AccessSingleLine(addr, accessType);
+    // _storage[ITLB]->AccessSingleLine(addr, accessType);
 
     // assuming instruction cache access does not cross cache line
     // first level I-cache
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++)
-        _cache[i][IL1]->AccessSingleLine(addr, accessType);
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        _storage[i][IL1]->AccessSingleLine(addr, accessType);
+    }
 }
 
 
-VOID CACHE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID STORAGE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     // TODO: We do not consider TLB cost for now.
-    // _cache[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
-
-    // first level D-cache
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++)
-        _cache[i][DL1]->Access(addr, size, accessType);
-}
-
-VOID CACHE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
-{
-    // TODO: We do not consider TLB cost for now.
-    // _cache[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
+    // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        
-        _cache[i][DL1]->Access(addr, size, accessType);
+        _storage[i][DL1]->Access(addr, size, accessType);
+    }
+}
+
+VOID STORAGE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+{
+    // TODO: We do not consider TLB cost for now.
+    // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
+
+    // first level D-cache
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        _storage[i][DL1]->Access(addr, size, accessType);
     }
 }
 

@@ -130,9 +130,9 @@ void InstructionLatency::WriteConfig(const std::string filename)
 /* MemoryLatency */
 /* ===================================================================== */
 
-void MemoryLatency::initialize(CACHE *cache, CostPackage *cost_package, ConfigReader &reader)
+void MemoryLatency::initialize(STORAGE *storage, CostPackage *cost_package, ConfigReader &reader)
 {
-    _cache = cache;
+    _storage = storage;
     _cost_package = cost_package;
     SetBBLSize(_cost_package->_bbl_size);
 }
@@ -155,17 +155,17 @@ VOID MemoryLatency::SetBBLSize(BBLID bbl_size) {
 
 VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr)
 {
-    self->_cache->InstrCacheRef(addr);
+    self->_storage->InstrCacheRef(addr);
 }
 
 VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
-    self->_cache->DataCacheRefMulti(addr, size, accessType);
+    self->_storage->DataCacheRefMulti(addr, size, accessType);
 }
 
 VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
-    self->_cache->DataCacheRefSingle(addr, size, accessType);
+    self->_storage->DataCacheRefSingle(addr, size, accessType);
 }
 
 VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
@@ -210,5 +210,5 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
 VOID MemoryLatency::FinishInstrument(INT32 code, VOID *void_self)
 {
     MemoryLatency *self = (MemoryLatency *)void_self;
-    self->_cache->WriteStats("stats.out");
+    self->_storage->WriteStats("stats.out");
 }

@@ -27,7 +27,7 @@
 
 #include "PinUtil.h"
 #include "CostPackage.h"
-#include "Cache.h"
+#include "Storage.h"
 
 namespace PIMProf {
 class InstructionLatency {
@@ -75,12 +75,12 @@ class InstructionLatency {
 
 class MemoryLatency {
   private:
-    CACHE *_cache;
+    STORAGE *_storage;
     /// Reference to PinInstrument data
     CostPackage *_cost_package;
 
   public:
-    void initialize(CACHE *cache, CostPackage *cost_package, ConfigReader &reader);
+    void initialize(STORAGE *cache, CostPackage *cost_package, ConfigReader &reader);
     void instrument();
 
   public:

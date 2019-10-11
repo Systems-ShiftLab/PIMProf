@@ -1,4 +1,4 @@
-//===- Cache.h - Cache implementation ---------------------------*- C++ -*-===//
+//===- Storage.h - Cache implementation ---------------------------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __CACHE_H__
-#define __CACHE_H__
+#ifndef __STORAGE_H__
+#define __STORAGE_H__
 
 #include <fstream>
 #include <iostream>
@@ -80,7 +80,7 @@ static inline INT32 CeilLog2(UINT32 n)
 namespace PIMProf {
 
 // forward declaration
-class CACHE;
+class STORAGE;
 
 /// @brief Cache tag
 /// dynamic data structure should only be allocated on construction
@@ -90,13 +90,13 @@ class CACHE_TAG
   private:
     ADDRINT _tag;
     DataReuseSegment _seg;
-    CACHE *_cache;
+    STORAGE *_storage;
 
   public:
-    CACHE_TAG(CACHE *cache, ADDRINT tagaddr = 0)
+    CACHE_TAG(STORAGE *storage, ADDRINT tagaddr = 0)
     {
         _tag = tagaddr;
-        _cache = cache;
+        _storage = storage;
     }
 
     inline bool operator == (const ADDRINT &rhs) const { return _tag == rhs; }
@@ -106,7 +106,7 @@ class CACHE_TAG
     }
     inline ADDRINT GetTag() const { return _tag; }
 
-    inline CACHE *GetParent() { return _cache; }
+    inline STORAGE *GetParent() { return _storage; }
 
     inline VOID InsertOnHit(BBLID bblid, ACCESS_TYPE accessType);
 
@@ -118,7 +118,7 @@ class CACHE_SET
 {
   protected:
     static const UINT32 MAX_ASSOCIATIVITY = 32;
-    CACHE *_cache;
+    STORAGE *_storage;
   public:
     virtual ~CACHE_SET() {};
     virtual VOID SetAssociativity(UINT32 associativity) = 0;
@@ -135,11 +135,11 @@ class DIRECT_MAPPED : public CACHE_SET
     CACHE_TAG *_tag;
 
   public:
-    inline DIRECT_MAPPED(CACHE *cache, UINT32 associativity = 1) 
+    inline DIRECT_MAPPED(STORAGE *storage, UINT32 associativity = 1) 
     {
         ASSERTX(associativity == 1);
-        _tag = new CACHE_TAG(cache, 0);
-        _cache = cache;
+        _tag = new CACHE_TAG(storage, 0);
+        _storage = storage;
     }
 
     inline ~DIRECT_MAPPED()
@@ -175,7 +175,7 @@ class ROUND_ROBIN : public CACHE_SET
 
   public:
     
-    inline ROUND_ROBIN(CACHE *cache, UINT32 associativity)
+    inline ROUND_ROBIN(STORAGE *storage, UINT32 associativity)
         : _tagsLastIndex(associativity - 1)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
@@ -183,9 +183,9 @@ class ROUND_ROBIN : public CACHE_SET
 
         for (INT32 index = _tagsLastIndex; index >= 0; index--)
         {
-            _tags[index] = new CACHE_TAG(cache, 0);
+            _tags[index] = new CACHE_TAG(storage, 0);
         }
-        _cache = cache;
+        _storage = storage;
     }
 
     inline ~ROUND_ROBIN()
@@ -247,16 +247,16 @@ class LRU : public CACHE_SET
     CacheTagList _tags;
 
   public:
-    inline LRU(CACHE *cache, UINT32 associativity = MAX_ASSOCIATIVITY)
+    inline LRU(STORAGE *storage, UINT32 associativity = MAX_ASSOCIATIVITY)
     {
         ASSERTX(associativity <= MAX_ASSOCIATIVITY);
         for (UINT32 i = 0; i < associativity; i++)
         {
-            CACHE_TAG *tag = new CACHE_TAG(cache, 0);
+            CACHE_TAG *tag = new CACHE_TAG(storage, 0);
             tag->SetTag(0);
             _tags.push_back(tag);
         }
-        _cache = cache;
+        _storage = storage;
     }
 
     inline ~LRU()
@@ -280,7 +280,7 @@ class LRU : public CACHE_SET
         }
         for (UINT32 i = 0; i < associativity; i++)
         {
-            CACHE_TAG *tag = new CACHE_TAG(_cache, 0);
+            CACHE_TAG *tag = new CACHE_TAG(_storage, 0);
             _tags.push_back(tag);
         }
     }
@@ -328,7 +328,7 @@ class LRU : public CACHE_SET
         }
         for (UINT32 i = 0; i < associativity; i++)
         {
-            CACHE_TAG *tag = new CACHE_TAG(_cache, 0);
+            CACHE_TAG *tag = new CACHE_TAG(_storage, 0);
             _tags.push_back(tag);
         }
     }
@@ -347,13 +347,13 @@ enum STORE_ALLOCATION
 /// @brief Generic base class of storage level; no allocate specialization, no cache set specialization; the memory is imitated with this class as well.
 class STORAGE_LEVEL_BASE
 {
-    friend class CACHE;
+    friend class STORAGE;
   protected:
     static const UINT32 HIT_MISS_NUM = 2;
     CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
 
   protected:
-    CACHE *_cache;
+    STORAGE *_storage;
     STORAGE_LEVEL_BASE *_next_level;
     // _hitcost should be assigned to zero if not used
     COST _hitcost[MAX_COST_SITE];
@@ -392,7 +392,7 @@ class STORAGE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    STORAGE_LEVEL_BASE(CACHE *cache, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
+    STORAGE_LEVEL_BASE(STORAGE *storage, std::string name, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity);
     virtual ~STORAGE_LEVEL_BASE() = default;
 
     // accessors
@@ -455,7 +455,7 @@ class CACHE_LEVEL : public STORAGE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    CACHE_LEVEL(CACHE *cache, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
+    CACHE_LEVEL(STORAGE *storage, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
     ~CACHE_LEVEL();
 
     // modifiers
@@ -484,7 +484,7 @@ class MEMORY_LEVEL : public STORAGE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    MEMORY_LEVEL(CACHE *cache, std::string name, COST hitcost[MAX_COST_SITE]);
+    MEMORY_LEVEL(STORAGE *storage, std::string name, COST hitcost[MAX_COST_SITE]);
 
     // modifiers
     VOID AddMemCost();
@@ -498,19 +498,19 @@ class MEMORY_LEVEL : public STORAGE_LEVEL_BASE
     BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
 };
 
-class CACHE
+class STORAGE
 {
   private:
     // point to the corresponding level of storage, if any.
-    STORAGE_LEVEL_BASE *_cache[MAX_COST_SITE][MAX_LEVEL];
+    STORAGE_LEVEL_BASE *_storage[MAX_COST_SITE][MAX_LEVEL];
 
   public:
     /// Reference to PinInstrument data
     CostPackage *_cost_package;
 
   public:
-    CACHE();
-    ~CACHE();
+    STORAGE();
+    ~STORAGE();
   public:
     void initialize(CostPackage *cost_package, ConfigReader &reader);
 
@@ -539,4 +539,4 @@ class CACHE
 
 } // namespace PIMProf
 
-#endif // __CACHE_H__
+#endif // __STORAGE_H__

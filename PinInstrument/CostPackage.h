@@ -15,6 +15,7 @@
 #include <stack>
 #include <algorithm>
 #include <iostream>
+#include <unordered_map>
 
 #include "pin.H"
 #include "PinUtil.h"
@@ -54,6 +55,8 @@ class CostPackage {
 
 
     DataReuse _data_reuse;
+
+    std::unordered_map<ADDRINT, DataReuseSegment> _tag_seg_map;
 
   public:
     void initialize(ConfigReader &reader);

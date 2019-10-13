@@ -31,7 +31,7 @@ enum CostSite {
 extern const std::string CostSiteName[MAX_COST_SITE];
 
 // MAX_LEVEL comes last to indicate the number of entries in this enum
-enum {
+enum StorageLevel {
     IL1, DL1, UL2, UL3, MEM, MAX_LEVEL
 };
 extern const std::string StorageLevelName[MAX_LEVEL];

@@ -89,7 +89,6 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
-    DataReuseSegment _seg;
     STORAGE *_storage;
 
   public:
@@ -107,10 +106,6 @@ class CACHE_TAG
     inline ADDRINT GetTag() const { return _tag; }
 
     inline STORAGE *GetParent() { return _storage; }
-
-    inline VOID InsertOnHit(BBLID bblid, ACCESS_TYPE accessType);
-
-    inline VOID SplitOnMiss();
 };
 
 
@@ -348,6 +343,8 @@ enum STORE_ALLOCATION
 class STORAGE_LEVEL_BASE
 {
     friend class STORAGE;
+    friend class CACHE_LEVEL;
+    friend class MEMORY_LEVEL;
   protected:
     static const UINT32 HIT_MISS_NUM = 2;
     CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
@@ -364,7 +361,8 @@ class STORAGE_LEVEL_BASE
 
   protected:
     // input params
-    const std::string _name;
+    const CostSite _cost_site;
+    const StorageLevel _storage_level;
 
     CACHE_STATS SumAccess(bool hit) const
     {
@@ -380,7 +378,7 @@ class STORAGE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    STORAGE_LEVEL_BASE(STORAGE *storage, std::string name);
+    STORAGE_LEVEL_BASE(STORAGE *storage, CostSite cost_site, StorageLevel storage_level);
     virtual ~STORAGE_LEVEL_BASE() = default;
 
     CACHE_STATS Hits(ACCESS_TYPE accessType) const { return _access[accessType][true]; }
@@ -390,8 +388,17 @@ class STORAGE_LEVEL_BASE
     CACHE_STATS Misses() const { return SumAccess(false); }
     CACHE_STATS Accesses() const { return Hits() + Misses(); }
 
+    inline VOID InsertOnHit(ADDRINT tag, BBLID bblid, ACCESS_TYPE accessType);
+
+    inline VOID SplitOnMiss(ADDRINT tag);
+
+    inline std::string Name() const
+    {
+        return (CostSiteName[_cost_site] + "/" + StorageLevelName[_storage_level]);
+    }
+
     /// @brief Stats output method
-    std::ostream &StatsLong(std::ostream &out) const;
+    virtual std::ostream &StatsLong(std::ostream &out) const;
     VOID CountMemoryCost(std::vector<COST> (&_BBL_cost)[MAX_COST_SITE], int cache_level) const;
 };
 
@@ -426,7 +433,7 @@ class CACHE_LEVEL : public STORAGE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    CACHE_LEVEL(STORAGE *storage, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
+    CACHE_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
     ~CACHE_LEVEL();
 
   public:
@@ -489,7 +496,7 @@ class MEMORY_LEVEL : public STORAGE_LEVEL_BASE
 
   public:
     // constructors/destructors
-    MEMORY_LEVEL(STORAGE *storage, std::string name, COST hitcost[MAX_COST_SITE]);
+    MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, COST hitcost[MAX_COST_SITE]);
 
     // modifiers
     VOID AddMemCost();

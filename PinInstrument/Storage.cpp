@@ -43,33 +43,13 @@ std::string StringString(std::string val, UINT32 width=0, CHAR padding=' ')
 }
 
 /* ===================================================================== */
-/* Cache tag */
-/* ===================================================================== */
-
-VOID CACHE_TAG::InsertOnHit(BBLID bblid, ACCESS_TYPE accessType) {
-    if (bblid != GLOBALBBLID) {
-        _seg.insert(bblid);
-        // split then insert on store
-        if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-            _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), _seg);
-            _seg.clear();
-            _seg.insert(bblid);
-        }
-    }
-}
-
-VOID CACHE_TAG::SplitOnMiss() {
-    _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), _seg);
-    _seg.clear();
-}
-
-/* ===================================================================== */
 /* Base class for storage level */
 /* ===================================================================== */
 
-STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, std::string name)
+STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, CostSite cost_site, StorageLevel storage_level)
   : _storage(storage),
-    _name(name)
+    _cost_site(cost_site),
+    _storage_level(storage_level)
 {
     for (UINT32 accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
     {
@@ -78,13 +58,32 @@ STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, std::string name)
     }
 }
 
+VOID STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, BBLID bblid, ACCESS_TYPE accessType) {
+    if (bblid != GLOBALBBLID) {
+        DataReuseSegment &seg = _storage->_cost_package->_tag_seg_map[tag];
+        seg.insert(bblid);
+        // split then insert on store
+        if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
+            _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), seg);
+            seg.clear();
+            seg.insert(bblid);
+        }
+    }
+}
+
+VOID STORAGE_LEVEL_BASE::SplitOnMiss(ADDRINT tag) {
+    DataReuseSegment &seg = _storage->_cost_package->_tag_seg_map[tag];
+    _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), seg);
+    seg.clear();
+}
+
 
 std::ostream & STORAGE_LEVEL_BASE::StatsLong(std::ostream & out) const
 {
     const UINT32 headerWidth = 19;
     const UINT32 numberWidth = 10;
 
-    out << _name << ":" << std::endl;
+    out << Name() << ":" << std::endl;
 
     for (UINT32 i = 0; i < ACCESS_TYPE_NUM; i++)
     {
@@ -120,8 +119,8 @@ std::ostream & STORAGE_LEVEL_BASE::StatsLong(std::ostream & out) const
 /* Cache level */
 /* ===================================================================== */
 
-CACHE_LEVEL::CACHE_LEVEL(STORAGE *storage, std::string name, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
-  : STORAGE_LEVEL_BASE(storage, name),
+CACHE_LEVEL::CACHE_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE])
+  : STORAGE_LEVEL_BASE(storage, cost_site, storage_level),
     _cacheSize(cacheSize),
     _lineSize(lineSize),
     _associativity(associativity),
@@ -223,12 +222,14 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
         tag = set->Replace(tagaddr);
-        // tag->SplitOnMiss();
+
         ASSERTX(_next_level != NULL);
+        if (_next_level->_storage_level == MEM)
+            SplitOnMiss(tagaddr);
         _next_level->AccessSingleLine(addr, accessType);
     }
     if (hit) {
-        // tag->InsertOnHit(_storage->_cost_package->_bbl_scope.top(), accessType);
+        InsertOnHit(tagaddr, _storage->_cost_package->_bbl_scope.top(), accessType);
     }
 
     return hit;
@@ -269,8 +270,8 @@ VOID CACHE_LEVEL::ResetStats()
 /* ===================================================================== */
 /* Memory Level */
 /* ===================================================================== */
-MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, std::string name, COST hitcost[MAX_COST_SITE])
-  : STORAGE_LEVEL_BASE(storage, name)
+MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, COST hitcost[MAX_COST_SITE])
+  : STORAGE_LEVEL_BASE(storage, cost_site, storage_level)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++)
         _hitcost[i] = hitcost[i];
@@ -327,6 +328,7 @@ void STORAGE::initialize(CostPackage *cost_package, ConfigReader &reader)
 
 void STORAGE::ReadConfig(ConfigReader &reader)
 {
+    INT32 global_linesize = -1;
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         INT32 last_level = -1;
         // read cache configuration and create cache hierarchy
@@ -359,6 +361,16 @@ void STORAGE::ReadConfig(ConfigReader &reader)
                 }
             }
 
+            if (global_linesize == -1) {
+                global_linesize = linesize;
+            }
+            else {
+                if (linesize != global_linesize) {
+                    errormsg() << "Cache: Line size of cache levels are not consistent" << std::endl;
+                    ASSERTX(0);
+                }
+            }
+
             COST hitcost[MAX_COST_SITE];
             memset(hitcost, 0, sizeof(hitcost));
             COST cost = reader.GetReal(name, "hitcost", -1);
@@ -369,7 +381,7 @@ void STORAGE::ReadConfig(ConfigReader &reader)
                 errormsg() << "Cache: Invalid hitcost in cache level `" << name <<"`" << std::endl;
                 ASSERTX(0);
             }
-            _storage[i][j] = new CACHE_LEVEL(this, name, policy, cachesize, linesize, associativity, allocation, hitcost);
+            _storage[i][j] = new CACHE_LEVEL(this, (CostSite)i, (StorageLevel)j, policy, cachesize, linesize, associativity, allocation, hitcost);
             // _storage[i][0:j] are not NULL for sure.
             if (j == UL2) {
                 _storage[i][IL1]->_next_level = _storage[i][j];
@@ -392,7 +404,7 @@ void STORAGE::ReadConfig(ConfigReader &reader)
             errormsg() << "Memory: Invalid hitcost in memory." << std::endl;
             ASSERTX(0);
         }
-        _storage[i][MEM] = new MEMORY_LEVEL(this, name, hitcost);
+        _storage[i][MEM] = new MEMORY_LEVEL(this, (CostSite)i, MEM, hitcost);
         if (last_level == DL1) {
             _storage[i][IL1]->_next_level = _storage[i][MEM];
             _storage[i][DL1]->_next_level = _storage[i][MEM];

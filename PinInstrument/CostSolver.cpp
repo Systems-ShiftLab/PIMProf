@@ -38,8 +38,8 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < _cost_package->_bbl_size; j++) {
             _BBL_partial_total[i][j]
-                = _cost_package->_BBL_instruction_cost[i][j] * _cost_package->_instruction_multiplier[i]
-                + _cost_package->_BBL_memory_cost[i][j];
+                = _cost_package->BBLInstructionCost((CostSite)i, j)
+                + _cost_package->BBLMemoryCost((CostSite)i, j);
         }
     }
 
@@ -126,8 +126,8 @@ COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         CostSite site = decision[i];
         if (site == CPU || site == PIM) {
-            cur_instr_cost += _cost_package->_BBL_instruction_cost[site][i] * _cost_package->_instruction_multiplier[site];
-            cur_mem_cost += _cost_package->_BBL_memory_cost[site][i];
+            cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
+            cur_mem_cost += _cost_package->BBLMemoryCost(site, i);
         }
     }
     return (cur_reuse_cost + cur_instr_cost + cur_mem_cost);
@@ -256,6 +256,24 @@ CostSolver::DECISION CostSolver::FindOptimal()
 VOID CostSolver::ReadConfig(ConfigReader &reader)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        COST ilp = reader.GetInteger("ILP", CostSiteName[i], -1);
+        ASSERTX(ilp > 0);
+        _cost_package->_ilp[i] = ilp;
+    }
+
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        COST mlp = reader.GetInteger("MLP", CostSiteName[i], -1);
+        ASSERTX(mlp > 0);
+        _cost_package->_mlp[i] = mlp;
+    }
+
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        UINT32 core = reader.GetInteger("Core", CostSiteName[i], -1);
+        ASSERTX(core > 0);
+        _cost_package->_core_count[i] = core;
+    }
+
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_COST_SITE; j++) {
             std::string coststr = CostSiteName[i] + "to" + CostSiteName[j];
             COST cost = reader.GetReal("UnitControlCost", coststr, -1);
@@ -333,8 +351,8 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         CostSite site = decision[i];
         if (site == CPU || site == PIM) {
-            cur_instr_cost += _cost_package->_BBL_instruction_cost[site][i] * _cost_package->_instruction_multiplier[site];
-            cur_mem_cost += _cost_package->_BBL_memory_cost[site][i];
+            cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
+            cur_mem_cost += _cost_package->BBLMemoryCost(site, i);
         }
     }
 
@@ -354,14 +372,12 @@ std::ostream &CostSolver::PrintBBLDecisionStat(std::ostream &out, const DECISION
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         out << i << "\t"
         << (decision[i] == CPU ? "C" : "") << (decision[i] == PIM ? "P" : "") << "\t"
-        << _cost_package->_BBL_instruction_cost[CPU][i] *
-           _cost_package->_instruction_multiplier[CPU]
+        << _cost_package->BBLInstructionCost(CPU, i)
         << "\t\t"
-        << _cost_package->_BBL_instruction_cost[PIM][i] * 
-           _cost_package->_instruction_multiplier[PIM]
+        << _cost_package->BBLInstructionCost(PIM, i)
         << "\t\t"
-        << _cost_package->_BBL_memory_cost[CPU][i] << "\t\t"
-        << _cost_package->_BBL_memory_cost[PIM][i] << "\t\t"
+        << _cost_package->BBLMemoryCost(CPU, i) << "\t\t"
+        << _cost_package->BBLMemoryCost(PIM, i) << "\t\t"
         << _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i] << std::endl;
     }
     return out;

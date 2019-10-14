@@ -31,8 +31,8 @@ class CostPackage {
   public:
     // BBLScope information
     BBLScope _bbl_scope;
-    bool _inOpenMPRegion;
     BBLID _bbl_size;
+    std::vector<bool> _inOpenMPRegion;
 
     long long int _instr_cnt;
     long long int _mem_instr_cnt;
@@ -45,6 +45,10 @@ class CostPackage {
     COST _instruction_multiplier[MAX_COST_SITE];
     /// the total instruction cost of each BB
     std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
+
+    COST _ilp[MAX_COST_SITE];
+    COST _mlp[MAX_COST_SITE];
+    UINT32 _core_count[MAX_COST_SITE];
 
 
     /// the total memory cost of each BB
@@ -59,7 +63,26 @@ class CostPackage {
     std::unordered_map<ADDRINT, DataReuseSegment> _tag_seg_map;
 
   public:
-    void initialize(ConfigReader &reader);
+    void initialize();
+
+    inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
+        if (_inOpenMPRegion[bbl]) {
+            infomsg() << "wow" << bbl << std::endl;
+            return _BBL_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
+        }
+        else {
+            return _BBL_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site];
+        }
+        
+    }
+    inline COST BBLMemoryCost(CostSite site, BBLID bbl) {
+        if (_inOpenMPRegion[bbl]) {
+            return _BBL_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
+        }
+        else {
+            return _BBL_memory_cost[site][bbl] / _mlp[site];
+        }
+    }
 };
 
 } // namespace PIMProf

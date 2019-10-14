@@ -25,7 +25,7 @@ void PinInstrument::initialize(int argc, char *argv[])
     ReadControlFlowGraph(_command_line_parser.controlflowfile());
 
     _config_reader = ConfigReader(_command_line_parser.configfile());
-    _cost_package.initialize(_config_reader);
+    _cost_package.initialize();
     _storage.initialize(&_cost_package, _config_reader);
     _instruction_latency.initialize(&_cost_package, _config_reader);
     _memory_latency.initialize(&_storage, &_cost_package, _config_reader);
@@ -65,7 +65,7 @@ void PinInstrument::simulate()
 VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, BBLID bblid, INT32 isomp)
 {
     // std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
-    self->_cost_package._bbl_scope.push(bblid);
+    self->_cost_package._bbl_scope.push(bblid);self->_cost_package._inOpenMPRegion[bblid] = isomp;
 }
 
 VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, BBLID bblid, INT32 isomp)
@@ -73,7 +73,6 @@ VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, BBLID bblid, INT32 is
     // std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
     ASSERTX(self->_cost_package._bbl_scope.top() == bblid);
     self->_cost_package._bbl_scope.pop();
-    self->_cost_package._inOpenMPRegion = false;
 }
 
 VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)

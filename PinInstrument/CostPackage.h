@@ -43,14 +43,13 @@ class CostPackage {
     COST _instruction_latency[MAX_COST_SITE][MAX_INDEX];
     /// the cost multiplier of each cost site
     COST _instruction_multiplier[MAX_COST_SITE];
-    /// the total instruction cost of each BB
-    std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
 
     COST _ilp[MAX_COST_SITE];
     COST _mlp[MAX_COST_SITE];
     UINT32 _core_count[MAX_COST_SITE];
 
-
+    /// the total instruction cost of each BB
+    std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
     /// the total memory cost of each BB
     std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
 

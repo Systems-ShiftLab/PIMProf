@@ -62,8 +62,8 @@ class PinInstrument {
   
   // "self" enables us to use non-static members in static functions
   protected:
-    static VOID DoAtAnnotatorHead(PinInstrument *self, BBLID bblid, INT32 isomp);
-    static VOID DoAtAnnotatorTail(PinInstrument *self, BBLID bblid, INT32 isomp);
+    static VOID DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblid, ADDRINT isomp);
+    static VOID DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblid, ADDRINT isomp);
 
     /// The instrumentation function for an entire image
     static VOID ImageInstrument(IMG img, VOID *void_self);

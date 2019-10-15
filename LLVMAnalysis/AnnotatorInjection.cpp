@@ -33,17 +33,17 @@ namespace {
         Function *annotator_head = dyn_cast<Function>(
             M.getOrInsertFunction(
                 PIMProfAnnotatorHead, 
-                FunctionType::getInt32Ty(ctx), 
-                Type::getInt32Ty(ctx),
-                Type::getInt32Ty(ctx)
+                FunctionType::getInt64Ty(ctx), 
+                Type::getInt64Ty(ctx),
+                Type::getInt64Ty(ctx)
             )
         );
         Function *annotator_tail = dyn_cast<Function>(
             M.getOrInsertFunction(
                 PIMProfAnnotatorTail, 
-                FunctionType::getInt32Ty(ctx), 
-                Type::getInt32Ty(ctx),
-                Type::getInt32Ty(ctx)
+                FunctionType::getInt64Ty(ctx), 
+                Type::getInt64Ty(ctx),
+                Type::getInt64Ty(ctx)
             )
         );
 
@@ -55,14 +55,14 @@ namespace {
         // errs() << "\n";
         // insert instruction
         Value *bblid = ConstantInt::get(
-            IntegerType::get(M.getContext(),32), BBLID);
+            IntegerType::get(M.getContext(), 64), BBLID);
 
         std::string funcname = BB.getParent()->getName();
         // errs() << funcname << "\n";
         // errs() << (funcname.find(OpenMPIdentifier) != std::string::npos) << "\n";
 
         Value *isomp = ConstantInt::get(
-            IntegerType::get(M.getContext(),32), 
+            IntegerType::get(M.getContext(), 64), 
             (funcname.find(OpenMPIdentifier) != std::string::npos));
         
         std::vector<Value *> arglist;
@@ -85,7 +85,7 @@ namespace {
             ctx, 
             ConstantAsMetadata::get(
                 ConstantInt::get(
-                    IntegerType::get(M.getContext(),32), BBLID)
+                    IntegerType::get(M.getContext(), 64), BBLID)
             )
         );
         BB.getTerminator()->setMetadata(PIMProfBBLIDMetadata, md);

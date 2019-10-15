@@ -26,11 +26,11 @@ LLVMContext ctx;
 // provide definition of function if it has not been defined
 // intended behavior:
 // ; Function Attrs: noinline nounwind optnone uwtable
-// define i32 @Annotator(i32, i32) {
-//     %2 = alloca i32, align 4
-//     store i32 %0, i32* %2, align 4
-//     %3 = load i32, i32* %2, align 4
-//     ret i32 %3
+// define i64 @Annotator(i64, i64) {
+//     %2 = alloca i64, align 4
+//     store i64 %0, i64* %2, align 4
+//     %3 = load i64, i64* %2, align 4
+//     ret i64 %3
 // }
 void CreateAnnotatorFunction(const std::string name, Module &M)
 {
@@ -38,9 +38,9 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
     Function *annotator = dyn_cast<Function>(
         M.getOrInsertFunction(
             name, 
-            FunctionType::getInt32Ty(ctx), 
-            Type::getInt32Ty(ctx),
-            Type::getInt32Ty(ctx)
+            FunctionType::getInt64Ty(ctx), 
+            Type::getInt64Ty(ctx),
+            Type::getInt64Ty(ctx)
         )
     );
 
@@ -55,7 +55,7 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
     if (annotator->empty()) {
         BasicBlock *temp = BasicBlock::Create(
             ctx, "", annotator, 0);
-        auto al = new AllocaInst(Type::getInt32Ty(ctx), 0, "", temp);
+        auto al = new AllocaInst(Type::getInt64Ty(ctx), 0, "", temp);
         al->setAlignment(4);
         auto st = new StoreInst(annotator->arg_begin(), al, temp);
         st->setAlignment(4);
@@ -67,7 +67,7 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
             ctx, 
             ConstantAsMetadata::get(
                 ConstantInt::get(
-                    IntegerType::get(M.getContext(),32), PIMProfAnnotatorBBLID)
+                    IntegerType::get(M.getContext(), 64), PIMProfAnnotatorBBLID)
             )
         );
         rt->setMetadata(PIMProfBBLIDMetadata, md);

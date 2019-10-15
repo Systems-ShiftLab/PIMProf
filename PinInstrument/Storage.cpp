@@ -315,8 +315,11 @@ STORAGE::STORAGE()
 STORAGE::~STORAGE()
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < MAX_LEVEL; j++)
-            delete _storage[i][j];
+        for (UINT32 j = 0; j < MAX_LEVEL; j++) {
+            if (_storage[i][j] != NULL)
+                delete _storage[i][j];
+        }
+            
     }
 }
 
@@ -338,7 +341,7 @@ void STORAGE::ReadConfig(ConfigReader &reader)
             if (sections.find(name) == sections.end()) {
                 break;
             }
-            last_level = j - 1;
+            last_level = j;
 
             std::string attributes[5] = {"linesize", "cachesize", "associativity", "allocation", "policy"};
             bool readerror[5] = {0};
@@ -431,11 +434,12 @@ void STORAGE::WriteConfig(const std::string filename)
 
 std::ostream& STORAGE::WriteStats(std::ostream& out)
 {
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < MAX_LEVEL; j++) {
-            _storage[i][j]->StatsLong(out);
-        }
-    }
+    // TODO: ignore this for now
+    // for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    //     for (UINT32 j = 0; j < MAX_LEVEL; j++) {
+    //         _storage[i][j]->StatsLong(out);
+    //     }
+    // }
     return out;
 }
 void STORAGE::WriteStats(const std::string filename)

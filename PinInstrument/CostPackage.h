@@ -67,7 +67,7 @@ class CostPackage {
 
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
         if (_inOpenMPRegion[bbl]) {
-            infomsg() << "wow" << bbl << std::endl;
+            // infomsg() << "wow" << bbl << std::endl;
             return _BBL_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
         }
         else {

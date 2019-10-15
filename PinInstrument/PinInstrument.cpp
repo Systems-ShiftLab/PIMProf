@@ -18,6 +18,10 @@ using namespace PIMProf;
 // we have to use a separate function to initialize it.
 void PinInstrument::initialize(int argc, char *argv[])
 {
+# if !(__GNUC__) || !(__x86_64__)
+    errormsg() << "Incompatible system" << std::endl;
+    ASSERTX(0);
+#endif
     PIN_InitSymbols();
 
     _command_line_parser.initialize(argc, argv);
@@ -62,15 +66,15 @@ void PinInstrument::simulate()
     PIN_StartProgram();
 }
 
-VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, BBLID bblid, INT32 isomp)
+VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblid, ADDRINT isomp)
 {
-    // std::cout << std::dec << "PIMProfHead: " << bblid << std::endl;
-    self->_cost_package._bbl_scope.push(bblid);self->_cost_package._inOpenMPRegion[bblid] = isomp;
+    self->_cost_package._bbl_scope.push(bblid);
+    self->_cost_package._inOpenMPRegion[bblid] = isomp;
+    // infomsg() << bblid << " " << isomp << std::endl;
 }
 
-VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, BBLID bblid, INT32 isomp)
+VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblid, ADDRINT isomp)
 {
-    // std::cout << std::dec << "PIMProfTail: " << bblid << std::endl;
     ASSERTX(self->_cost_package._bbl_scope.top() == bblid);
     self->_cost_package._bbl_scope.pop();
 }

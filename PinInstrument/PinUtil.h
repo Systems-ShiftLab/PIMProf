@@ -23,7 +23,7 @@ namespace PIMProf {
 typedef UINT32 CACHE_STATS;
 typedef FLT64 COST;
 typedef UINT32 BBLID;
-typedef std::pair<UINT64, UINT64> BBLHASH;
+typedef std::pair<UINT64, UINT64> UUID;
 
 
 enum CostSite {

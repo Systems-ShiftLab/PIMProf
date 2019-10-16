@@ -31,8 +31,8 @@ static const UINT32 MAX_MEM_SIZE = 512;
 class HashFunc
 {
   public:
-    // assuming BBLHASH is already murmurhash-ed.
-    std::size_t operator()(const BBLHASH &key) const
+    // assuming UUID is already murmurhash-ed.
+    std::size_t operator()(const UUID &key) const
     {
         size_t result = key.first ^ key.second;
         return result;
@@ -43,14 +43,14 @@ class CostPackage {
   public:
     // BBLScope information
     BBLScope _bbl_scope;
-    std::unordered_map<BBLHASH, UINT32, HashFunc> _BBL_hash;
+    std::unordered_map<UUID, UINT32, HashFunc> _bbl_hash;
     BBLID _bbl_size = 0;
     /// whether this region is in openmp
     std::vector<bool> _inOpenMPRegion;
     /// the total instruction cost of each BB
-    std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
+    std::vector<COST> _bbl_instruction_cost[MAX_COST_SITE];
     /// the total memory cost of each BB
-    std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
+    std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
 
     long long int _instr_cnt;
     long long int _mem_instr_cnt;
@@ -81,19 +81,19 @@ class CostPackage {
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
         if (_inOpenMPRegion[bbl]) {
             // infomsg() << "wow" << bbl << std::endl;
-            return _BBL_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
+            return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
         }
         else {
-            return _BBL_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site];
+            return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site];
         }
         
     }
     inline COST BBLMemoryCost(CostSite site, BBLID bbl) {
         if (_inOpenMPRegion[bbl]) {
-            return _BBL_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
+            return _bbl_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
         }
         else {
-            return _BBL_memory_cost[site][bbl] / _mlp[site];
+            return _bbl_memory_cost[site][bbl] / _mlp[site];
         }
     }
 };

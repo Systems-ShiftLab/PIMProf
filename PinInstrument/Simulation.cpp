@@ -40,8 +40,8 @@ void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &rea
 
 // void InstructionLatency::SetBBLSize(BBLID bbl_size) {
 //     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-//         _cost_package->_BBL_instruction_cost[i].resize(bbl_size);
-//         memset(&_cost_package->_BBL_instruction_cost[i][0], 0, bbl_size * sizeof _cost_package->_BBL_instruction_cost[i][0]);
+//         _cost_package->_bbl_instruction_cost[i].resize(bbl_size);
+//         memset(&_cost_package->_bbl_instruction_cost[i][0], 0, bbl_size * sizeof _cost_package->_bbl_instruction_cost[i][0]);
 //     }
 // }
 
@@ -63,7 +63,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
     else {
         self->_cost_package->_nonmem_instr_cnt++;
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            self->_cost_package->_BBL_instruction_cost[i][bblid] += self->_cost_package->_instruction_latency[i][opcode];
+            self->_cost_package->_bbl_instruction_cost[i][bblid] += self->_cost_package->_instruction_latency[i][opcode];
         }
     }
 }
@@ -147,8 +147,8 @@ void MemoryLatency::instrument()
 
 // VOID MemoryLatency::SetBBLSize(BBLID bbl_size) {
 //     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-//         _cost_package->_BBL_memory_cost[i].resize(bbl_size);
-//         memset(&_cost_package->_BBL_memory_cost[i][0], 0, bbl_size * sizeof _cost_package->_BBL_memory_cost[i][0]);
+//         _cost_package->_bbl_memory_cost[i].resize(bbl_size);
+//         memset(&_cost_package->_bbl_memory_cost[i][0], 0, bbl_size * sizeof _cost_package->_bbl_memory_cost[i][0]);
 //     }
 // }
 

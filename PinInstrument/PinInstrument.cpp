@@ -70,19 +70,19 @@ void PinInstrument::simulate()
 VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
 {
     CostPackage &pkg = self->_cost_package;
-    infomsg() << "AnnotatorHead: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
-    auto bblhash = BBLHASH(bblhash_hi, bblhash_lo);
-    auto it = pkg._BBL_hash.find(bblhash);
-    if (it == pkg._BBL_hash.end()) {
-        pkg._BBL_hash[bblhash] = pkg._bbl_size;
-        it = pkg._BBL_hash.find(bblhash);
+    // infomsg() << "AnnotatorHead: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
+    auto bblhash = UUID(bblhash_hi, bblhash_lo);
+    auto it = pkg._bbl_hash.find(bblhash);
+    if (it == pkg._bbl_hash.end()) {
+        pkg._bbl_hash[bblhash] = pkg._bbl_size;
+        it = pkg._bbl_hash.find(bblhash);
         pkg._bbl_size++;
         pkg._inOpenMPRegion.push_back(isomp);
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            pkg._BBL_instruction_cost[i].push_back(0);
+            pkg._bbl_instruction_cost[i].push_back(0);
         }
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            pkg._BBL_memory_cost[i].push_back(0);
+            pkg._bbl_memory_cost[i].push_back(0);
         }
     }
     pkg._bbl_scope.push(it->second);
@@ -93,9 +93,9 @@ VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash_hi, A
 VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
 {
     CostPackage &pkg = self->_cost_package;
-    infomsg() << "AnnotatorTail: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
-    auto bblhash = BBLHASH(bblhash_hi, bblhash_lo);
-    ASSERTX(pkg._bbl_scope.top() == pkg._BBL_hash[bblhash]);
+    // infomsg() << "AnnotatorTail: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
+    auto bblhash = UUID(bblhash_hi, bblhash_lo);
+    ASSERTX(pkg._bbl_scope.top() == pkg._bbl_hash[bblhash]);
     pkg._bbl_scope.pop();
 }
 
@@ -137,7 +137,6 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
-    infomsg() << self->_command_line_parser.outputfile().c_str() << std::endl;
     std::ofstream ofs(self->_command_line_parser.outputfile().c_str(), std::ofstream::out);
     CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
     ofs.close();

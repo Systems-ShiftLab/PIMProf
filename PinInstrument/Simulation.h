@@ -46,7 +46,7 @@ class InstructionLatency {
     /// Initialization with input config.
     void initialize(CostPackage *cost_package, ConfigReader &reader);
 
-    void SetBBLSize(BBLID bbl_size);
+    // void SetBBLSize(BBLID bbl_size);
 
   public:
     /// insert the instrumentation function before running simulation
@@ -87,7 +87,7 @@ class MemoryLatency {
     /// Read cache config from ofstream or file.
     void ReadConfig(ConfigReader &reader);
 
-    void SetBBLSize(BBLID bbl_size);
+    // void SetBBLSize(BBLID bbl_size);
 
   protected:
 

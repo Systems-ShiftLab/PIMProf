@@ -51,7 +51,7 @@ pin: cmake $(FINAL_EXE)
 
 $(DECISION): $(TEST_EXE) $(MERGED_DUMP) all
 	make -C ../PinInstrument/
-	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so  -b $(MERGED_DUMP) -o $@ -- ./$(TEST_EXE)
+	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -o $@ -- ./$(TEST_EXE)
 	
 # generate the bitcode of each source code
 $(EXTERNAL_BC): %.bc: %.cpp

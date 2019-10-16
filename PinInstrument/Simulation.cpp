@@ -29,7 +29,7 @@ void InstructionLatency::initialize(CostPackage *cost_package)
         }
     }
 
-    SetBBLSize(_cost_package->_bbl_size);
+    // SetBBLSize(_cost_package->_bbl_size);
 }
 
 void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &reader)
@@ -38,12 +38,12 @@ void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &rea
     ReadConfig(reader);
 }
 
-void InstructionLatency::SetBBLSize(BBLID bbl_size) {
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _cost_package->_BBL_instruction_cost[i].resize(bbl_size);
-        memset(&_cost_package->_BBL_instruction_cost[i][0], 0, bbl_size * sizeof _cost_package->_BBL_instruction_cost[i][0]);
-    }
-}
+// void InstructionLatency::SetBBLSize(BBLID bbl_size) {
+//     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+//         _cost_package->_BBL_instruction_cost[i].resize(bbl_size);
+//         memset(&_cost_package->_BBL_instruction_cost[i][0], 0, bbl_size * sizeof _cost_package->_BBL_instruction_cost[i][0]);
+//     }
+// }
 
 
 void InstructionLatency::instrument() {
@@ -134,7 +134,7 @@ void MemoryLatency::initialize(STORAGE *storage, CostPackage *cost_package, Conf
 {
     _storage = storage;
     _cost_package = cost_package;
-    SetBBLSize(_cost_package->_bbl_size);
+    // SetBBLSize(_cost_package->_bbl_size);
 }
 
 
@@ -145,12 +145,12 @@ void MemoryLatency::instrument()
 }
 
 
-VOID MemoryLatency::SetBBLSize(BBLID bbl_size) {
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _cost_package->_BBL_memory_cost[i].resize(bbl_size);
-        memset(&_cost_package->_BBL_memory_cost[i][0], 0, bbl_size * sizeof _cost_package->_BBL_memory_cost[i][0]);
-    }
-}
+// VOID MemoryLatency::SetBBLSize(BBLID bbl_size) {
+//     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+//         _cost_package->_BBL_memory_cost[i].resize(bbl_size);
+//         memset(&_cost_package->_BBL_memory_cost[i][0], 0, bbl_size * sizeof _cost_package->_BBL_memory_cost[i][0]);
+//     }
+// }
 
 
 VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr)

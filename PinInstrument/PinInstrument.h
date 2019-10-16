@@ -58,12 +58,12 @@ class PinInstrument {
     void simulate();
   
   public:
-    void ReadControlFlowGraph(const std::string filename);
+    // void ReadControlFlowGraph(const std::string filename);
   
   // "self" enables us to use non-static members in static functions
   protected:
-    static VOID DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblid, ADDRINT isomp);
-    static VOID DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblid, ADDRINT isomp);
+    static VOID DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash, ADDRINT isomp);
+    static VOID DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblhash, ADDRINT isomp);
 
     /// The instrumentation function for an entire image
     static VOID ImageInstrument(IMG img, VOID *void_self);

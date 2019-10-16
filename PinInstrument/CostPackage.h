@@ -31,8 +31,14 @@ class CostPackage {
   public:
     // BBLScope information
     BBLScope _bbl_scope;
-    BBLID _bbl_size;
+    std::unordered_map<UINT64, UINT32> _BBL_hash;
+    BBLID _bbl_size = 0;
+    /// whether this region is in openmp
     std::vector<bool> _inOpenMPRegion;
+    /// the total instruction cost of each BB
+    std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
+    /// the total memory cost of each BB
+    std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
 
     long long int _instr_cnt;
     long long int _mem_instr_cnt;
@@ -48,10 +54,6 @@ class CostPackage {
     COST _mlp[MAX_COST_SITE];
     UINT32 _core_count[MAX_COST_SITE];
 
-    /// the total instruction cost of each BB
-    std::vector<COST> _BBL_instruction_cost[MAX_COST_SITE];
-    /// the total memory cost of each BB
-    std::vector<COST> _BBL_memory_cost[MAX_COST_SITE];
 
     /// the control latency when switching between sites
     COST _control_latency[MAX_COST_SITE][MAX_COST_SITE];

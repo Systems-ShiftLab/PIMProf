@@ -27,13 +27,13 @@ void CostSolver::initialize(CostPackage *cost_package, ConfigReader &reader)
     _batchcount = 0;
     _batchsize = 0;
 
-    SetBBLSize(_cost_package->_bbl_size);
     ReadConfig(reader);
 }
 
 
 CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 {
+    SetBBLSize(_cost_package->_bbl_size);
     // set partial total
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < _cost_package->_bbl_size; j++) {

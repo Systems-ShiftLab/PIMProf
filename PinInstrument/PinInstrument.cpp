@@ -26,7 +26,7 @@ void PinInstrument::initialize(int argc, char *argv[])
 
     _command_line_parser.initialize(argc, argv);
     
-    ReadControlFlowGraph(_command_line_parser.controlflowfile());
+    // ReadControlFlowGraph(_command_line_parser.controlflowfile());
 
     _config_reader = ConfigReader(_command_line_parser.configfile());
     _cost_package.initialize();
@@ -37,17 +37,17 @@ void PinInstrument::initialize(int argc, char *argv[])
 
 }
 
-void PinInstrument::ReadControlFlowGraph(const std::string filename)
-{
-    std::ifstream ifs;
-    ifs.open(filename.c_str());
-    std::string curline;
+// void PinInstrument::ReadControlFlowGraph(const std::string filename)
+// {
+//     std::ifstream ifs;
+//     ifs.open(filename.c_str());
+//     std::string curline;
 
-    getline(ifs, curline);
-    std::stringstream ss(curline);
-    ss >> _cost_package._bbl_size;
-    _cost_package._bbl_size++; // bbl_size = Largest BBLID + 1
-}
+//     getline(ifs, curline);
+//     std::stringstream ss(curline);
+//     ss >> _cost_package._bbl_size;
+//     _cost_package._bbl_size++; // bbl_size = Largest BBLID + 1
+// }
 
 
 void PinInstrument::instrument()
@@ -66,17 +66,32 @@ void PinInstrument::simulate()
     PIN_StartProgram();
 }
 
-VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblid, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash, ADDRINT isomp)
 {
-    self->_cost_package._bbl_scope.push(bblid);
-    self->_cost_package._inOpenMPRegion[bblid] = isomp;
+    CostPackage &pkg = self->_cost_package;
+    auto it = pkg._BBL_hash.find(bblhash);
+    if (it == pkg._BBL_hash.end()) {
+        pkg._BBL_hash[bblhash] = pkg._bbl_size;
+        it = pkg._BBL_hash.find(bblhash);
+        pkg._bbl_size++;
+        pkg._inOpenMPRegion.push_back(isomp);
+        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+            pkg._BBL_instruction_cost[i].push_back(0);
+        }
+        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+            pkg._BBL_memory_cost[i].push_back(0);
+        }
+    }
+    pkg._bbl_scope.push(it->second);
+
     // infomsg() << bblid << " " << isomp << std::endl;
 }
 
-VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblid, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblhash, ADDRINT isomp)
 {
-    ASSERTX(self->_cost_package._bbl_scope.top() == bblid);
-    self->_cost_package._bbl_scope.pop();
+    CostPackage &pkg = self->_cost_package;
+    ASSERTX(pkg._bbl_scope.top() == pkg._BBL_hash[bblhash]);
+    pkg._bbl_scope.pop();
 }
 
 VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)

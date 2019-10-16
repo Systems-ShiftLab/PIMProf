@@ -27,11 +27,11 @@ KNOB<std::string> KnobConfig(
     "pintool",
     "c", "",
     "specify config file name");
-KNOB<std::string> KnobControlFlow(
-    KNOB_MODE_WRITEONCE,
-    "pintool",
-    "b", "",
-    "specify file name containing control flow graph information");
+// KNOB<std::string> KnobControlFlow(
+//     KNOB_MODE_WRITEONCE,
+//     "pintool",
+//     "b", "",
+//     "specify file name containing control flow graph information");
 KNOB<std::string> KnobOutput(
     KNOB_MODE_WRITEONCE,
     "pintool",
@@ -52,7 +52,7 @@ void CommandLineParser::initialize(int argc, char *argv[])
     _rootdir = std::getenv("PIMPROF_ROOT");
     _configfile = KnobConfig.Value();
     _outputfile = KnobOutput.Value();
-    _controlflowfile = KnobControlFlow.Value();
+    // _controlflowfile = KnobControlFlow.Value();
 
     if (_configfile == "") {
         _configfile = _rootdir + "/PinInstrument/defaultconfig.ini";
@@ -62,8 +62,8 @@ void CommandLineParser::initialize(int argc, char *argv[])
         _outputfile = "offload_decision.txt";
         warningmsg() << "No output file name specified. Printing output to file offload_decision.txt." << std::endl;
     }
-    if (_controlflowfile == "") {
-        errormsg() << "Control flow graph file correpsonding to the input program not provided." << std::endl;
-        ASSERTX(0);
-    }
+    // if (_controlflowfile == "") {
+    //     errormsg() << "Control flow graph file correpsonding to the input program not provided." << std::endl;
+    //     ASSERTX(0);
+    // }
 }

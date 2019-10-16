@@ -18,6 +18,7 @@ using namespace PIMProf;
 // we have to use a separate function to initialize it.
 void PinInstrument::initialize(int argc, char *argv[])
 {
+// because we assume sizeof(ADDRINT) = 8
 # if !(__GNUC__) || !(__x86_64__)
     errormsg() << "Incompatible system" << std::endl;
     ASSERTX(0);
@@ -66,9 +67,11 @@ void PinInstrument::simulate()
     PIN_StartProgram();
 }
 
-VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
 {
     CostPackage &pkg = self->_cost_package;
+    infomsg() << "AnnotatorHead: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
+    auto bblhash = BBLHASH(bblhash_hi, bblhash_lo);
     auto it = pkg._BBL_hash.find(bblhash);
     if (it == pkg._BBL_hash.end()) {
         pkg._BBL_hash[bblhash] = pkg._bbl_size;
@@ -87,9 +90,11 @@ VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash, ADDR
     // infomsg() << bblid << " " << isomp << std::endl;
 }
 
-VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblhash, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
 {
     CostPackage &pkg = self->_cost_package;
+    infomsg() << "AnnotatorTail: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
+    auto bblhash = BBLHASH(bblhash_hi, bblhash_lo);
     ASSERTX(pkg._bbl_scope.top() == pkg._BBL_hash[bblhash]);
     pkg._bbl_scope.pop();
 }
@@ -109,8 +114,9 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             IPOINT_BEFORE,
             (AFUNPTR)DoAtAnnotatorHead,
             IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
-            IARG_FUNCARG_CALLSITE_VALUE, 0, // Pass the first function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorHead
-            IARG_FUNCARG_CALLSITE_VALUE, 1, // Pass the second function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorHead
+            IARG_FUNCARG_CALLSITE_VALUE, 0,
+            IARG_FUNCARG_CALLSITE_VALUE, 1,
+            IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorHead
             IARG_END);
         RTN_Close(annotator_head);
 
@@ -120,8 +126,9 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             IPOINT_BEFORE,
             (AFUNPTR)DoAtAnnotatorTail,
             IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
-            IARG_FUNCARG_CALLSITE_VALUE, 0, // The first argument of DoAtAnnotatorTail
-            IARG_FUNCARG_CALLSITE_VALUE, 1, // The second argument of DoAtAnnotatorTail
+            IARG_FUNCARG_CALLSITE_VALUE, 0,
+            IARG_FUNCARG_CALLSITE_VALUE, 1,
+            IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorTail
             IARG_END);
         RTN_Close(annotator_tail);
     }

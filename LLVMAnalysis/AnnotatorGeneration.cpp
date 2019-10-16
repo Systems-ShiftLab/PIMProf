@@ -26,7 +26,7 @@ LLVMContext ctx;
 // provide definition of function if it has not been defined
 // intended behavior:
 // ; Function Attrs: noinline nounwind optnone uwtable
-// define i64 @Annotator(i64, i64) {
+// define i64 @Annotator(i64, i64, i64) {
 //     %2 = alloca i64, align 4
 //     store i64 %0, i64* %2, align 4
 //     %3 = load i64, i64* %2, align 4
@@ -39,6 +39,7 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
         M.getOrInsertFunction(
             name, 
             FunctionType::getInt64Ty(ctx), 
+            Type::getInt64Ty(ctx),
             Type::getInt64Ty(ctx),
             Type::getInt64Ty(ctx)
         )
@@ -57,8 +58,14 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
             ctx, "", annotator, 0);
         auto al = new AllocaInst(Type::getInt64Ty(ctx), 0, "", temp);
         al->setAlignment(4);
-        auto st = new StoreInst(annotator->arg_begin(), al, temp);
-        st->setAlignment(4);
+
+        auto it = annotator->arg_begin();
+        auto eit = annotator->arg_end();
+        for (; it != eit; it++) {
+            auto st = new StoreInst(it, al, temp);
+            st->setAlignment(4);
+        }
+        
         auto ld = new LoadInst(al, "", temp);
         ld->setAlignment(4);
         auto rt = ReturnInst::Create(ctx, ld, temp);
@@ -78,6 +85,8 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
 int main(int argc, char **argv) {
     // Module Construction
     Module *M = new Module("AnnotatorGeneration", ctx);
+    M->setSourceFileName("AnnotatorGeneration");
+    M->setDataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
 
     CreateAnnotatorFunction(PIMProfAnnotatorHead, *M);
     CreateAnnotatorFunction(PIMProfAnnotatorTail, *M);

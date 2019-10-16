@@ -1,7 +1,7 @@
 set(ANNOTATORINJECTION "AnnotatorInjection")
 set(ANNOTATORINJECTION_SRC "${ANNOTATORINJECTION}.cpp")
 add_library(${ANNOTATORINJECTION} MODULE
-    ${ANNOTATORINJECTION_SRC})
+    ${ANNOTATORINJECTION_SRC} "MurmurHash3.cpp")
 target_compile_features(${ANNOTATORINJECTION} PRIVATE
     cxx_range_for cxx_auto_type)
 set_target_properties(${ANNOTATORINJECTION} PROPERTIES
@@ -27,13 +27,13 @@ target_compile_features(${ANNOTATORGENERATION_EXE} PRIVATE
 set_target_properties(${ANNOTATORGENERATION_EXE} PROPERTIES
     COMPILE_FLAGS "-fno-rtti")
 
-set(CFGDUMP "CFGDump")
-set(CFGDUMP_SRC "${CFGDUMP}.cpp")
-set(CFGDUMP_EXE "${CFGDUMP}.exe")
-add_executable(${CFGDUMP_EXE}
-   ${CFGDUMP_SRC})
-target_link_libraries(${CFGDUMP_EXE} LLVM)
-target_compile_features(${CFGDUMP_EXE} PRIVATE
-    cxx_range_for cxx_auto_type)
-set_target_properties(${CFGDUMP_EXE} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti")
+# set(CFGDUMP "CFGDump")
+# set(CFGDUMP_SRC "${CFGDUMP}.cpp")
+# set(CFGDUMP_EXE "${CFGDUMP}.exe")
+# add_executable(${CFGDUMP_EXE}
+#    ${CFGDUMP_SRC})
+# target_link_libraries(${CFGDUMP_EXE} LLVM)
+# target_compile_features(${CFGDUMP_EXE} PRIVATE
+#     cxx_range_for cxx_auto_type)
+# set_target_properties(${CFGDUMP_EXE} PROPERTIES
+#     COMPILE_FLAGS "-fno-rtti")

@@ -27,7 +27,6 @@ EXTERNAL_OPT_BC    := $(EXTERNAL_MERGED_BC:%.bc=%.opt.bc)
 MERGED_BC     := merged.bc
 MERGED_LL     := $(MERGED_BC:%.bc=%.ll)
 MERGED_OPT_BC := $(MERGED_BC:%.bc=%.opt.bc)
-MERGED_DUMP   := $(MERGED_BC:%.bc=%.out)
 
 TEST_EXE      := test.exe
 
@@ -49,7 +48,7 @@ cmake:
 
 pin: cmake $(FINAL_EXE)
 
-$(DECISION): $(TEST_EXE) $(MERGED_DUMP) all
+$(DECISION): $(TEST_EXE) all
 	make -C ../PinInstrument/
 	$(PIN_ROOT)/pin -t ../PinInstrument/obj-intel64/PinInstrument.so -o $@ -- ./$(TEST_EXE)
 	
@@ -78,12 +77,9 @@ $(MERGED_BC): $(EXTERNAL_OPT_BC) $(ANNOTATOR_BC)
 $(OFFLOADER_BC): ../LLVMAnalysis/$(OFFLOADER_SRC) cmake
 	$(CLANGXX) $(EMITBC_CXXFLAGS) $(INCLUDE) -o $@ -c $< $(LDFLAGS)
 
-$(MERGED_DUMP): $(EXTERNAL_OPT_BC)
-	$(ANALYSIS_BUILD_DIR)/CFGDump.exe -o $@ $^
-
 $(TEST_EXE): $(MERGED_BC)
 	$(CLANGXX) $(CXXFLAGS) $(INCLUDE) -o $@ $^ $(LDFLAGS)
-	# objdump -d $(TEST_EXE) > objdump$$LEVEL.out
+	objdump -d $(TEST_EXE) > objdump$$LEVEL.out
 
 $(DECISION_BC): $(EXTERNAL_MERGED_BC) $(DECISION)
 	$(OPT) -load $(ANALYSIS_BUILD_DIR)/libOffloaderInjection.so -OffloaderInjection -decision=$(DECISION) $(EXTERNAL_MERGED_BC) -o $@ > instruction_dump.ll

@@ -16,6 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
+#### File `LLVMAnalysis/MurmurHash3.cpp` and `LLVMAnalysis/MurmurHash3.h` are public domain software.
+
+
 #### File `PinInstrument/INIReader.h` is distributed under the New BSD license.
 
 ```

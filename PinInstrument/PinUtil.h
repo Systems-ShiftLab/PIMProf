@@ -11,6 +11,7 @@
 #include <stack>
 #include <algorithm>
 #include <iostream>
+#include <bitset>
 
 #include "pin.H"
 #include "INIReader.h"
@@ -22,6 +23,7 @@ namespace PIMProf {
 typedef UINT32 CACHE_STATS;
 typedef FLT64 COST;
 typedef UINT32 BBLID;
+typedef std::pair<UINT64, UINT64> BBLHASH;
 
 
 enum CostSite {

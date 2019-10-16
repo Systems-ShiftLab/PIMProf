@@ -21,12 +21,14 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
+#include "MurmurHash3.h"
 #include "Common.h"
+#include <iostream>
 
 using namespace llvm;
 
 namespace {
-    void InjectAnnotatorCall(Module &M, BasicBlock &BB, int BBLID) {
+    void InjectAnnotatorCall(Module &M, BasicBlock &BB) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
@@ -35,6 +37,7 @@ namespace {
                 PIMProfAnnotatorHead, 
                 FunctionType::getInt64Ty(ctx), 
                 Type::getInt64Ty(ctx),
+                Type::getInt64Ty(ctx),
                 Type::getInt64Ty(ctx)
             )
         );
@@ -42,6 +45,7 @@ namespace {
             M.getOrInsertFunction(
                 PIMProfAnnotatorTail, 
                 FunctionType::getInt64Ty(ctx), 
+                Type::getInt64Ty(ctx),
                 Type::getInt64Ty(ctx),
                 Type::getInt64Ty(ctx)
             )
@@ -53,9 +57,22 @@ namespace {
         //     errs() << "\n";
         // }
         // errs() << "\n";
-        // insert instruction
-        Value *bblid = ConstantInt::get(
-            IntegerType::get(M.getContext(), 64), BBLID);
+
+        // use the content of BB itself as the hash key
+        std::string BB_content;
+        raw_string_ostream rso(BB_content);
+        rso << BB;
+        uint64_t bblhash[2];
+
+
+        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+        std::cout << std::hex << bblhash[1] << " " << bblhash[0] << std::endl;
+
+        // divide all parameters into uint64_t, because this is what pin supports
+        Value *hi = ConstantInt::get(
+            IntegerType::get(M.getContext(), 64), bblhash[1]);
+        Value *lo = ConstantInt::get(
+            IntegerType::get(M.getContext(), 64), bblhash[0]);
 
         std::string funcname = BB.getParent()->getName();
         // errs() << funcname << "\n";
@@ -66,7 +83,8 @@ namespace {
             (funcname.find(OpenMPIdentifier) != std::string::npos));
         
         std::vector<Value *> arglist;
-        arglist.push_back(bblid);
+        arglist.push_back(hi);
+        arglist.push_back(lo);
         arglist.push_back(isomp);
 
         // need to skip all PHIs and LandingPad instructions
@@ -81,14 +99,15 @@ namespace {
             annotator_tail, ArrayRef<Value *>(arglist), "",
             BB.getTerminator());
         // insert instruction metadata
-        MDNode* md = MDNode::get(
-            ctx, 
-            ConstantAsMetadata::get(
-                ConstantInt::get(
-                    IntegerType::get(M.getContext(), 64), BBLID)
-            )
-        );
-        BB.getTerminator()->setMetadata(PIMProfBBLIDMetadata, md);
+        // MDNode* md = MDNode::get(
+        //     ctx, 
+        //     ConstantAsMetadata::get(
+        //         ConstantInt::get(
+        //             IntegerType::get(M.getContext(), 64), BBLHash)
+        //     )
+        // );
+        // BB.getTerminator()->setMetadata(PIMProfBBLIDMetadata, md);
+
         // errs() << "After injection: " << BB.getName() << "\n";
         // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
         //     (*i).print(errs());
@@ -102,15 +121,12 @@ namespace {
         AnnotatorInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            // assign unique id to each basic block
-            int bblid = BBLStartingID;
 
             // inject annotator function to each basic block
             // attach basic block id to terminator
             for (auto &func : M) {
                 for (auto &bb: func) {
-                    InjectAnnotatorCall(M, bb, bblid);
-                    bblid++;
+                    InjectAnnotatorCall(M, bb);
                 }
             }
             // M.print(errs(), nullptr);

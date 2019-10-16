@@ -27,11 +27,23 @@ static const UINT32 MAX_INDEX = 4096;
 static const UINT32 INDEX_SPECIAL = 3000;
 static const UINT32 MAX_MEM_SIZE = 512;
 
+
+class HashFunc
+{
+  public:
+    // assuming BBLHASH is already murmurhash-ed.
+    std::size_t operator()(const BBLHASH &key) const
+    {
+        size_t result = key.first ^ key.second;
+        return result;
+    }
+};
+
 class CostPackage {
   public:
     // BBLScope information
     BBLScope _bbl_scope;
-    std::unordered_map<UINT64, UINT32> _BBL_hash;
+    std::unordered_map<BBLHASH, UINT32, HashFunc> _BBL_hash;
     BBLID _bbl_size = 0;
     /// whether this region is in openmp
     std::vector<bool> _inOpenMPRegion;

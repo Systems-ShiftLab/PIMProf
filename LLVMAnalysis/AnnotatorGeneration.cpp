@@ -13,6 +13,7 @@
 
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
@@ -22,6 +23,13 @@
 using namespace llvm;
 
 LLVMContext ctx;
+
+static cl::opt<std::string> OutputFilename(
+        "o",
+        cl::desc("Specify filename of output for the generator of PIMProfAnnotator."),
+        cl::value_desc("outputfile"),
+        cl::init("")
+    );
 
 // provide definition of function if it has not been defined
 // intended behavior:
@@ -83,16 +91,18 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
 
 
 int main(int argc, char **argv) {
+    cl::ParseCommandLineOptions(argc, argv);
     // Module Construction
     Module *M = new Module("AnnotatorGeneration", ctx);
     M->setSourceFileName("AnnotatorGeneration");
     M->setDataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
+    M->setTargetTriple("x86_64-pc-linux-gnu");
 
     CreateAnnotatorFunction(PIMProfAnnotatorHead, *M);
     CreateAnnotatorFunction(PIMProfAnnotatorTail, *M);
 
     std::error_code EC;
-    raw_fd_ostream os(PIMProfAnnotatorFileName, EC,
+    raw_fd_ostream os(OutputFilename, EC,
         static_cast<sys::fs::OpenFlags>(0));
     WriteBitcodeToFile(*M, os);
 

@@ -1,7 +1,7 @@
 #include <iostream>
 using namespace std;
 
-extern void print4();
+void print4();
 
 int main()
 {

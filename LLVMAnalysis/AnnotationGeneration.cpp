@@ -1,4 +1,4 @@
-//===- AnnotatorGeneration.cpp - Generate BB annotator ----------*- C++ -*-===//
+//===- AnnotationGeneration.cpp - Generate BB annotator ----------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -26,7 +26,7 @@ LLVMContext ctx;
 
 static cl::opt<std::string> OutputFilename(
         "o",
-        cl::desc("Specify filename of output for the generator of PIMProfAnnotator."),
+        cl::desc("Specify filename of output for the generator of PIMProfAnnotation."),
         cl::value_desc("outputfile"),
         cl::init("")
     );
@@ -34,13 +34,13 @@ static cl::opt<std::string> OutputFilename(
 // provide definition of function if it has not been defined
 // intended behavior:
 // ; Function Attrs: noinline nounwind optnone uwtable
-// define i64 @Annotator(i64, i64, i64) {
+// define i64 @Annotation(i64, i64, i64) {
 //     %2 = alloca i64, align 4
 //     store i64 %0, i64* %2, align 4
 //     %3 = load i64, i64* %2, align 4
 //     ret i64 %3
 // }
-void CreateAnnotatorFunction(const std::string name, Module &M)
+void CreateAnnotationFunction(const std::string name, Module &M)
 {
     // declare annotator function 
     Function *annotator = dyn_cast<Function>(
@@ -82,7 +82,7 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
             ctx, 
             ConstantAsMetadata::get(
                 ConstantInt::get(
-                    IntegerType::get(M.getContext(), 64), PIMProfAnnotatorBBLID)
+                    IntegerType::get(M.getContext(), 64), PIMProfAnnotationBBLID)
             )
         );
         rt->setMetadata(PIMProfBBLIDMetadata, md);
@@ -93,13 +93,13 @@ void CreateAnnotatorFunction(const std::string name, Module &M)
 int main(int argc, char **argv) {
     cl::ParseCommandLineOptions(argc, argv);
     // Module Construction
-    Module *M = new Module("AnnotatorGeneration", ctx);
-    M->setSourceFileName("AnnotatorGeneration");
+    Module *M = new Module("AnnotationGeneration", ctx);
+    M->setSourceFileName("AnnotationGeneration");
     M->setDataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
     M->setTargetTriple("x86_64-pc-linux-gnu");
 
-    CreateAnnotatorFunction(PIMProfAnnotatorHead, *M);
-    CreateAnnotatorFunction(PIMProfAnnotatorTail, *M);
+    CreateAnnotationFunction(PIMProfAnnotationHead, *M);
+    CreateAnnotationFunction(PIMProfAnnotationTail, *M);
 
     std::error_code EC;
     raw_fd_ostream os(OutputFilename, EC,

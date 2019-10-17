@@ -1,4 +1,4 @@
-//===- AnnotatorInjection.cpp - Pass that injects BB annotator --*- C++ -*-===//
+//===- AnnotationInjection.cpp - Pass that injects BB annotator --*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -28,13 +28,13 @@
 using namespace llvm;
 
 namespace {
-    void InjectAnnotatorCall(Module &M, BasicBlock &BB) {
+    void InjectAnnotationCall(Module &M, BasicBlock &BB) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
         Function *annotator_head = dyn_cast<Function>(
             M.getOrInsertFunction(
-                PIMProfAnnotatorHead, 
+                PIMProfAnnotationHead, 
                 FunctionType::getInt64Ty(ctx), 
                 Type::getInt64Ty(ctx),
                 Type::getInt64Ty(ctx),
@@ -43,7 +43,7 @@ namespace {
         );
         Function *annotator_tail = dyn_cast<Function>(
             M.getOrInsertFunction(
-                PIMProfAnnotatorTail, 
+                PIMProfAnnotationTail, 
                 FunctionType::getInt64Ty(ctx), 
                 Type::getInt64Ty(ctx),
                 Type::getInt64Ty(ctx),
@@ -98,27 +98,11 @@ namespace {
         CallInst *tail_instr = CallInst::Create(
             annotator_tail, ArrayRef<Value *>(arglist), "",
             BB.getTerminator());
-        // insert instruction metadata
-        // MDNode* md = MDNode::get(
-        //     ctx, 
-        //     ConstantAsMetadata::get(
-        //         ConstantInt::get(
-        //             IntegerType::get(M.getContext(), 64), BBLHash)
-        //     )
-        // );
-        // BB.getTerminator()->setMetadata(PIMProfBBLIDMetadata, md);
-
-        // errs() << "After injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
     }
 
-    struct AnnotatorInjection : public ModulePass {
+    struct AnnotationInjection : public ModulePass {
         static char ID;
-        AnnotatorInjection() : ModulePass(ID) {}
+        AnnotationInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
 
@@ -126,7 +110,7 @@ namespace {
             // attach basic block id to terminator
             for (auto &func : M) {
                 for (auto &bb: func) {
-                    InjectAnnotatorCall(M, bb);
+                    InjectAnnotationCall(M, bb);
                 }
             }
             // M.print(errs(), nullptr);
@@ -135,6 +119,13 @@ namespace {
     };
 }
 
-char AnnotatorInjection::ID = 0;
-static RegisterPass<AnnotatorInjection> RegisterMyPass(
-    "AnnotatorInjection", "Inject annotators to uniquely identify each basic block.");
+char AnnotationInjection::ID = 0;
+static RegisterPass<AnnotationInjection> RegisterMyPass(
+    "AnnotationInjection", "Inject annotators to uniquely identify each basic block.");
+
+static void loadPass(const PassManagerBuilder &,
+                           legacy::PassManagerBase &PM) {
+    PM.add(new AnnotationInjection());
+}
+static RegisterStandardPasses clangtoolLoader_Ox(PassManagerBuilder::EP_OptimizerLast, loadPass);
+static RegisterStandardPasses clangtoolLoader_O0(PassManagerBuilder::EP_EnabledOnOptLevel0, loadPass);

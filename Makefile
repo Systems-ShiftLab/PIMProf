@@ -1,19 +1,6 @@
-include makefile.vars
-LLVM_BIN         := $(LLVM_HOME)/bin
-CLANGXX          := $(LLVM_BIN)/clang++
-
 PIMPROF_DIR         := $(shell pwd)
-
-LLVM_SRC_DIR        := LLVMAnalysis
-PIN_SRC_DIR         := PinInstrument
-
-BUILD_DIR           := $(PIMPROF_DIR)/build/
-LLVM_BUILD_DIR      := $(BUILD_DIR)/LLVMAnalysis/
-PIN_BUILD_DIR       := $(BUILD_DIR)/PinInstrument/
-
-ANNOTATOR_BC        := $(LLVM_BUILD_DIR)/libPIMProfAnnotator.bc
-ANNOTATOR_SO        := $(ANNOTATOR_BC:%.bc=%.so)
-
+include Makefile.config
+include Makefile.common
 
 all: llvm pin lib
 
@@ -25,13 +12,13 @@ pin: build
 	mkdir -p $(PIN_BUILD_DIR)
 	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR)
 
-lib: $(ANNOTATOR_SO)
+lib: $(ANNOTATION_SO)
 
-$(ANNOTATOR_SO): $(ANNOTATOR_BC)
+$(ANNOTATION_SO): $(ANNOTATION_BC)
 	$(CLANGXX) -shared -o $@ $<
 
-$(ANNOTATOR_BC): llvm
-	$(LLVM_BUILD_DIR)/AnnotatorGeneration.exe -o $(ANNOTATOR_BC)
+$(ANNOTATION_BC): llvm
+	$(LLVM_BUILD_DIR)/AnnotationGeneration.exe -o $(ANNOTATION_BC)
 
 test: all
 	make -C $(TEST_DIR)
@@ -41,7 +28,7 @@ build:
 
 clean:
 	rm -rf $(BUILD_DIR)
-
+	make clean -C $(TEST_DIR)
 
 .PHONY: all llvm lib pin test build clean
 

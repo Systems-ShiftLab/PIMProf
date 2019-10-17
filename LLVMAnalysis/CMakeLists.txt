@@ -1,11 +1,11 @@
-set(ANNOTATORINJECTION "AnnotatorInjection")
-set(ANNOTATORINJECTION_SRC "${ANNOTATORINJECTION}.cpp")
-add_library(${ANNOTATORINJECTION} MODULE
-    ${ANNOTATORINJECTION_SRC} "MurmurHash3.cpp")
-target_compile_features(${ANNOTATORINJECTION} PRIVATE
+set(ANNOTATIONINJECTION "AnnotationInjection")
+set(ANNOTATIONINJECTION_SRC "${ANNOTATIONINJECTION}.cpp")
+add_library(${ANNOTATIONINJECTION} MODULE
+    ${ANNOTATIONINJECTION_SRC} "MurmurHash3.cpp")
+target_compile_features(${ANNOTATIONINJECTION} PRIVATE
     cxx_range_for cxx_auto_type)
-set_target_properties(${ANNOTATORINJECTION} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti")
+set_target_properties(${ANNOTATIONINJECTION} PROPERTIES
+    COMPILE_FLAGS "-fno-rtti -fPIC")
 
 set(OFFLOADERINJECTION "OffloaderInjection")
 set(OFFLOADERINJECTION_SRC "${OFFLOADERINJECTION}.cpp")
@@ -14,18 +14,18 @@ add_library(${OFFLOADERINJECTION} MODULE
 target_compile_features(${OFFLOADERINJECTION} PRIVATE
     cxx_range_for cxx_auto_type)
 set_target_properties(${OFFLOADERINJECTION} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti")
+    COMPILE_FLAGS "-fno-rtti -fPIC")
 
-set(ANNOTATORGENERATION "AnnotatorGeneration")
-set(ANNOTATORGENERATION_SRC "${ANNOTATORGENERATION}.cpp")
-set(ANNOTATORGENERATION_EXE "${ANNOTATORGENERATION}.exe")
-add_executable(${ANNOTATORGENERATION_EXE}
-    ${ANNOTATORGENERATION_SRC})
-target_link_libraries(${ANNOTATORGENERATION_EXE} LLVM)
-target_compile_features(${ANNOTATORGENERATION_EXE} PRIVATE
+set(ANNOTATIONGENERATION "AnnotationGeneration")
+set(ANNOTATIONGENERATION_SRC "${ANNOTATIONGENERATION}.cpp")
+set(ANNOTATIONGENERATION_EXE "${ANNOTATIONGENERATION}.exe")
+add_executable(${ANNOTATIONGENERATION_EXE}
+    ${ANNOTATIONGENERATION_SRC})
+target_link_libraries(${ANNOTATIONGENERATION_EXE} LLVM)
+target_compile_features(${ANNOTATIONGENERATION_EXE} PRIVATE
     cxx_range_for cxx_auto_type)
-set_target_properties(${ANNOTATORGENERATION_EXE} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti")
+set_target_properties(${ANNOTATIONGENERATION_EXE} PROPERTIES
+    COMPILE_FLAGS "-fno-rtti -fPIC")
 
 # set(CFGDUMP "CFGDump")
 # set(CFGDUMP_SRC "${CFGDUMP}.cpp")

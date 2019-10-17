@@ -45,18 +45,13 @@ void CommandLineParser::initialize(int argc, char *argv[])
         Usage(errormsg());
     }
 
-    if (std::getenv("PIMPROF_ROOT") == NULL) {
-        errormsg() << "Environment variable PIMPROF_ROOT not set." << std::endl;
-        ASSERTX(0);
-    }
-    _rootdir = std::getenv("PIMPROF_ROOT");
     _configfile = KnobConfig.Value();
     _outputfile = KnobOutput.Value();
     // _controlflowfile = KnobControlFlow.Value();
 
     if (_configfile == "") {
-        _configfile = _rootdir + "/PinInstrument/defaultconfig.ini";
-        warningmsg() << "No config file provided. Using default config file." << std::endl;
+        errormsg() << "No config file provided." << std::endl;
+        ASSERTX(0);
     }
     if (_outputfile == "") {
         _outputfile = "offload_decision.txt";

@@ -85,7 +85,7 @@ void PIMProf::CFGDump() {
             int headVal = (int) headAPVal.getLimitedValue(UINT32_MAX);
 
             // skip the annotator function
-            if (headVal == PIMProfAnnotatorBBLID)
+            if (headVal == PIMProfAnnotationBBLID)
                 continue;
             
             if (headVal > maxbblid)

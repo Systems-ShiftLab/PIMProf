@@ -67,10 +67,10 @@ void PinInstrument::simulate()
     PIN_StartProgram();
 }
 
-VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
 {
     CostPackage &pkg = self->_cost_package;
-    // infomsg() << "AnnotatorHead: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
+    // infomsg() << "AnnotationHead: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
     auto bblhash = UUID(bblhash_hi, bblhash_lo);
     auto it = pkg._bbl_hash.find(bblhash);
     if (it == pkg._bbl_hash.end()) {
@@ -90,10 +90,10 @@ VOID PinInstrument::DoAtAnnotatorHead(PinInstrument *self, ADDRINT bblhash_hi, A
     // infomsg() << bblid << " " << isomp << std::endl;
 }
 
-VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
 {
     CostPackage &pkg = self->_cost_package;
-    // infomsg() << "AnnotatorTail: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
+    // infomsg() << "AnnotationTail: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
     auto bblhash = UUID(bblhash_hi, bblhash_lo);
     ASSERTX(pkg._bbl_scope.top() == pkg._bbl_hash[bblhash]);
     pkg._bbl_scope.pop();
@@ -102,8 +102,8 @@ VOID PinInstrument::DoAtAnnotatorTail(PinInstrument *self, ADDRINT bblhash_hi, A
 VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
 {
     // find annotator head and tail by their names
-    RTN annotator_head = RTN_FindByName(img, PIMProfAnnotatorHead.c_str());
-    RTN annotator_tail = RTN_FindByName(img, PIMProfAnnotatorTail.c_str());
+    RTN annotator_head = RTN_FindByName(img, PIMProfAnnotationHead.c_str());
+    RTN annotator_tail = RTN_FindByName(img, PIMProfAnnotationTail.c_str());
 
     if (RTN_Valid(annotator_head) && RTN_Valid(annotator_tail))
     {
@@ -112,11 +112,11 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
         RTN_InsertCall(
             annotator_head,
             IPOINT_BEFORE,
-            (AFUNPTR)DoAtAnnotatorHead,
-            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
+            (AFUNPTR)DoAtAnnotationHead,
+            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotationHead
             IARG_FUNCARG_CALLSITE_VALUE, 0,
             IARG_FUNCARG_CALLSITE_VALUE, 1,
-            IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorHead
+            IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotationHead as an argument of DoAtAnnotationHead
             IARG_END);
         RTN_Close(annotator_head);
 
@@ -124,11 +124,11 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
         RTN_InsertCall(
             annotator_tail,
             IPOINT_BEFORE,
-            (AFUNPTR)DoAtAnnotatorTail,
-            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotatorHead
+            (AFUNPTR)DoAtAnnotationTail,
+            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotationHead
             IARG_FUNCARG_CALLSITE_VALUE, 0,
             IARG_FUNCARG_CALLSITE_VALUE, 1,
-            IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotatorHead as an argument of DoAtAnnotatorTail
+            IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotationHead as an argument of DoAtAnnotationTail
             IARG_END);
         RTN_Close(annotator_tail);
     }

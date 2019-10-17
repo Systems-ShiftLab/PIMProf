@@ -23,7 +23,7 @@ llvm: build
 
 pin: build
 	mkdir -p $(PIN_BUILD_DIR)
-	cd $(PIN_SRC_DIR) && make PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR)
+	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR)
 
 lib: $(ANNOTATOR_SO)
 
@@ -34,6 +34,7 @@ $(ANNOTATOR_BC): llvm
 	$(LLVM_BUILD_DIR)/AnnotatorGeneration.exe -o $(ANNOTATOR_BC)
 
 test: all
+	make -C $(TEST_DIR)
 
 build:
 	mkdir -p $(BUILD_DIR)

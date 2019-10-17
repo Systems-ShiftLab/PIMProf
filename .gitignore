@@ -31,8 +31,11 @@ build/
 
 # Executables
 *.exe
-*.out
 *.app
+
+# Temporary output
+*.out
+*.dot
 
 # Bitcode and IR
 *.ll

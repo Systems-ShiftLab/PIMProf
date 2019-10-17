@@ -57,7 +57,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
             decision.push_back(PIM);
         }
     }
-    std::ofstream tempofs("greedy_decision.txt", std::ofstream::out);
+    std::ofstream tempofs("greedy_decision.out", std::ofstream::out);
     PrintDecision(tempofs, decision, false);
     PrintDecisionStat(std::cout, decision, "Pure greedy");
 

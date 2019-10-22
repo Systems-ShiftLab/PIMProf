@@ -79,7 +79,7 @@ namespace {
         Value *isomp = ConstantInt::get(
             IntegerType::get(M.getContext(), 64), 
             (funcname.find(OpenMPIdentifier) != std::string::npos));
-        
+
         std::vector<Value *> arglist;
         arglist.push_back(hi);
         arglist.push_back(lo);
@@ -103,6 +103,19 @@ namespace {
         AnnotationInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
+            // find all functions that are called by pthread
+            for (auto &func : M) {
+                for (auto &bb : func) {
+                    for (auto &instr : bb) {
+                        if(CallInst* call_inst = dyn_cast<CallInst>(&I)) {
+                            Function *f = call_inst->getCalledFunction();
+                            if (f->getName() == PThreadsIdentifier) {
+                                
+                            }
+                        }
+                    }
+                }
+            }
 
             // inject annotator function to each basic block
             // attach basic block id to terminator

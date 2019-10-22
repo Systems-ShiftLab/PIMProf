@@ -18,6 +18,8 @@ static const std::string PIMProfBBLIDMetadata = "basicblock.id";
 
 static const std::string OpenMPIdentifier = ".omp_outlined";
 
+static const std::string PThreadsIdentifier = "pthread_create";
+
 static const int PIMProfAnnotationBBLID = -1;
 
 static const int BBLStartingID = 0;

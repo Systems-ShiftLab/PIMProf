@@ -2,6 +2,7 @@
 using namespace std;
 
 void print4();
+void pthreads_exec();
 
 int main()
 {
@@ -24,5 +25,6 @@ int main()
         }
         cout << "it is end" << endl;
     }
+    // pthreads_exec();
 
 }

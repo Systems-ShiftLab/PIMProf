@@ -104,18 +104,20 @@ namespace {
 
         virtual bool runOnModule(Module &M) {
             // find all functions that are called by pthread
-            for (auto &func : M) {
-                for (auto &bb : func) {
-                    for (auto &instr : bb) {
-                        if(CallInst* call_inst = dyn_cast<CallInst>(&I)) {
-                            Function *f = call_inst->getCalledFunction();
-                            if (f->getName() == PThreadsIdentifier) {
-                                
-                            }
-                        }
-                    }
-                }
-            }
+            // for (auto &func : M) {
+            //     for (auto &bb : func) {
+            //         for (auto &I : bb) {
+            //             if(CallInst* call_inst = dyn_cast<CallInst>(&I)) {
+            //                 Function *f = call_inst->getCalledFunction();
+            //                 if (f->getName() == PThreadsIdentifier) {
+            //                     Argument *arg = f->arg_begin();
+            //                     arg += 2;
+            //                     arg->print(errs());
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
 
             // inject annotator function to each basic block
             // attach basic block id to terminator

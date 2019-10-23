@@ -56,7 +56,6 @@ class BBLScope {
   public:
     inline BBLScope()
     {
-        std::cerr << "BBLScope allocated" << std::endl;
         // push a fake global bblid
         bblidstack.push(GLOBALBBLID);
     }
@@ -71,11 +70,6 @@ class BBLScope {
     inline BBLID top()
     {
         return bblidstack.top();
-    }
-
-    inline ~BBLScope()
-    {
-        std::cerr << "BBLScope deallocated" << std::endl;
     }
 };
 
@@ -130,6 +124,7 @@ class CommandLineParser {
             << std::endl
             << KNOB_BASE::StringKnobSummary()
             << std::endl;
+        ASSERTX(0);
         return -1;
     }
 

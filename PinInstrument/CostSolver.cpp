@@ -225,7 +225,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
     cur_total = Cost(decision, _cost_package->_data_reuse.getRoot());
     std::cout << cur_total << std::endl;
     // iterate over the remaining BBs 10 times until convergence
-    for (int j = 0; j < 10; j++) {
+    for (int j = 0; j < 3; j++) {
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             BBLID id = i;
             
@@ -365,13 +365,15 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
 
 std::ostream &CostSolver::PrintBBLDecisionStat(std::ostream &out, const DECISION &decision, bool toscreen)
 {
-    out << "BBL\t" << "Decision\t"
+    out << "BBL\t" << "isomp\t" << "Decision\t"
     << "CPUIns\t\t" << "PIMIns\t\t"
     << "CPUMem\t\t" << "PIMMem\t\t"
     << "difference" << std::endl;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         out << i << "\t"
-        << (decision[i] == CPU ? "C" : "") << (decision[i] == PIM ? "P" : "") << "\t"
+        << (decision[i] == CPU ? "C" : "") 
+        << (decision[i] == PIM ? "P" : "") << "\t"
+        << (_cost_package->_inOpenMPRegion[i] ? "O" : "X") << "\t"
         << _cost_package->BBLInstructionCost(CPU, i)
         << "\t\t"
         << _cost_package->BBLInstructionCost(PIM, i)

@@ -427,7 +427,7 @@ std::ostream& STORAGE::WriteConfig(std::ostream& out)
 void STORAGE::WriteConfig(const std::string filename)
 {
     std::ofstream out;
-    out.open(filename.c_str(), ios_base::out);
+    out.open(filename.c_str(), std::ios_base::out);
     WriteConfig(out);
     out.close();
 }
@@ -445,7 +445,7 @@ std::ostream& STORAGE::WriteStats(std::ostream& out)
 void STORAGE::WriteStats(const std::string filename)
 {
     std::ofstream out;
-    out.open(filename.c_str(), ios_base::out);
+    out.open(filename.c_str(), std::ios_base::out);
     WriteStats(out);
     out.close();
 }

@@ -121,7 +121,7 @@ std::ostream& InstructionLatency::WriteConfig(std::ostream& out)
 void InstructionLatency::WriteConfig(const std::string filename)
 {
     std::ofstream out;
-    out.open(filename.c_str(), ios_base::out);
+    out.open(filename.c_str(), std::ios_base::out);
     WriteConfig(out);
     out.close();
 }

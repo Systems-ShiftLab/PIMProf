@@ -92,8 +92,7 @@ void InstructionLatency::ReadConfig(ConfigReader &reader)
                     _cost_package->_instruction_latency[i][j] = latency;
                 }
                 else {
-                    errormsg() << "InstructionLatency: Invalid latency." << std::endl;
-                    ASSERTX(0);
+                    _cost_package->_instruction_latency[i][j] = 1;
                 }
             }
         }

@@ -51,12 +51,12 @@ def heatmap(costdiff, decision, lb, ub):
     #decisionslice = [""] * (lb % N) + decision[lb:ub+1] + [""] * (N - ub % N - 1)
     costslice = costdiff[lb:ub+1] + [0] * (N - (ub-lb) % N - 1)
     decisionslice = decision[lb:ub+1] + [""] * (N - (ub-lb) % N - 1)
-    #fig, ax = plt.subplots(figsize=(11, 20))
-    fig, ax = plt.subplots()
-    ax.xaxis.tick_top()
+    fig, ax = plt.subplots(figsize=(11, 20))
+    #fig, ax = plt.subplots()
+    ax.xaxis.set_tick_params(labeltop="on")
 
     costslice = [(log10(abs(i)) if abs(i) > 1 else 0) * np.sign(i) for i in costslice]
-    print(costslice)
+    # print(costslice)
     decisionslice = [("" if i != "P" else "PIM") for i in decisionslice]
     costarr = np.reshape(np.array(costslice), (-1, N))
     decisionarr = np.reshape(np.array(decisionslice), (-1, N))
@@ -67,7 +67,7 @@ def heatmap(costdiff, decision, lb, ub):
     print(costarr)
     print(decisionarr)
 
-    lim = max(costslice, key=abs)
+    lim = abs(max(costslice, key=abs))
     sb.heatmap(costarr, cmap="RdBu",
         vmin=-lim, vmax=lim, center=0,
         fmt="s", annot=decisionarr,
@@ -81,18 +81,18 @@ def heatmap(costdiff, decision, lb, ub):
     #cb.ax.set_yticklabels(["CPU friendly","-1e6","-1e3","0","1e3","1e6","PIM friendly"])
     cb.ax.set_yticklabels(["CPU friendly","Neutral","PIM friendly"])
 
-    plt.title("Each block (X, Y) represents a basic block.", y=-0.15)
+    # plt.title("Each block (X, Y) represents a basic block.", y=-0.15)
 
     plt.savefig("cfgheatmap.pdf", format="pdf")
     plt.show()
 
-def proc(cfgfile, costfile, lb, ub):
+def proc(costfile, lb, ub):
     # plt.rcParams['font.serif'] = "Times New Roman"
     # plt.rcParams['font.family'] = "font.serif"
-    maxbblid = int(cfgfile.readline())
-    cfg = []
-    for line in cfgfile.readlines():
-        cfg.append(line.split()[1:])
+    # maxbblid = int(cfgfile.readline())
+    # cfg = []
+    # for line in cfgfile.readlines():
+    #     cfg.append(line.split()[1:])
     # print(cfg[lb:ub+1])
     decision = []
     costdiff = []
@@ -105,18 +105,17 @@ def proc(cfgfile, costfile, lb, ub):
     # print(costdiff)
     if lb == -1 or ub == -1:
         lb = 0
-        ub = maxbblid
-    cfgheatmap(cfg, costdiff, decision, lb, ub)
+        ub = len(costdiff) - 1
+    # cfgheatmap(cfg, costdiff, decision, lb, ub)
     heatmap(costdiff, decision, lb, ub)
 
 
-def main(cfgfilename, costfilename, lb="-1", ub="-1"):
-    with open(cfgfilename, "r") as cfgfile:
-        with open(costfilename, "r") as costfile:
-            proc(cfgfile, costfile, int(lb), int(ub))
+def main(costfilename, lb="-1", ub="-1"):
+    with open(costfilename, "r") as costfile:
+        proc(costfile, int(lb), int(ub))
 
 if __name__ == "__main__":
     if len(sys.argv) == 3:
         main(sys.argv[1], sys.argv[2])
-    if len(sys.argv) == 5:
-        main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    if len(sys.argv) == 4:
+        main(sys.argv[1], sys.argv[2], sys.argv[3])

@@ -54,7 +54,7 @@ void CommandLineParser::initialize(int argc, char *argv[])
         ASSERTX(0);
     }
     if (_outputfile == "") {
-        _outputfile = "offload_decision.txt";
+        _outputfile = "decision.out";
         warningmsg() << "No output file name specified. Printing output to file offload_decision.txt." << std::endl;
     }
     // if (_controlflowfile == "") {

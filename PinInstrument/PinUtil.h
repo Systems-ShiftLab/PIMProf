@@ -77,10 +77,10 @@ class BBLScope {
 /* Output Formatting */
 /* ===================================================================== */
 
-const string REDCOLOR = "\033[0;31m";
-const string GREENCOLOR = "\033[0;32m";
-const string YELLOWCOLOR = "\033[0;33m";
-const string NOCOLOR = "\033[0m";
+const std::string REDCOLOR = "\033[0;31m";
+const std::string GREENCOLOR = "\033[0;32m";
+const std::string YELLOWCOLOR = "\033[0;33m";
+const std::string NOCOLOR = "\033[0m";
 
 inline std::ostream &errormsg()
 {

@@ -37,6 +37,7 @@ build/
 *.out
 *.dot
 *.log
+*.pdf
 
 # Bitcode and IR
 *.ll

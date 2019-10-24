@@ -52,9 +52,9 @@ class CostPackage {
     /// the total memory cost of each BB
     std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
 
-    long long int _instr_cnt;
-    long long int _mem_instr_cnt;
-    long long int _nonmem_instr_cnt;
+    UINT64 _total_instr_cnt;
+    std::vector<UINT64> _bbl_visit_cnt;
+    std::vector<UINT64> _instr_cnt;
 
     /// Construction of latency table follows the opcode generation function in
     /// $(PIN_ROOT)/source/tools/SimpleExamples/opcodemix.cpp

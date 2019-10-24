@@ -36,6 +36,7 @@ build/
 # Temporary output
 *.out
 *.dot
+*.log
 
 # Bitcode and IR
 *.ll

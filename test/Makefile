@@ -5,7 +5,7 @@ include ../Makefile.common
 DECISION            := decision.out
 TEST_EXE            := test.exe
 
-CXXFLAGS := -fPIC -std=c++11 -O3
+CXXFLAGS := -fPIC -std=c++11
 LDFLAGS  := 
 
 all: $(DECISION)

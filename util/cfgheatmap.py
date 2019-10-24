@@ -62,8 +62,6 @@ def heatmap(costdiff, decision, lb, ub):
     decisionarr = np.reshape(np.array(decisionslice), (-1, N))
     #ytick = range(lb - lb % N, ub + N - ub % N, N)
     ytick = range(0, int((ub-lb + N - (ub-lb) % N)/N))
-    print([i for i in ytick])
-
     print(costarr)
     print(decisionarr)
 
@@ -96,11 +94,12 @@ def proc(costfile, lb, ub):
     # print(cfg[lb:ub+1])
     decision = []
     costdiff = []
-    costfile.readline()
-    for line in costfile.readlines():
+
+    # skip unused lines:
+    for line in costfile.readlines()[7:]:
         line = line.split()
         decision.append(line[1])
-        costdiff.append(float(line[-1]))
+        costdiff.append(float(line[-3]))
     # print(decision)
     # print(costdiff)
     if lb == -1 or ub == -1:

@@ -84,8 +84,11 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
             pkg._bbl_memory_cost[i].push_back(0);
         }
+        pkg._bbl_visit_cnt.push_back(0);
+        pkg._instr_cnt.push_back(0);
     }
     pkg._bbl_scope.push(it->second);
+    self->_cost_package._bbl_visit_cnt[it->second]++;
 
     // infomsg() << bblid << " " << isomp << std::endl;
 }
@@ -111,7 +114,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
         RTN_Open(annotator_head);
         RTN_InsertCall(
             annotator_head,
-            IPOINT_BEFORE,
+            IPOINT_AFTER,
             (AFUNPTR)DoAtAnnotationHead,
             IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotationHead
             IARG_FUNCARG_CALLSITE_VALUE, 0,
@@ -141,12 +144,10 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
     CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
     ofs.close();
     
-    ofs.open("BBLBlockCost.out", std::ofstream::out);
-
-    self->_cost_solver.PrintBBLDecisionStat(ofs, decision, false);
-    
-    ofs.close();
     ofs.open("BBLReuseCost.dot", std::ofstream::out);
     self->_cost_package._data_reuse.print(ofs, self->_cost_package._data_reuse.getRoot());
     ofs.close();
+
+    ofs.open("bblcdf.out", std::ofstream::out);
+    self->_cost_solver.PrintAnalytics(ofs);
 }

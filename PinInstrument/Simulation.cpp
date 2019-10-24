@@ -19,10 +19,6 @@ void InstructionLatency::initialize(CostPackage *cost_package)
 {
     _cost_package = cost_package;
 
-    _cost_package->_instr_cnt = 0;
-    _cost_package->_mem_instr_cnt = 0;
-    _cost_package->_nonmem_instr_cnt = 0;
-
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_INDEX; j++) {
             _cost_package->_instruction_latency[i][j] = 1;
@@ -53,15 +49,14 @@ void InstructionLatency::instrument() {
 
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem)
 {
-    self->_cost_package->_instr_cnt++;
+    self->_cost_package->_total_instr_cnt++;
     BBLID bblid = self->_cost_package->_bbl_scope.top();
     if (bblid == GLOBALBBLID) return;
+    self->_cost_package->_instr_cnt[bblid]++;
 
     if (ismem) {
-        self->_cost_package->_mem_instr_cnt++;
     }
     else {
-        self->_cost_package->_nonmem_instr_cnt++;
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
             self->_cost_package->_bbl_instruction_cost[i][bblid] += self->_cost_package->_instruction_latency[i][opcode];
         }
@@ -208,6 +203,5 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
 
 VOID MemoryLatency::FinishInstrument(INT32 code, VOID *void_self)
 {
-    MemoryLatency *self = (MemoryLatency *)void_self;
-    self->_storage->WriteStats("stats.out");
+    // nothing to do
 }

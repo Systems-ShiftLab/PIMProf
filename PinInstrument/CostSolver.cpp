@@ -45,10 +45,39 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
     DECISION decision, result;
 
-    std::cout << "instrcnt: " << _cost_package->_mem_instr_cnt << " & " << _cost_package->_nonmem_instr_cnt << " / " << _cost_package->_instr_cnt << std::endl;
-    std::cout << "PLAN\t\tINSTRUCTION\tMEMORY\t\tPARTIAL\t\tREUSE\t\tTOTAL" << std::endl;
+    std::cout << std::left << std::setw(14) << "PLAN"
+              << std::left << std::setw(15) << "INSTRUCTION"
+              << std::left << std::setw(15) << "MEMORY"
+              << std::left << std::setw(15) << "PARTIAL"
+              << std::left << std::setw(15) << "REUSE"
+              << std::left << std::setw(15) << "TOTAL"
+              << std::endl;
+    out << std::left << std::setw(14) << "PLAN"
+              << std::left << std::setw(15) << "INSTRUCTION"
+              << std::left << std::setw(15) << "MEMORY"
+              << std::left << std::setw(15) << "PARTIAL"
+              << std::left << std::setw(15) << "REUSE"
+              << std::left << std::setw(15) << "TOTAL"
+              << std::endl;
+
+    // pure CPU
+    decision.clear();
+    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        decision.push_back(CPU);
+    }
+    PrintDecisionStat(std::cout, decision, "Pure CPU");
+    PrintDecisionStat(out, decision, "Pure CPU");
+
+     // pure PIM
+    decision.clear();
+    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        decision.push_back(PIM);
+    }
+    PrintDecisionStat(std::cout, decision, "Pure PIM");
+    PrintDecisionStat(out, decision, "Pure PIM");
 
     // greedy decision
+    decision.clear();
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
             decision.push_back(CPU);
@@ -57,29 +86,19 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
             decision.push_back(PIM);
         }
     }
-    std::ofstream tempofs("greedy_decision.out", std::ofstream::out);
-    PrintDecision(tempofs, decision, false);
-    PrintDecisionStat(std::cout, decision, "Pure greedy");
+    // std::ofstream tempofs("greedy_decision.out", std::ofstream::out);
+    // PrintDecision(tempofs, decision, false);
+    PrintDecisionStat(std::cout, decision, "Greedy");
+    PrintDecisionStat(out, decision, "Greedy");
 
     // Optimal
     result = FindOptimal();
-    PrintDecision(infomsg(), result, true);
-    PrintDecision(out, result, false);
+
     PrintDecisionStat(std::cout, result, "PIMProf opt");
-
-    // pure CPU
-    decision.clear();
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-        decision.push_back(CPU);
-    }
-    PrintDecisionStat(std::cout, decision, "Pure CPU");
-
-     // pure PIM
-    decision.clear();
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-        decision.push_back(PIM);
-    }
-    PrintDecisionStat(std::cout, decision, "Pure PIM");
+    PrintDecisionStat(out, result, "PIMProf opt");
+    out << std::endl;
+    PrintDecision(out, result, false);
+    PrintDecision(infomsg(), result, true);
 
     return result;
 }
@@ -201,9 +220,9 @@ CostSolver::DECISION CostSolver::FindOptimal()
             // PrintDecision(std::cout, decision, true);
         }
     }
-    std::ofstream ofs("temp.dot", std::ofstream::out);
-    _cost_package->_data_reuse.print(ofs, partial_root);
-    ofs.close();
+    // std::ofstream ofs("temp.dot", std::ofstream::out);
+    // _cost_package->_data_reuse.print(ofs, partial_root);
+    // ofs.close();
 
     _cost_package->_data_reuse.DeleteTrie(partial_root);
 
@@ -320,19 +339,43 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
 {
     if (toscreen == true) {
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-            out << i << ":";
-            out << (decision[i] == CPU ? "C" : "");
-            out << (decision[i] == PIM ? "P" : "");
-            out << " ";
+            out << i << ":"
+                << (decision[i] == CPU ? "C" : "")
+                << (decision[i] == PIM ? "P" : "")
+                << " ";
         }
         out << std::endl;
     }
     else {
+        std::vector<std::pair<UUID, UINT32>> sorted_hash(_cost_package->_bbl_hash.begin(), _cost_package->_bbl_hash.end());
+        std::sort(sorted_hash.begin(), sorted_hash.end(),
+            [](auto &a, auto &b) { return a.second < b.second; });
+        out << std::left << std::setw(7) << "BBLID" 
+            << std::left << std::setw(10) << "Decision" 
+            << std::left << std::setw(7) << "isomp"
+            << std::left << std::setw(15) << "CPUIns" 
+            << std::left << std::setw(15) << "PIMIns"
+            << std::left << std::setw(15) << "CPUMem" 
+            << std::left << std::setw(15) << "PIMMem"
+            << std::left << std::setw(15) << "difference"
+            << std::left << std::setw(18) << "Hash(hi)" 
+            << std::left << std::setw(16) << "Hash(lo)"
+            << std::endl;
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-            out << i << " ";
-            out << (decision[i] == CPU ? "C" : "");
-            out << (decision[i] == PIM ? "P" : "");
-            out << std::endl;
+            ASSERTX(sorted_hash[i].second == i);
+            out << std::left << std::setw(7) << i
+                << std::left << std::setw(10) << (decision[i] == PIM ? "P" : "C")
+                << std::left << std::setw(7) << (_cost_package->_inOpenMPRegion[i] ? "O" : "X")
+                << std::left << std::setw(15) << _cost_package->BBLInstructionCost(CPU, i)
+                << std::left << std::setw(15) << _cost_package->BBLInstructionCost(PIM, i)
+                << std::left << std::setw(15) << _cost_package->BBLMemoryCost(CPU, i)
+                << std::left << std::setw(15) << _cost_package->BBLMemoryCost(PIM, i)
+                << std::left << std::setw(15) << _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i]
+                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.first
+                << "  "
+                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.second
+                << std::setfill(' ') << std::dec
+                << std::endl;
         }
     }
     return out;
@@ -356,31 +399,38 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
         }
     }
 
-    out << name << ":\t"
-        << cur_instr_cost << "\t" << cur_mem_cost << "\t"
-        << (cur_instr_cost + cur_mem_cost) << "\t" << cur_reuse_cost << "\t"
-        << (cur_instr_cost + cur_mem_cost + cur_reuse_cost) << std::endl;
+    out << std::left << std::setw(14) << name + ":"
+        << std::left << std::setw(15) << cur_instr_cost 
+        << std::left << std::setw(15) << cur_mem_cost
+        << std::left << std::setw(15) << (cur_instr_cost + cur_mem_cost) 
+        << std::left << std::setw(15) << cur_reuse_cost
+        << std::left << std::setw(15) << (cur_instr_cost + cur_mem_cost + cur_reuse_cost)
+        << std::endl;
     return out;
 }
 
-std::ostream &CostSolver::PrintBBLDecisionStat(std::ostream &out, const DECISION &decision, bool toscreen)
+std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
 {
-    out << "BBL\t" << "isomp\t" << "Decision\t"
-    << "CPUIns\t\t" << "PIMIns\t\t"
-    << "CPUMem\t\t" << "PIMMem\t\t"
-    << "difference" << std::endl;
+    UINT64 total = 0;
+    UINT64 total_visit = 0;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-        out << i << "\t"
-        << (decision[i] == CPU ? "C" : "") 
-        << (decision[i] == PIM ? "P" : "") << "\t"
-        << (_cost_package->_inOpenMPRegion[i] ? "O" : "X") << "\t"
-        << _cost_package->BBLInstructionCost(CPU, i)
-        << "\t\t"
-        << _cost_package->BBLInstructionCost(PIM, i)
-        << "\t\t"
-        << _cost_package->BBLMemoryCost(CPU, i) << "\t\t"
-        << _cost_package->BBLMemoryCost(PIM, i) << "\t\t"
-        << _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i] << std::endl;
+        total += _cost_package->_instr_cnt[i];
+        total_visit += _cost_package->_bbl_visit_cnt[i];
+    }
+    std::cout << "total instr: " << _cost_package->_total_instr_cnt << std::endl;
+
+    std::cout << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
+
+    std::vector<UINT32> cdf; 
+    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        UINT32 per = _cost_package->_instr_cnt[i] / _cost_package->_bbl_visit_cnt[i];
+        // ASSERTX(_cost_package->_instr_cnt[i] % _cost_package->_bbl_visit_cnt[i] == 0);
+        for (; cdf.size() <= per; cdf.push_back(0));
+        cdf[per] += _cost_package->_bbl_visit_cnt[i];
+    }
+    for (UINT32 i = 0; i < cdf.size(); i++) {
+        if (cdf[i] > 0)
+        out << i << " " << cdf[i] << std::endl;
     }
     return out;
 }

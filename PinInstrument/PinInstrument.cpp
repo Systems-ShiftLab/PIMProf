@@ -90,7 +90,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
     pkg._bbl_scope.push(it->second);
     self->_cost_package._bbl_visit_cnt[it->second]++;
 
-    // infomsg() << bblid << " " << isomp << std::endl;
+    // infomsg() << it->second << " " << isomp << std::endl;
 }
 
 VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
@@ -114,7 +114,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
         RTN_Open(annotator_head);
         RTN_InsertCall(
             annotator_head,
-            IPOINT_AFTER,
+            IPOINT_BEFORE,
             (AFUNPTR)DoAtAnnotationHead,
             IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotationHead
             IARG_FUNCARG_CALLSITE_VALUE, 0,

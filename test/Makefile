@@ -5,7 +5,7 @@ include ../Makefile.common
 DECISION            := decision.out
 TEST_EXE            := test.exe
 
-CXXFLAGS := -fPIC -std=c++11
+CXXFLAGS := -Xclang -load -Xclang $(INJECTION_SO) -fPIC -std=c++11
 LDFLAGS  := 
 
 all: $(DECISION)
@@ -20,6 +20,7 @@ $(TEST_EXE): test.o print4.o $(ANNOTATION_SO)
 	$(CLANGXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.cpp
-	$(CLANGXX) -Xclang -load -Xclang $(INJECTION_SO) $(CXXFLAGS) -c -o $@ $<
+	$(CLANGXX) $(CXXFLAGS) -S -emit-llvm $<
+	$(CLANGXX) $(CXXFLAGS) -c -o $@ $<
 
 .PHONY: all clean

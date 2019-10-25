@@ -421,16 +421,41 @@ std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
 
     std::cout << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
 
+    std::vector<std::vector<UINT32>> cdftemp;
     std::vector<UINT32> cdf; 
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         UINT32 per = _cost_package->_instr_cnt[i] / _cost_package->_bbl_visit_cnt[i];
         // ASSERTX(_cost_package->_instr_cnt[i] % _cost_package->_bbl_visit_cnt[i] == 0);
         for (; cdf.size() <= per; cdf.push_back(0));
         cdf[per] += _cost_package->_bbl_visit_cnt[i];
+
+        for (; cdftemp.size() <= per; cdftemp.push_back(std::vector<UINT32>()));
+        cdftemp[per].push_back(i);
     }
+    for (UINT32 i = 0; i < cdf.size(); i++) {
+        if (cdf[i] > 0) {
+            out << i << " ";
+            for (UINT32 j = 0; j < cdftemp[i].size(); j++)
+                out << cdftemp[i][j] << " ";
+            out << std::endl;
+        }
+    }
+    out << std::endl;
     for (UINT32 i = 0; i < cdf.size(); i++) {
         if (cdf[i] > 0)
         out << i << " " << cdf[i] << std::endl;
+    }
+    out << std::endl;
+    for (UINT32 i = 0; i < cdftemp[cdf.size() - 1].size(); i++) {
+        BBLID bblid = cdftemp[cdf.size() - 1][i];
+        infomsg() << cdf.size() << " " << bblid << std::endl;
+        auto &map = _cost_package->_bbl_hash;
+        for (auto it = map.begin(); it != map.end(); ++it) {
+            if (it->second == bblid) {
+                out << (INT64)it->first.first << " " << (INT64)it->first.second << std::endl;
+                break;
+            }
+        } 
     }
     return out;
 }

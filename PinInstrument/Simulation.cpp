@@ -65,14 +65,23 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
 
 VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
 {
-    InstructionLatency *self = (InstructionLatency *)void_self;
-    UINT32 opcode = (UINT32)(INS_Opcode(ins));
-    BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
-        IARG_PTR, (VOID *)self,
-        IARG_ADDRINT, opcode,
-        IARG_BOOL, ismem,
-        IARG_END);
+    RTN rtn = INS_Rtn(ins);
+    std::string rtn_name = "";
+    if (RTN_Valid(rtn))
+        rtn_name = RTN_Name(rtn);
+    // do not instrument the annotation function
+    // whether or not instrument instruction with invalid rtn does not
+    // affect the result much
+    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
+        InstructionLatency *self = (InstructionLatency *)void_self;
+        UINT32 opcode = (UINT32)(INS_Opcode(ins));
+        BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
+            IARG_PTR, (VOID *)self,
+            IARG_ADDRINT, opcode,
+            IARG_BOOL, ismem,
+            IARG_END);
+    }
 }
 
 
@@ -164,40 +173,47 @@ VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32
 
 VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
 {
-    MemoryLatency *self = (MemoryLatency *)void_self;
-    // all instruction fetches access I-cache
-    INS_InsertCall(
-        ins, IPOINT_BEFORE, (AFUNPTR)InstrCacheRef,
-        IARG_PTR, (VOID *)self,
-        IARG_INST_PTR,
-        IARG_END);
-    if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins))
-    {
-        const UINT32 size = INS_MemoryReadSize(ins);
-        const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
-
-        // only predicated-on memory instructions access D-cache
-        INS_InsertPredicatedCall(
-            ins, IPOINT_BEFORE, countFun,
+    RTN rtn = INS_Rtn(ins);
+    std::string rtn_name = "";
+    if (RTN_Valid(rtn))
+        rtn_name = RTN_Name(rtn);
+    // do not instrument the annotation function
+    // whether or not instrument instruction with invalid rtn does not
+    // affect the result much
+    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
+        MemoryLatency *self = (MemoryLatency *)void_self;
+        // all instruction fetches access I-cache
+        INS_InsertCall(
+            ins, IPOINT_BEFORE, (AFUNPTR)InstrCacheRef,
             IARG_PTR, (VOID *)self,
-            IARG_MEMORYREAD_EA,
-            IARG_MEMORYREAD_SIZE,
-            IARG_UINT32, ACCESS_TYPE_LOAD,
+            IARG_INST_PTR,
             IARG_END);
-    }
-    if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins))
-    {
-        const UINT32 size = INS_MemoryWriteSize(ins);
-        const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
+        if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
+            const UINT32 size = INS_MemoryReadSize(ins);
+            const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
 
-        // only predicated-on memory instructions access D-cache
-        INS_InsertPredicatedCall(
-            ins, IPOINT_BEFORE, countFun,
-            IARG_PTR, (VOID *)self,
-            IARG_MEMORYWRITE_EA,
-            IARG_MEMORYWRITE_SIZE,
-            IARG_UINT32, ACCESS_TYPE_STORE,
-            IARG_END);
+            // only predicated-on memory instructions access D-cache
+            INS_InsertPredicatedCall(
+                ins, IPOINT_BEFORE, countFun,
+                IARG_PTR, (VOID *)self,
+                IARG_MEMORYREAD_EA,
+                IARG_MEMORYREAD_SIZE,
+                IARG_UINT32, ACCESS_TYPE_LOAD,
+                IARG_END);
+        }
+        if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins)) {
+            const UINT32 size = INS_MemoryWriteSize(ins);
+            const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
+
+            // only predicated-on memory instructions access D-cache
+            INS_InsertPredicatedCall(
+                ins, IPOINT_BEFORE, countFun,
+                IARG_PTR, (VOID *)self,
+                IARG_MEMORYWRITE_EA,
+                IARG_MEMORYWRITE_SIZE,
+                IARG_UINT32, ACCESS_TYPE_STORE,
+                IARG_END);
+        }
     }
 }
 

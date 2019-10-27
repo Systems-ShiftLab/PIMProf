@@ -55,6 +55,7 @@ class CostPackage {
     UINT64 _total_instr_cnt;
     std::vector<UINT64> _bbl_visit_cnt;
     std::vector<UINT64> _instr_cnt;
+    std::vector<UINT64> _cache_miss;
 
     /// Construction of latency table follows the opcode generation function in
     /// $(PIN_ROOT)/source/tools/SimpleExamples/opcodemix.cpp
@@ -86,7 +87,7 @@ class CostPackage {
         else {
             return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site];
         }
-        
+
     }
     inline COST BBLMemoryCost(CostSite site, BBLID bbl) {
         if (_inOpenMPRegion[bbl]) {

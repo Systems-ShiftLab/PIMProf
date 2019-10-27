@@ -26,7 +26,7 @@ void PinInstrument::initialize(int argc, char *argv[])
     PIN_InitSymbols();
 
     _command_line_parser.initialize(argc, argv);
-    
+
     // ReadControlFlowGraph(_command_line_parser.controlflowfile());
 
     _config_reader = ConfigReader(_command_line_parser.configfile());
@@ -86,6 +86,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         }
         pkg._bbl_visit_cnt.push_back(0);
         pkg._instr_cnt.push_back(0);
+        pkg._cache_miss.push_back(0);
     }
     pkg._bbl_scope.push(it->second);
     self->_cost_package._bbl_visit_cnt[it->second]++;

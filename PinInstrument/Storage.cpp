@@ -281,6 +281,8 @@ VOID MEMORY_LEVEL::AddMemCost()
 {
     BBLID bblid = _storage->_cost_package->_bbl_scope.top();
     if (bblid != GLOBALBBLID) {
+        // increase counter of cache miss
+        _storage->_cost_package->_cache_miss[bblid]++;
         for (UINT32 i = 0; i < MAX_COST_SITE; i++)
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += _hitcost[i];
     }
@@ -319,7 +321,6 @@ STORAGE::~STORAGE()
             if (_storage[i][j] != NULL)
                 delete _storage[i][j];
         }
-            
     }
 }
 

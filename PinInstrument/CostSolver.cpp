@@ -60,6 +60,20 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
               << std::left << std::setw(15) << "TOTAL"
               << std::endl;
 
+    //
+    decision.clear();
+    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        FLT64 mpki = (FLT64)_cost_package->_cache_miss[i] / _cost_package->_instr_cnt[i] * 1000;
+        infomsg() << i << " " << _cost_package->_cache_miss[i] << " " << _cost_package->_instr_cnt[i] << " " << mpki << std::endl;
+        if (mpki >= 10) {
+            decision.push_back(PIM);
+        }
+        else {
+            decision.push_back(CPU);
+        }
+    }
+    PrintDecisionStat(std::cout, decision, "MPKI");
+    PrintDecisionStat(out, decision, "MPKI");
     // pure CPU
     decision.clear();
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
@@ -176,7 +190,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
 
     for (int i = 0; i < _batchcount; i++) {
         std::cout << "cnt" << i << std::endl;
-        
+
         std::vector<BBLID> idvec;
         // insert segments until the number of different BBLs hit _batchsize
         while (currentnode < leavessize) {
@@ -247,7 +261,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
     for (int j = 0; j < 3; j++) {
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             BBLID id = i;
-            
+
             if (decision[id] == CPU) {
                 decision[id] = PIM;
                 COST temp_total = Cost(decision, _cost_package->_data_reuse.getRoot());

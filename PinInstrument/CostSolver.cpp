@@ -379,7 +379,7 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
             ASSERTX(sorted_hash[i].second == i);
             out << std::left << std::setw(7) << i
                 << std::left << std::setw(10) << (decision[i] == PIM ? "P" : "C")
-                << std::left << std::setw(7) << (_cost_package->_inOpenMPRegion[i] ? "O" : "X")
+                << std::left << std::setw(7) << (_cost_package->_inParallelRegion[i] ? "O" : "X")
                 << std::left << std::setw(15) << _cost_package->BBLInstructionCost(CPU, i)
                 << std::left << std::setw(15) << _cost_package->BBLInstructionCost(PIM, i)
                 << std::left << std::setw(15) << _cost_package->BBLMemoryCost(CPU, i)

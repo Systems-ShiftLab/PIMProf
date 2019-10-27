@@ -53,6 +53,7 @@ void PinInstrument::initialize(int argc, char *argv[])
 
 void PinInstrument::instrument()
 {
+    IMG_
     IMG_AddInstrumentFunction(ImageInstrument, (VOID *)this);
     PIN_AddFiniFunction(PinInstrument::FinishInstrument, (VOID *)this);
 }
@@ -77,7 +78,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._bbl_hash[bblhash] = pkg._bbl_size;
         it = pkg._bbl_hash.find(bblhash);
         pkg._bbl_size++;
-        pkg._inOpenMPRegion.push_back(isomp);
+        pkg._inParallelRegion.push_back(isomp);
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
             pkg._bbl_instruction_cost[i].push_back(0);
         }
@@ -141,12 +142,16 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
-    std::ofstream ofs(self->_command_line_parser.outputfile().c_str(), std::ofstream::out);
+    std::ofstream ofs(
+        self->_command_line_parser.outputfile().c_str(),
+        std::ofstream::out);
     CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
     ofs.close();
-    
+
     ofs.open("BBLReuseCost.dot", std::ofstream::out);
-    self->_cost_package._data_reuse.print(ofs, self->_cost_package._data_reuse.getRoot());
+    self->_cost_package._data_reuse.print(
+        ofs,
+        self->_cost_package._data_reuse.getRoot());
     ofs.close();
 
     ofs.open("bblcdf.out", std::ofstream::out);

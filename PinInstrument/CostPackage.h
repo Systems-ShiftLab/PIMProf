@@ -41,18 +41,26 @@ class HashFunc
 
 class CostPackage {
   public:
-    // BBLScope information
+    /// indicate which BBL this program is in now
     BBLScope _bbl_scope;
     std::unordered_map<UUID, UINT32, HashFunc> _bbl_hash;
     BBLID _bbl_size = 0;
-    /// whether this region is in openmp
-    std::vector<bool> _inOpenMPRegion;
+    /// whether this region is in parallelizable region
+    std::vector<bool> _inParallelRegion;
+
+  public:
+    /// thread count and the corresponding lock
+    INT32 _thread_count = 0;
+    PIN_LOCK _thread_count_lock;
+
+  public:
     /// the total instruction cost of each BB
     std::vector<COST> _bbl_instruction_cost[MAX_COST_SITE];
     /// the total memory cost of each BB
     std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
 
-    UINT64 _total_instr_cnt;
+  public:
+    UINT64 _total_instr_cnt = 0;
     std::vector<UINT64> _bbl_visit_cnt;
     std::vector<UINT64> _instr_cnt;
     std::vector<UINT64> _cache_miss;
@@ -67,20 +75,19 @@ class CostPackage {
     COST _mlp[MAX_COST_SITE];
     UINT32 _core_count[MAX_COST_SITE];
 
-
     /// the control latency when switching between sites
     COST _control_latency[MAX_COST_SITE][MAX_COST_SITE];
 
-
+  public:
+    /// keep track of the data reuse cost
     DataReuse _data_reuse;
-
     std::unordered_map<ADDRINT, DataReuseSegment> _tag_seg_map;
 
   public:
     void initialize();
 
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
-        if (_inOpenMPRegion[bbl]) {
+        if (_inParallelRegion[bbl]) {
             // infomsg() << "wow" << bbl << std::endl;
             return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
         }
@@ -90,7 +97,7 @@ class CostPackage {
 
     }
     inline COST BBLMemoryCost(CostSite site, BBLID bbl) {
-        if (_inOpenMPRegion[bbl]) {
+        if (_inParallelRegion[bbl]) {
             return _bbl_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
         }
         else {

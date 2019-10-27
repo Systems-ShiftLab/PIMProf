@@ -1,6 +1,9 @@
-PIMPROF_DIR         := $(shell pwd)
 include Makefile.config
 include Makefile.common
+
+ifndef PIMPROF_DIR
+$(error PIMPROF_DIR is not set in Makefile.config)
+endif
 
 all: llvm pin lib
 

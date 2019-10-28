@@ -53,9 +53,10 @@ void PinInstrument::initialize(int argc, char *argv[])
 
 void PinInstrument::instrument()
 {
-    IMG_
     IMG_AddInstrumentFunction(ImageInstrument, (VOID *)this);
-    PIN_AddFiniFunction(PinInstrument::FinishInstrument, (VOID *)this);
+    PIN_AddThreadStartFunction(ThreadStart, (VOID *)this);
+    PIN_AddThreadFiniFunction(ThreadFinish, (VOID *)this);
+    PIN_AddFiniFunction(FinishInstrument, (VOID *)this);
 }
 
 void PinInstrument::simulate()
@@ -137,6 +138,24 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             IARG_END);
         RTN_Close(annotator_tail);
     }
+}
+
+VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *void_self)
+{
+    PinInstrument *self = (PinInstrument *)void_self;
+    PIN_RWMutexWriteLock(&self->_cost_package._thread_count_rwmutex);
+    self->_cost_package._thread_count++;
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    infomsg() << "ThreadStart:" << threadid << " " << self->_cost_package._thread_count << std::endl;
+}
+
+VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 flags, VOID *void_self)
+{
+    PinInstrument *self = (PinInstrument *)void_self;
+    PIN_RWMutexWriteLock(&self->_cost_package._thread_count_rwmutex);
+    self->_cost_package._thread_count--;
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    infomsg() << "ThreadEnd:" << threadid << " " << self->_cost_package._thread_count << std::endl;
 }
 
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)

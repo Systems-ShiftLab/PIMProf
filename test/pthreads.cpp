@@ -16,7 +16,7 @@ void *perform_work(void *arguments){
   
 }
 
-int main(void) {
+int pthreads_exec() {
   pthread_t threads[NUM_THREADS];
   int thread_args[NUM_THREADS];
   int i;

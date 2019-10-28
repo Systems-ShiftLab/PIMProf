@@ -68,6 +68,10 @@ class PinInstrument {
     /// The instrumentation function for an entire image
     static VOID ImageInstrument(IMG img, VOID *void_self);
 
+    /// Execute when a new thread starts and ends
+    static VOID ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *void_self);
+    static VOID ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 flags, VOID *void_self);
+
     /// Finalization
     static VOID FinishInstrument(INT32 code, VOID *void_self);
 };

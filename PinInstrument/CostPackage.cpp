@@ -15,5 +15,5 @@ using namespace PIMProf;
 
 void CostPackage::initialize()
 {
-    PIN_InitLock(&_thread_count_lock);
+    PIN_RWMutexInit(&_thread_count_rwmutex);
 }

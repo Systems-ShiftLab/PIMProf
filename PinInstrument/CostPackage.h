@@ -49,9 +49,9 @@ class CostPackage {
     std::vector<bool> _inParallelRegion;
 
   public:
-    /// thread count and the corresponding lock
+    /// thread count and the corresponding RW lock
     INT32 _thread_count = 0;
-    PIN_LOCK _thread_count_lock;
+    PIN_RWMUTEX _thread_count_rwmutex;
 
   public:
     /// the total instruction cost of each BB

@@ -25,6 +25,6 @@ int main()
         }
         cout << "it is end" << endl;
     }
-    // pthreads_exec();
+    pthreads_exec();
 
 }

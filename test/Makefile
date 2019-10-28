@@ -9,7 +9,7 @@ DECISION            := decision.out
 TEST_EXE            := test.exe
 
 CXXFLAGS := -Xclang -load -Xclang $(INJECTION_SO) -fPIC -std=c++11
-LDFLAGS  := 
+LDFLAGS  := -pthread
 
 all: $(DECISION)
 
@@ -19,7 +19,7 @@ $(DECISION): $(TEST_EXE)
 clean:
 	rm -rf *.o *.exe *.bc *.ll *.out *.log *.dot
 
-$(TEST_EXE): test.o print4.o $(ANNOTATION_SO)
+$(TEST_EXE): test.o print4.o pthreads.o $(ANNOTATION_SO)
 	$(CLANGXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.cpp

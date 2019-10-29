@@ -49,20 +49,18 @@ void InstructionLatency::instrument() {
 
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, THREADID threadid)
 {
+    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "instrcount: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
 
         self->_cost_package->_total_instr_cnt++;
-        BBLID bblid = self->_cost_package->_bbl_scope.top();
         if (bblid == GLOBALBBLID) {
             PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
              return;
         }
-
         self->_cost_package->_instr_cnt[bblid]++;
-
         if (ismem) {
         }
         else {
@@ -171,11 +169,12 @@ void MemoryLatency::instrument()
 
 VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, THREADID threadid)
 {
+    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "instrcache: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->InstrCacheRef(addr);
+        self->_storage->InstrCacheRef(addr, bblid);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
     // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
@@ -189,11 +188,12 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, THREADID th
 
 VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid)
 {
+    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "datamulti: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRefMulti(addr, size, accessType);
+        self->_storage->DataCacheRefMulti(addr, size, accessType, bblid);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
     // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
@@ -207,11 +207,12 @@ VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 
 
 VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid)
 {
+    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "datasingle: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRefSingle(addr, size, accessType);
+        self->_storage->DataCacheRefSingle(addr, size, accessType, bblid);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
     // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {

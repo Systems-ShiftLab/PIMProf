@@ -356,8 +356,8 @@ class STORAGE_LEVEL_BASE
     COST _hitcost[MAX_COST_SITE];
 
   public:
-    virtual BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType) = 0;
-    virtual BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType) = 0;
+    virtual BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid) = 0;
+    virtual BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid) = 0;
 
   protected:
     // input params
@@ -388,7 +388,7 @@ class STORAGE_LEVEL_BASE
     CACHE_STATS Misses() const { return SumAccess(false); }
     CACHE_STATS Accesses() const { return Hits() + Misses(); }
 
-    inline VOID InsertOnHit(ADDRINT tag, BBLID bblid, ACCESS_TYPE accessType);
+    inline VOID InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID bblid);
 
     inline VOID SplitOnMiss(ADDRINT tag);
 
@@ -470,15 +470,15 @@ class CACHE_LEVEL : public STORAGE_LEVEL_BASE
   
   public:
     // modifiers
-    VOID AddMemCost();
+    VOID AddMemCost(BBLID bblid);
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
-    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid);
 
     /// Cache access at addr that does not span cache lines
     /// @return true if accessed cache line hits
-    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
+    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid);
 
     VOID Flush();
     VOID ResetStats();
@@ -499,15 +499,15 @@ class MEMORY_LEVEL : public STORAGE_LEVEL_BASE
     MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, COST hitcost[MAX_COST_SITE]);
 
     // modifiers
-    VOID AddMemCost();
+    VOID AddMemCost(BBLID bblid);
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
-    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid);
 
     /// Cache access at addr that does not span cache lines
     /// @return true if accessed cache line hits
-    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
+    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid);
 };
 
 class STORAGE
@@ -540,13 +540,13 @@ class STORAGE
     VOID Ul2Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
 
     /// Do on instruction cache reference
-    VOID InstrCacheRef(ADDRINT addr);
+    VOID InstrCacheRef(ADDRINT addr, BBLID bblid);
 
     /// Do on multi-line data cache references
-    VOID DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    VOID DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid);
 
     /// Do on a single-line data cache reference
-    VOID DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    VOID DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid);
 };
 
 } // namespace PIMProf

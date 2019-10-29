@@ -58,7 +58,7 @@ STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, CostSite cost_site, Sto
     }
 }
 
-VOID STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, BBLID bblid, ACCESS_TYPE accessType) {
+VOID STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID bblid) {
     if (bblid != GLOBALBBLID) {
         DataReuseSegment &seg = _storage->_cost_package->_tag_seg_map[tag];
         seg.insert(bblid);
@@ -172,9 +172,8 @@ CACHE_LEVEL::~CACHE_LEVEL()
 }
 
 
-VOID CACHE_LEVEL::AddMemCost()
+VOID CACHE_LEVEL::AddMemCost(BBLID bblid)
 {
-    BBLID bblid = _storage->_cost_package->_bbl_scope.top();
     if (bblid != GLOBALBBLID) {
         for (UINT32 i = 0; i < MAX_COST_SITE; i++)
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += _hitcost[i];
@@ -182,7 +181,7 @@ VOID CACHE_LEVEL::AddMemCost()
 } 
 
 
-BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
 {
     const ADDRINT highAddr = addr + size;
     BOOL allHit = true;
@@ -191,7 +190,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
     const ADDRINT notLineMask = ~(lineSize - 1);
     do
     {
-        allHit &= AccessSingleLine(addr, accessType);
+        allHit &= AccessSingleLine(addr, accessType, bblid);
         addr = (addr & notLineMask) + lineSize; // start of next cache line
 
     } while (addr < highAddr);
@@ -200,7 +199,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 }
 
 
-BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
+BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid)
 {
     ADDRINT tagaddr;
     UINT32 setIndex;
@@ -212,7 +211,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
     CACHE_TAG *tag = set->Find(tagaddr);
     BOOL hit = (tag != NULL);
 
-    AddMemCost();
+    AddMemCost(bblid);
 
     _access[accessType][hit]++;
 
@@ -226,10 +225,10 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
         ASSERTX(_next_level != NULL);
         if (_next_level->_storage_level == MEM)
             SplitOnMiss(tagaddr);
-        _next_level->AccessSingleLine(addr, accessType);
+        _next_level->AccessSingleLine(addr, accessType, bblid);
     }
     if (hit) {
-        InsertOnHit(tagaddr, _storage->_cost_package->_bbl_scope.top(), accessType);
+        InsertOnHit(tagaddr, accessType, bblid);
     }
 
     return hit;
@@ -277,9 +276,8 @@ MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel st
         _hitcost[i] = hitcost[i];
 }
 
-VOID MEMORY_LEVEL::AddMemCost()
+VOID MEMORY_LEVEL::AddMemCost(BBLID bblid)
 {
-    BBLID bblid = _storage->_cost_package->_bbl_scope.top();
     if (bblid != GLOBALBBLID) {
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
@@ -288,7 +286,7 @@ VOID MEMORY_LEVEL::AddMemCost()
     }
 }
 
-BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
 {
     // TODO: Implement this later
     ASSERTX(0);
@@ -296,10 +294,10 @@ BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 }
 
 
-BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
+BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid)
 {
     // always hit memory
-    AddMemCost();
+    AddMemCost(bblid);
     _access[accessType][true]++;
     return true;
 }
@@ -451,7 +449,7 @@ void STORAGE::WriteStats(const std::string filename)
     out.close();
 }
 
-VOID STORAGE::InstrCacheRef(ADDRINT addr)
+VOID STORAGE::InstrCacheRef(ADDRINT addr, BBLID bblid)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[ITLB]->AccessSingleLine(addr, accessType);
@@ -459,30 +457,30 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr)
     // assuming instruction cache access does not cross cache line
     // first level I-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
+        _storage[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD, bblid);
     }
 }
 
 
-VOID STORAGE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID STORAGE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage[i][DL1]->Access(addr, size, accessType);
+        _storage[i][DL1]->Access(addr, size, accessType, bblid);
     }
 }
 
-VOID STORAGE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID STORAGE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage[i][DL1]->Access(addr, size, accessType);
+        _storage[i][DL1]->Access(addr, size, accessType, bblid);
     }
 }
 

@@ -41,17 +41,20 @@ class HashFunc
 
 class CostPackage {
   public:
-    /// indicate which BBL this program is in now
-    BBLScope _bbl_scope;
     std::unordered_map<UUID, UINT32, HashFunc> _bbl_hash;
     BBLID _bbl_size = 0;
     /// whether this region is in parallelizable region
+    /// the value will be overwritten to true if in spawned thread
     std::vector<bool> _inParallelRegion;
 
+  // multithread parameters
   public:
+    PIN_RWMUTEX _thread_count_rwmutex;
     /// thread count and the corresponding RW lock
     INT32 _thread_count = 0;
-    PIN_RWMUTEX _thread_count_rwmutex;
+    /// indicate which BBL each thread is in now
+    /// needs to acquire the write lock when pushing back a new BBLScope
+    std::vector<BBLScope> _thread_bbl_scope;
 
   public:
     /// the total instruction cost of each BB

@@ -13,7 +13,7 @@ void *perform_work(void *arguments){
   printf("THREAD %d: Will be sleeping for %d seconds.\n", index, sleep_time);
   sleep(sleep_time);
   printf("THREAD %d: Ended.\n", index);
-  
+  return 0;
 }
 
 int pthreads_exec() {

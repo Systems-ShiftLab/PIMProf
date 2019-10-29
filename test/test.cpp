@@ -26,5 +26,6 @@ int main()
         cout << "it is end" << endl;
     }
     pthreads_exec();
+    return 0;
 
 }

@@ -453,15 +453,13 @@ void STORAGE::WriteStats(const std::string filename)
 
 VOID STORAGE::InstrCacheRef(ADDRINT addr)
 {
-    const ACCESS_TYPE accessType = ACCESS_TYPE_LOAD;
-
     // TODO: We do not consider TLB cost for now.
     // _storage[ITLB]->AccessSingleLine(addr, accessType);
 
     // assuming instruction cache access does not cross cache line
     // first level I-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage[i][IL1]->AccessSingleLine(addr, accessType);
+        _storage[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
     }
 }
 

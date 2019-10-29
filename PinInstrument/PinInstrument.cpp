@@ -69,40 +69,48 @@ void PinInstrument::simulate()
     PIN_StartProgram();
 }
 
-VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
-    CostPackage &pkg = self->_cost_package;
-    // infomsg() << "AnnotationHead: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
-    auto bblhash = UUID(bblhash_hi, bblhash_lo);
-    auto it = pkg._bbl_hash.find(bblhash);
-    if (it == pkg._bbl_hash.end()) {
-        pkg._bbl_hash[bblhash] = pkg._bbl_size;
-        it = pkg._bbl_hash.find(bblhash);
-        pkg._bbl_size++;
-        pkg._inParallelRegion.push_back(isomp);
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            pkg._bbl_instruction_cost[i].push_back(0);
+    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
+    if ((self->_cost_package._thread_count == 1 && threadid == 0) ||
+    (self->_cost_package._thread_count >= 2 && threadid == 1)) {
+        CostPackage &pkg = self->_cost_package;
+        auto bblhash = UUID(bblhash_hi, bblhash_lo);
+        auto it = pkg._bbl_hash.find(bblhash);
+        if (it == pkg._bbl_hash.end()) {
+            pkg._bbl_hash[bblhash] = pkg._bbl_size;
+            it = pkg._bbl_hash.find(bblhash);
+            pkg._bbl_size++;
+            pkg._inParallelRegion.push_back(isomp);
+            for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+                pkg._bbl_instruction_cost[i].push_back(0);
+            }
+            for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+                pkg._bbl_memory_cost[i].push_back(0);
+            }
+            pkg._bbl_visit_cnt.push_back(0);
+            pkg._instr_cnt.push_back(0);
+            pkg._cache_miss.push_back(0);
         }
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            pkg._bbl_memory_cost[i].push_back(0);
-        }
-        pkg._bbl_visit_cnt.push_back(0);
-        pkg._instr_cnt.push_back(0);
-        pkg._cache_miss.push_back(0);
+        pkg._bbl_scope.push(it->second);
+        self->_cost_package._bbl_visit_cnt[it->second]++;
+        infomsg() << "AnnotationHead: " << pkg._bbl_scope.top() << " " << it->second << " " << isomp << " " << threadid << std::endl;
     }
-    pkg._bbl_scope.push(it->second);
-    self->_cost_package._bbl_visit_cnt[it->second]++;
-
-    // infomsg() << it->second << " " << isomp << std::endl;
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
 
-VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp)
+VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
-    CostPackage &pkg = self->_cost_package;
-    // infomsg() << "AnnotationTail: " << std::hex << bblhash_hi << " " << bblhash_lo << " " << isomp << std::endl;
-    auto bblhash = UUID(bblhash_hi, bblhash_lo);
-    ASSERTX(pkg._bbl_scope.top() == pkg._bbl_hash[bblhash]);
-    pkg._bbl_scope.pop();
+    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
+    if ((self->_cost_package._thread_count == 1 && threadid == 0) ||
+    (self->_cost_package._thread_count >= 2 && threadid == 1)) {
+        CostPackage &pkg = self->_cost_package;
+        auto bblhash = UUID(bblhash_hi, bblhash_lo);
+        infomsg() << "AnnotationTail: " << pkg._bbl_scope.top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << std::endl;
+        ASSERTX(pkg._bbl_scope.top() == pkg._bbl_hash[bblhash]);
+        pkg._bbl_scope.pop();
+    }
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
 
 VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
@@ -123,6 +131,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             IARG_FUNCARG_CALLSITE_VALUE, 0,
             IARG_FUNCARG_CALLSITE_VALUE, 1,
             IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotationHead as an argument of DoAtAnnotationHead
+            IARG_THREAD_ID,
             IARG_END);
         RTN_Close(annotator_head);
 
@@ -135,6 +144,7 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             IARG_FUNCARG_CALLSITE_VALUE, 0,
             IARG_FUNCARG_CALLSITE_VALUE, 1,
             IARG_FUNCARG_CALLSITE_VALUE, 2, // Pass all three function argument PIMProfAnnotationHead as an argument of DoAtAnnotationTail
+            IARG_THREAD_ID,
             IARG_END);
         RTN_Close(annotator_tail);
     }
@@ -145,8 +155,10 @@ VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, V
     PinInstrument *self = (PinInstrument *)void_self;
     PIN_RWMutexWriteLock(&self->_cost_package._thread_count_rwmutex);
     self->_cost_package._thread_count++;
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
     infomsg() << "ThreadStart:" << threadid << " " << self->_cost_package._thread_count << std::endl;
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
 
 VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 flags, VOID *void_self)
@@ -154,8 +166,8 @@ VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 f
     PinInstrument *self = (PinInstrument *)void_self;
     PIN_RWMutexWriteLock(&self->_cost_package._thread_count_rwmutex);
     self->_cost_package._thread_count--;
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
     infomsg() << "ThreadEnd:" << threadid << " " << self->_cost_package._thread_count << std::endl;
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
 
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)

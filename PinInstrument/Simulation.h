@@ -65,7 +65,7 @@ class InstructionLatency {
 
   protected:
   /// Add up the cost of all instructions
-  static VOID InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem);
+  static VOID InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, THREADID threadid);
 
     /// The instrumentation function for normal instructions
   static VOID InstructionInstrument(INS ins, VOID *void_self);
@@ -92,13 +92,13 @@ class MemoryLatency {
   protected:
 
     /// Do on instruction cache reference
-    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr);
+    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, THREADID threadid);
 
     /// Do on multi-line data cache references
-    static VOID DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    static VOID DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid);
 
     /// Do on a single-line data cache reference
-    static VOID DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    static VOID DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid);
 
     /// The instrumentation function for memory instructions
     static VOID InstructionInstrument(INS ins, VOID *void_self);

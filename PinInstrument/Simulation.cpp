@@ -47,20 +47,32 @@ void InstructionLatency::instrument() {
 }
 
 
-VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem)
+VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, THREADID threadid)
 {
-    self->_cost_package->_total_instr_cnt++;
-    BBLID bblid = self->_cost_package->_bbl_scope.top();
-    if (bblid == GLOBALBBLID) return;
-    self->_cost_package->_instr_cnt[bblid]++;
+    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
+    // infomsg() << "instrcount: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
+    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
+    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
 
-    if (ismem) {
-    }
-    else {
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            self->_cost_package->_bbl_instruction_cost[i][bblid] += self->_cost_package->_instruction_latency[i][opcode];
+        self->_cost_package->_total_instr_cnt++;
+        BBLID bblid = self->_cost_package->_bbl_scope.top();
+        if (bblid == GLOBALBBLID) {
+            PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+             return;
         }
+
+        self->_cost_package->_instr_cnt[bblid]++;
+
+        if (ismem) {
+        }
+        else {
+            for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+                self->_cost_package->_bbl_instruction_cost[i][bblid] += self->_cost_package->_instruction_latency[i][opcode];
+            }
+        }
+
     }
+    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }
 
 VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
@@ -80,6 +92,7 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
             IARG_PTR, (VOID *)self,
             IARG_ADDRINT, opcode,
             IARG_BOOL, ismem,
+            IARG_THREAD_ID,
             IARG_END);
     }
 }
@@ -156,19 +169,58 @@ void MemoryLatency::instrument()
 // }
 
 
-VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr)
+VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, THREADID threadid)
 {
-    self->_storage->InstrCacheRef(addr);
+    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
+    // infomsg() << "instrcache: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
+    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
+    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
+        self->_storage->InstrCacheRef(addr);
+    }
+    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
+    //     infomsg() << "inst" << std::endl;
+    //     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    // }
+    // else {
+    //     infomsg() << "fck inst" << std::endl;
+    // }
 }
 
-VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid)
 {
-    self->_storage->DataCacheRefMulti(addr, size, accessType);
+    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
+    // infomsg() << "datamulti: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
+    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
+    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
+        self->_storage->DataCacheRefMulti(addr, size, accessType);
+    }
+    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
+    //     infomsg() << "datamulti" << std::endl;
+    //     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    // }
+    // else {
+    //     infomsg() << "fck datamulti" << std::endl;
+    // }
 }
 
-VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid)
 {
-    self->_storage->DataCacheRefSingle(addr, size, accessType);
+    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
+    // infomsg() << "datasingle: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
+    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
+    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
+        self->_storage->DataCacheRefSingle(addr, size, accessType);
+    }
+    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
+    //     infomsg() << "datasingle" << std::endl;
+    //     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    // }
+    // else {
+    //     infomsg() << "fck datasingle" << std::endl;
+    // }
 }
 
 VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
@@ -187,31 +239,34 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
             ins, IPOINT_BEFORE, (AFUNPTR)InstrCacheRef,
             IARG_PTR, (VOID *)self,
             IARG_INST_PTR,
+            IARG_THREAD_ID,
             IARG_END);
         if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
             const UINT32 size = INS_MemoryReadSize(ins);
-            const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
+            const AFUNPTR DataCacheRef = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
 
             // only predicated-on memory instructions access D-cache
             INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, countFun,
+                ins, IPOINT_BEFORE, DataCacheRef,
                 IARG_PTR, (VOID *)self,
                 IARG_MEMORYREAD_EA,
                 IARG_MEMORYREAD_SIZE,
                 IARG_UINT32, ACCESS_TYPE_LOAD,
+                IARG_THREAD_ID,
                 IARG_END);
         }
         if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins)) {
             const UINT32 size = INS_MemoryWriteSize(ins);
-            const AFUNPTR countFun = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
+            const AFUNPTR DataCacheRef = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
 
             // only predicated-on memory instructions access D-cache
             INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, countFun,
+                ins, IPOINT_BEFORE, DataCacheRef,
                 IARG_PTR, (VOID *)self,
                 IARG_MEMORYWRITE_EA,
                 IARG_MEMORYWRITE_SIZE,
                 IARG_UINT32, ACCESS_TYPE_STORE,
+                IARG_THREAD_ID,
                 IARG_END);
         }
     }

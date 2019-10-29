@@ -8,7 +8,7 @@ endif
 DECISION            := decision.out
 TEST_EXE            := test.exe
 
-CXXFLAGS := -Xclang -load -Xclang $(INJECTION_SO) -fPIC -std=c++11
+CXXFLAGS := -Xclang -load -Xclang $(INJECTION_SO) -fPIC -std=c++11 -g
 LDFLAGS  := -pthread
 
 all: $(DECISION)

@@ -33,7 +33,10 @@
 #include <iostream>
 #include <assert.h>
 #include <fstream>
+#include <sstream>
+#include <unordered_map>
 
+#include "MurmurHash3.h"
 #include "Common.h"
 
 using namespace llvm;
@@ -41,9 +44,21 @@ using namespace llvm;
 
 namespace {
     enum CallSite {
-        CPU = 0,
-        PIM = 1,
+        CPU, PIM, MAX_COST_SITE,
         INVALID = 0x3fffffff // a placeholder that does not count as a cost site
+    };
+
+    typedef std::pair<uint64_t, uint64_t> UUID;
+
+    class HashFunc
+    {
+      public:
+        // assuming UUID is already murmurhash-ed.
+        std::size_t operator()(const UUID &key) const
+        {
+            size_t result = key.first ^ key.second;
+            return result;
+        }
     };
 
     static cl::opt<CallSite> StayOn(
@@ -62,6 +77,8 @@ namespace {
         cl::init("")
     );
 
+    std::unordered_map<UUID, std::pair<CallSite, int>, HashFunc> decision_map;
+
     void InjectOffloaderCall(Module &M, BasicBlock &BB, int DECISION, int BBLID) {
         LLVMContext &ctx = M.getContext();
 
@@ -70,16 +87,13 @@ namespace {
             M.getOrInsertFunction(
                 PIMProfOffloader, 
                 FunctionType::getVoidTy(ctx), 
-                Type::getInt32Ty(ctx),
-                Type::getInt32Ty(ctx)
+                Type::getInt64Ty(ctx)
             )
         );
 
         std::vector<Value *> args;
         args.push_back(ConstantInt::get(
-            IntegerType::get(M.getContext(),32), DECISION));
-        args.push_back(ConstantInt::get(
-            IntegerType::get(M.getContext(),32), BBLID));
+            IntegerType::get(M.getContext(),64), DECISION));
 
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
@@ -93,11 +107,10 @@ namespace {
             ctx, 
             ConstantAsMetadata::get(
                 ConstantInt::get(
-                    IntegerType::get(M.getContext(),32), BBLID)
+                    IntegerType::get(M.getContext(),64), BBLID)
             )
         );
         head_instr->setMetadata(PIMProfBBLIDMetadata, md);
-
     }
 
     class PIMProfAAW : public AssemblyAnnotationWriter {
@@ -120,12 +133,6 @@ namespace {
 
         virtual bool runOnModule(Module &M) {
             // assign unique id to each basic block
-            int bblid = BBLStartingID;
-            std::vector<int> decisions;
-            for (int i = 0; i < bblid; i++) {
-                decisions.push_back(-1);
-            }
-            
             if (StayOn == INVALID && InputFilename == "") {
                 std::cerr << "Must specify either a place for the program to stay or give an input filename. Refer to -h.";
                 assert(false);
@@ -133,29 +140,51 @@ namespace {
             else if (StayOn == INVALID && InputFilename != "") {
                 // Read decisions from file
                 std::ifstream ifs(InputFilename.c_str(), std::ifstream::in);
-                int temp;
-                std::string tempdecision;
-                while(ifs >> temp >> tempdecision) {
-                    if (tempdecision == "C") {
-                        decisions.push_back(0);
+                std::string line;
+                // skip the preceding lines
+                for (int i = 0; i < 8; i++) {
+                    std::getline(ifs, line);
+                }
+                while(std::getline(ifs, line)) {
+                    std::stringstream ss(line);
+                    std::string token;
+                    CallSite decision;
+                    int bblid;
+                    uint64_t hi, lo;
+                    for (int i = 0; i < 10; i++) {
+                        if (i == 0) {
+                            ss >> bblid;
+                        }
+                        else if (i == 1) {
+                            ss >> token;
+                            decision = (token == "P" ? PIM : CPU);
+                        }
+                        else if (i == 8) {
+                            ss >> std::hex >> hi;
+                        }
+                        else if (i == 9) {
+                            ss >> std::hex >> lo;
+                        }
+                        else {
+                            // ignore it
+                            ss >> token;
+                        }
                     }
-                    else if (tempdecision == "P") {
-                        decisions.push_back(1);
-                    }
-                    else {
-                        assert(false);
-                    }
+                    decision_map[UUID(hi, lo)] = std::make_pair(decision, bblid);
                 }
                 ifs.close();
                 // inject offloader function to each basic block
                 // according to their basic block ID and corresponding decision
                 // simply assume that the input program is the same as the input in annotator injection pass
                 for (auto &func : M) {
-                    errs() << func.getName() << "\n";
                     for (auto &bb: func) {
-                        errs() << bblid << "(" << decisions[bblid] << ") ";
-                        InjectOffloaderCall(M, bb, decisions[bblid], bblid);
-                        bblid++;
+                        std::string BB_content;
+                        raw_string_ostream rso(BB_content);
+                        rso << bb;
+                        uint64_t bblhash[2];
+                        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+                        auto pair = decision_map[UUID(bblhash[1], bblhash[0])];
+                        InjectOffloaderCall(M, bb, pair.first, pair.second);
                     }
                     errs() << "\n";
                 }
@@ -163,8 +192,7 @@ namespace {
             else if (StayOn != INVALID && InputFilename == "") {
                 for (auto &func : M) {
                     for (auto &bb: func) {
-                        InjectOffloaderCall(M, bb, (int)StayOn, bblid);
-                        bblid++;
+                        InjectOffloaderCall(M, bb, (int)StayOn, 0);
                     }
                 }
             }

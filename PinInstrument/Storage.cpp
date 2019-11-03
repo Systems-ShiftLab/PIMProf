@@ -58,6 +58,8 @@ STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, CostSite cost_site, Sto
     }
 }
 
+// the current data reuse segment of each tag is stored as a separate unordered map,
+// independent of which cache level this tag is in
 VOID STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID bblid) {
     if (bblid != GLOBALBBLID) {
         DataReuseSegment &seg = _storage->_cost_package->_tag_seg_map[tag];
@@ -174,6 +176,8 @@ CACHE_LEVEL::~CACHE_LEVEL()
 
 VOID CACHE_LEVEL::AddMemCost(BBLID bblid)
 {
+    // When this is a CPU cache level, for example,
+    // _hitcost[PIM] will be assigned to 0
     if (bblid != GLOBALBBLID) {
         for (UINT32 i = 0; i < MAX_COST_SITE; i++)
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += _hitcost[i];
@@ -218,16 +222,21 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID b
     // On miss: Loads always allocate, stores optionally
     // 1. Replace the current level with the demanding tag
     // 2. Go and access next level
+    // This is the implementation of an inclusive cache,
+    // every access to a memory address will promote that address to L1
     if ((!hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
         tag = set->Replace(tagaddr);
 
         ASSERTX(_next_level != NULL);
-        if (_next_level->_storage_level == MEM)
+        // We only keep track of the data reuse chain from the view of CPU
+        // this is conservative as it may lead to larger reuse cost than actual
+        // _hitcost[CPU] > 0 means that this is a CPU cache level
+        if (_next_level->_storage_level == MEM && _hitcost[CPU] > 0)
             SplitOnMiss(tagaddr);
         _next_level->AccessSingleLine(addr, accessType, bblid);
     }
-    if (hit) {
+    if (hit && _hitcost[CPU] > 0) {
         InsertOnHit(tagaddr, accessType, bblid);
     }
 

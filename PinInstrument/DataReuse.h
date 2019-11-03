@@ -139,9 +139,9 @@ class TrieNode {
 /// If all BB in a segment are executed in the same place,
 /// then there is no reuse cost;
 /// If the initial W is on PIM and there are subsequent R/W on CPU,
-/// then this segment contributes to a fetch cost;
+/// then this segment contributes to a flush of PIM and data fetch from CPU;
 /// If the initial W is on CPU and there are subsequent R/W on PIM,
-/// then this segment contributes to a flush cost.
+/// then this segment contributes to a flush of CPU and data fetch from PIM.
 class DataReuse {
   private:
     TrieNode *_root;

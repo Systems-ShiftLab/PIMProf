@@ -91,9 +91,13 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._instr_cnt.push_back(0);
         pkg._cache_miss.push_back(0);
     }
+    // overwrite _inParallelRegion[] if 
+    if (threadid == 1) {
+        pkg._inParallelRegion[it->second] = true;
+    }
     pkg._thread_bbl_scope[threadid].push(it->second);
     self->_cost_package._bbl_visit_cnt[it->second]++;
-    infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << std::endl;
+    // infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << std::endl;
 
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
@@ -104,7 +108,7 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
 
     CostPackage &pkg = self->_cost_package;
     auto bblhash = UUID(bblhash_hi, bblhash_lo);
-    infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << std::endl;
+    // infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << std::endl;
     ASSERTX(pkg._thread_bbl_scope[threadid].top() == pkg._bbl_hash[bblhash]);
     pkg._thread_bbl_scope[threadid].pop();
 
@@ -185,5 +189,6 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
     ofs.close();
 
     ofs.open("bblcdf.out", std::ofstream::out);
-    self->_cost_solver.PrintAnalytics(ofs);
+    // TODO: Need bug fix, cause Pin out of memory error
+    // self->_cost_solver.PrintAnalytics(ofs);
 }

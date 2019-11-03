@@ -96,7 +96,7 @@ def proc(costfile, lb, ub):
     costdiff = []
 
     # skip unused lines:
-    for line in costfile.readlines()[7:]:
+    for line in costfile.readlines()[8:]:
         line = line.split()
         decision.append(line[1])
         costdiff.append(float(line[-3]))

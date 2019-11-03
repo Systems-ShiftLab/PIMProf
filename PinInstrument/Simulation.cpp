@@ -58,7 +58,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
         self->_cost_package->_total_instr_cnt++;
         if (bblid == GLOBALBBLID) {
             PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-             return;
+            return;
         }
         self->_cost_package->_instr_cnt[bblid]++;
         if (ismem) {
@@ -102,7 +102,7 @@ void InstructionLatency::ReadConfig(ConfigReader &reader)
         for (UINT32 j = 0; j < MAX_INDEX; j++) {
             std::string opcodestr = OPCODE_StringShort(j);
             if (opcodestr != "LAST") {
-                COST latency = reader.GetReal(CostSiteName[i] + "InstructionLatency", opcodestr, -1);
+                COST latency = reader.GetReal(CostSiteName[i] + "/InstructionLatency", opcodestr, -1);
                 if (latency >= 0) {
                     _cost_package->_instruction_latency[i][j] = latency;
                 }
@@ -117,7 +117,7 @@ void InstructionLatency::ReadConfig(ConfigReader &reader)
 std::ostream& InstructionLatency::WriteConfig(std::ostream& out)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        out << ("[" + CostSiteName[i] + "InstructionLatency]") << std::endl
+        out << ("[" + CostSiteName[i] + "/InstructionLatency]") << std::endl
             << "; <Instuction Name> = <Instruction Latency>" << std::endl;
         for (UINT32 j = 0; j < MAX_INDEX; j++)
         {

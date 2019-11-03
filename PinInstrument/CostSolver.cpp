@@ -21,9 +21,6 @@ void CostSolver::initialize(CostPackage *cost_package, ConfigReader &reader)
 
     _cost_package->_instruction_multiplier[PIM] = 1;
     _cost_package->_instruction_multiplier[CPU] = 1;
-    _clwb_cost = 0;
-    _invalidate_cost = 0;
-    _fetch_cost = 0;
     _batchcount = 0;
     _batchsize = 0;
 
@@ -121,11 +118,16 @@ VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 {
     if (root->_isLeaf) {
         if (isDifferent) {
+            // If the initial W is on CPU and there are subsequent R/W on PIM,
+            // then this segment contributes to a flush of CPU and data fetch from PIM.
+            // We conservatively assume that the fetch will promote data to L1
             if (decision[bblid] == CPU) {
-                cost += root->_count * _clwb_cost;
+                cost += root->_count * (_flush_cost[CPU] + _fetch_cost[PIM]);
             }
+            // If the initial W is on PIM and there are subsequent R/W on CPU,
+            // then this segment contributes to a flush of PIM and data fetch from CPU
             else {
-                cost += root->_count * _fetch_cost;
+                cost += root->_count * (_flush_cost[PIM] + _fetch_cost[CPU]);
             }
         }
     }
@@ -315,17 +317,34 @@ VOID CostSolver::ReadConfig(ConfigReader &reader)
             }
         }
     }
-    COST cost = reader.GetReal("UnitReuseCost", "clwb", -1);
-    ASSERTX(cost >= 0);
-    _clwb_cost = cost;
 
-    cost = reader.GetReal("UnitReuseCost", "invalidate", -1);
-    ASSERTX(cost >= 0);
-    _invalidate_cost = cost;
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        COST cost = reader.GetReal("CacheFlushCost", CostSiteName[i], -1);
+        ASSERTX(cost >= 0);
+        _flush_cost[i] = cost;
+    }
 
-    cost = reader.GetReal("UnitReuseCost", "fetch", -1);
-    ASSERTX(cost >= 0);
-    _fetch_cost = cost;
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        _fetch_cost[i] = 0;
+        for (UINT32 j = 0; j < MAX_LEVEL - 1; j++) {
+            std::string name = CostSiteName[i] + "/" + StorageLevelName[j];
+            auto sections = reader.Sections();
+            if (sections.find(name) == sections.end()) {
+                break;
+            }
+            // TODO: for simplicity, use IL1 latency only
+            if (j == 1) continue;
+
+            COST cost = reader.GetReal(name, "hitcost", -1);
+            ASSERTX(cost >= 0);
+            _fetch_cost[i] += cost;
+        }
+        // memory
+        std::string name = CostSiteName[i] + "/" + StorageLevelName[MEM];
+        COST cost = reader.GetReal(name, "hitcost", -1);
+        ASSERTX(cost >= 0);
+        _fetch_cost[i] += cost;
+    }
 
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         COST cost = reader.GetReal("UnitInstructionCost", CostSiteName[i], -1);

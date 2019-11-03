@@ -40,11 +40,12 @@ class CostSolver {
 
     std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
 
-    COST _clwb_cost;
-    COST _invalidate_cost;
-    COST _fetch_cost;
     int _batchcount;
     int _batchsize;
+  
+    /// the cache flush/fetch cost of each site
+    COST _flush_cost[MAX_COST_SITE];
+    COST _fetch_cost[MAX_COST_SITE];
 
   public:
     void initialize(CostPackage *cost_package, ConfigReader &reader);

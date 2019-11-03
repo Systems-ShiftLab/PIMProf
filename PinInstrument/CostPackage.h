@@ -53,14 +53,8 @@ class CostPackage {
     /// thread count and the corresponding RW lock
     INT32 _thread_count = 0;
     /// indicate which BBL each thread is in now
-    /// needs to acquire the write lock when pushing back a new BBLScope
+    /// needs to acquire the write lock when pushing back a new BBLScope for the new thread
     std::vector<BBLScope> _thread_bbl_scope;
-
-  public:
-    /// the total instruction cost of each BB
-    std::vector<COST> _bbl_instruction_cost[MAX_COST_SITE];
-    /// the total memory cost of each BB
-    std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
 
   public:
     UINT64 _total_instr_cnt = 0;
@@ -80,6 +74,12 @@ class CostPackage {
 
     /// the control latency when switching between sites
     COST _control_latency[MAX_COST_SITE][MAX_COST_SITE];
+
+  public:
+    /// the total instruction cost of each BB
+    std::vector<COST> _bbl_instruction_cost[MAX_COST_SITE];
+    /// the total memory cost of each BB
+    std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
 
   public:
     /// keep track of the data reuse cost

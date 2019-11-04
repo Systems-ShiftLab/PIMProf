@@ -515,6 +515,7 @@ class STORAGE
   private:
     // point to the corresponding level of storage, if any.
     STORAGE_LEVEL_BASE *_storage[MAX_COST_SITE][MAX_LEVEL];
+    STORAGE_LEVEL_BASE *_storage_top[MAX_COST_SITE][2];
 
   public:
     /// Reference to PinInstrument data

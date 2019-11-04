@@ -51,7 +51,8 @@ def heatmap(costdiff, decision, lb, ub):
     #decisionslice = [""] * (lb % N) + decision[lb:ub+1] + [""] * (N - ub % N - 1)
     costslice = costdiff[lb:ub+1] + [0] * (N - (ub-lb) % N - 1)
     decisionslice = decision[lb:ub+1] + [""] * (N - (ub-lb) % N - 1)
-    fig, ax = plt.subplots(figsize=(11, 20))
+    #fig, ax = plt.subplots(figsize=(11, 20))
+    fig, ax = plt.subplots(figsize=(8, 3))
     #fig, ax = plt.subplots()
     ax.xaxis.set_tick_params(labeltop="on")
 

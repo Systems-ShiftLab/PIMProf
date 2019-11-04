@@ -298,8 +298,19 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid)
 BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
 {
     // TODO: Implement this later
-    ASSERTX(0);
-    return true;
+    const ADDRINT highAddr = addr + size;
+    BOOL allHit = true;
+
+    const ADDRINT lineSize = 64;
+    const ADDRINT notLineMask = ~(lineSize - 1);
+    do
+    {
+        allHit &= AccessSingleLine(addr, accessType, bblid);
+        addr = (addr & notLineMask) + lineSize; // start of next cache line
+
+    } while (addr < highAddr);
+
+    return allHit;
 }
 
 
@@ -419,9 +430,21 @@ void STORAGE::ReadConfig(ConfigReader &reader)
         if (last_level == DL1) {
             _storage[i][IL1]->_next_level = _storage[i][MEM];
             _storage[i][DL1]->_next_level = _storage[i][MEM];
+            _storage_top[i][IL1] = _storage[i][IL1];
+            _storage_top[i][DL1] = _storage[i][DL1];
+        }
+        else if (last_level == IL1) {
+            _storage_top[i][IL1] = _storage[i][IL1];
+            _storage_top[i][DL1] = _storage[i][MEM];
         }
         else if (last_level != -1) {
             _storage[i][last_level]->_next_level = _storage[i][MEM];
+            _storage_top[i][IL1] = _storage[i][IL1];
+            _storage_top[i][DL1] = _storage[i][DL1];
+        }
+        else {
+            _storage_top[i][IL1] = _storage[i][MEM];
+            _storage_top[i][DL1] = _storage[i][MEM];
         }
     }
 }
@@ -466,7 +489,7 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, BBLID bblid)
     // assuming instruction cache access does not cross cache line
     // first level I-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD, bblid);
+        _storage_top[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD, bblid);
     }
 }
 
@@ -478,7 +501,7 @@ VOID STORAGE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessTyp
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage[i][DL1]->Access(addr, size, accessType, bblid);
+        _storage_top[i][DL1]->Access(addr, size, accessType, bblid);
     }
 }
 
@@ -489,7 +512,7 @@ VOID STORAGE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessTy
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage[i][DL1]->Access(addr, size, accessType, bblid);
+        _storage_top[i][DL1]->Access(addr, size, accessType, bblid);
     }
 }
 

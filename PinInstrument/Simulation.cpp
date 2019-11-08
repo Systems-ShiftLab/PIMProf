@@ -82,7 +82,7 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
     // do not instrument the annotation function
     // whether or not instrument instruction with invalid rtn does not
     // affect the result much
-    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
+    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail && rtn_name != "") {
         InstructionLatency *self = (InstructionLatency *)void_self;
         UINT32 opcode = (UINT32)(INS_Opcode(ins));
         BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
@@ -233,7 +233,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
     // do not instrument the annotation function
     // whether or not instrument instruction with invalid rtn does not
     // affect the result much
-    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
+    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail && rtn_name != "") {
         MemoryLatency *self = (MemoryLatency *)void_self;
         // all instruction fetches access I-cache
         INS_InsertCall(

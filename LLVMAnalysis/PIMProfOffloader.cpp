@@ -29,7 +29,7 @@ void print_affinity() {
     }
 }
 
-void PIMProfOffloader(int site, int bblid) {
+void PIMProfOffloader(int site, int bblid, double difference) {
     if (site != PIMProfPreviousSite) {
         PIMProfPreviousSite = site;
         cpu_set_t mask;

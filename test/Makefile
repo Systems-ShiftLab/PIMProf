@@ -17,7 +17,7 @@ LDFLAGS  := -pthread
 all: $(DECISION)
 
 $(DECISION): $(TEST_EXE) $(TEST_SO)
-	$(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -o $@ -- python3 $(TEST_PY)
+	$(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -o $@ -- ./$(TEST_EXE)
 
 clean:
 	rm -rf *.o *.exe *.bc *.ll *.out *.log *.dot

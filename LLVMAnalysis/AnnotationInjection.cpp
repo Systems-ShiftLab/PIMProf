@@ -65,6 +65,7 @@ namespace {
 
 
         MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
         // divide all parameters into uint64_t, because this is what pin supports
         Value *hi = ConstantInt::get(

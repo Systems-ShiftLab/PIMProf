@@ -18,6 +18,7 @@
 #include <stack>
 #include <list>
 #include <set>
+#include <algorithm>
 #include "pin.H"
 
 #include "PinUtil.h"
@@ -40,7 +41,7 @@ class CostSolver {
 
     std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
 
-    int _batchcount;
+    double _batchthreshold;
     int _batchsize;
   
     /// the cache flush/fetch cost of each site

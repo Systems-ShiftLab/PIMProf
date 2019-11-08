@@ -21,7 +21,7 @@ void CostSolver::initialize(CostPackage *cost_package, ConfigReader &reader)
 
     _cost_package->_instruction_multiplier[PIM] = 1;
     _cost_package->_instruction_multiplier[CPU] = 1;
-    _batchcount = 0;
+    _batchthreshold = 0;
     _batchsize = 0;
 
     ReadConfig(reader);
@@ -177,8 +177,16 @@ CostSolver::DECISION CostSolver::FindOptimal()
 {
     std::sort(_cost_package->_data_reuse.getLeaves().begin(), _cost_package->_data_reuse.getLeaves().end(), CostSolverComparator);
 
+    COST reuse_max = 0;
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        reuse_max = std::max(reuse_max, _flush_cost[i]);
+        reuse_max = std::max(reuse_max, _fetch_cost[i]);
+    }
+
     COST cur_total = FLT_MAX;
+    int seg_count = INT_MAX;
     DECISION decision;
+    
 
     //initialize all decision to INVALID
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
@@ -190,9 +198,8 @@ CostSolver::DECISION CostSolver::FindOptimal()
     int currentnode = 0;
     int leavessize = _cost_package->_data_reuse.getLeaves().size();
 
-    for (int i = 0; i < _batchcount; i++) {
-        std::cout << "cnt" << i << std::endl;
-
+    for (int i = 0; currentnode < leavessize; i++) {
+        std::cout << "batch " << i << std::endl;
         std::vector<BBLID> idvec;
         // insert segments until the number of different BBLs hit _batchsize
         while (currentnode < leavessize) {
@@ -205,11 +212,12 @@ CostSolver::DECISION CostSolver::FindOptimal()
             idvec.insert(idvec.end(), diff.begin(), diff.end());
             _cost_package->_data_reuse.UpdateTrie(partial_root, seg);
             currentnode++;
+            seg_count = seg.getCount();
         }
 
         int idvecsize = idvec.size();
-        for (int i = 0; i < idvecsize; i++) {
-            std::cout << idvec[i] << " ";
+        for (int j = 0; j < idvecsize; j++) {
+            std::cout << idvec[j] << " "; 
         }
         std::cout << std::endl;
 
@@ -235,6 +243,9 @@ CostSolver::DECISION CostSolver::FindOptimal()
             }
             // PrintDecision(std::cout, decision, true);
         }
+        std::cout << "cur_total = " << cur_total << std::endl;
+        std::cout << seg_count << " " << reuse_max << " " << cur_total << std::endl;
+        if (seg_count * reuse_max < _batchthreshold * cur_total) break;
     }
     // std::ofstream ofs("temp.dot", std::ofstream::out);
     // _cost_package->_data_reuse.print(ofs, partial_root);
@@ -258,9 +269,8 @@ CostSolver::DECISION CostSolver::FindOptimal()
     // }
 
     cur_total = Cost(decision, _cost_package->_data_reuse.getRoot());
-    std::cout << cur_total << std::endl;
-    // iterate over the remaining BBs 10 times until convergence
-    for (int j = 0; j < 3; j++) {
+    // iterate over the remaining BBs 2 times until convergence
+    for (int j = 0; j < 2; j++) {
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             BBLID id = i;
 
@@ -282,7 +292,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
                 }
             }
         }
-        std::cout << cur_total << std::endl;
+        std::cout << "cur_total = " << cur_total << std::endl;
     }
 
     return decision;
@@ -352,11 +362,11 @@ VOID CostSolver::ReadConfig(ConfigReader &reader)
         _cost_package->_instruction_multiplier[i] = cost;
     }
 
-    int size = reader.GetInteger("DataReuse", "BatchCount", -1);
-    ASSERTX(size >= 0);
-    _batchcount = size;
+    double threshold = reader.GetReal("DataReuse", "BatchThreshold", -1);
+    ASSERTX(threshold >= 0);
+    _batchthreshold = threshold;
 
-    size = reader.GetInteger("DataReuse", "BatchSize", -1);
+    int size = reader.GetInteger("DataReuse", "BatchSize", -1);
     ASSERTX(size > 0);
     _batchsize = size;
 }

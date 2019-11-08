@@ -50,6 +50,12 @@ namespace {
 
     typedef std::pair<uint64_t, uint64_t> UUID;
 
+    struct Decision {
+        CallSite decision;
+        int bblid;
+        double difference;
+    };
+
     class HashFunc
     {
       public:
@@ -77,9 +83,9 @@ namespace {
         cl::init("")
     );
 
-    std::unordered_map<UUID, std::pair<CallSite, int>, HashFunc> decision_map;
+    std::unordered_map<UUID, Decision, HashFunc> decision_map;
 
-    void InjectOffloaderCall(Module &M, BasicBlock &BB, int DECISION, int BBLID) {
+    void InjectOffloaderCall(Module &M, BasicBlock &BB, Decision decision) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
@@ -87,13 +93,20 @@ namespace {
             M.getOrInsertFunction(
                 PIMProfOffloader, 
                 FunctionType::getVoidTy(ctx), 
-                Type::getInt64Ty(ctx)
+                Type::getInt64Ty(ctx),
+                Type::getInt64Ty(ctx),
+                Type::getDoubleTy(ctx)
             )
         );
 
         std::vector<Value *> args;
         args.push_back(ConstantInt::get(
-            IntegerType::get(M.getContext(),64), DECISION));
+            IntegerType::get(M.getContext(),64), decision.decision));
+        std::cout << decision.decision << " " << decision.bblid << " " << decision.difference << std::endl;
+        args.push_back(ConstantInt::get(
+            IntegerType::get(M.getContext(),64), decision.bblid));
+        args.push_back(ConstantFP::get(
+            Type::getDoubleTy(M.getContext()), decision.difference));
 
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
@@ -107,7 +120,7 @@ namespace {
             ctx, 
             ConstantAsMetadata::get(
                 ConstantInt::get(
-                    IntegerType::get(M.getContext(),64), BBLID)
+                    IntegerType::get(M.getContext(),64), decision.bblid)
             )
         );
         head_instr->setMetadata(PIMProfBBLIDMetadata, md);
@@ -138,6 +151,7 @@ namespace {
                 assert(false);
             }
             else if (StayOn == INVALID && InputFilename != "") {
+                std::cout << "wawa" << std::endl;
                 // Read decisions from file
                 std::ifstream ifs(InputFilename.c_str(), std::ifstream::in);
                 std::string line;
@@ -148,16 +162,18 @@ namespace {
                 while(std::getline(ifs, line)) {
                     std::stringstream ss(line);
                     std::string token;
-                    CallSite decision;
-                    int bblid;
+                    Decision decision;
                     uint64_t hi, lo;
                     for (int i = 0; i < 10; i++) {
                         if (i == 0) {
-                            ss >> bblid;
+                            ss >> decision.bblid;
                         }
                         else if (i == 1) {
                             ss >> token;
-                            decision = (token == "P" ? PIM : CPU);
+                            decision.decision = (token == "P" ? PIM : CPU);
+                        }
+                        else if (i == 7) {
+                            ss >> decision.difference;
                         }
                         else if (i == 8) {
                             ss >> std::hex >> hi;
@@ -170,7 +186,7 @@ namespace {
                             ss >> token;
                         }
                     }
-                    decision_map[UUID(hi, lo)] = std::make_pair(decision, bblid);
+                    decision_map[UUID(hi, lo)] = decision;
                 }
                 ifs.close();
                 // inject offloader function to each basic block
@@ -178,13 +194,27 @@ namespace {
                 // simply assume that the input program is the same as the input in annotator injection pass
                 for (auto &func : M) {
                     for (auto &bb: func) {
+                        // errs() << "Before offloading: " << bb.getName() << "\n";
+                        // for (auto i = bb.begin(), ie = bb.end(); i != ie; i++) {
+                        //     (*i).print(errs());
+                        //     errs() << "\n";
+                        // }
+                        // errs() << "\n";
+
                         std::string BB_content;
                         raw_string_ostream rso(BB_content);
                         rso << bb;
                         uint64_t bblhash[2];
                         MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
-                        auto pair = decision_map[UUID(bblhash[1], bblhash[0])];
-                        InjectOffloaderCall(M, bb, pair.first, pair.second);
+                        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+                        UUID uuid(bblhash[1], bblhash[0]);
+                        if (decision_map.find(uuid) == decision_map.end()) {
+                            std::cerr << "cannot find same function.";
+                            // assert(false);
+                        }
+                        auto decision = decision_map[uuid];
+                        std::cout << "wow" << decision.decision << " " << decision.bblid << " " << decision.difference << std::endl;
+                        InjectOffloaderCall(M, bb, decision);
                     }
                     errs() << "\n";
                 }
@@ -192,7 +222,11 @@ namespace {
             else if (StayOn != INVALID && InputFilename == "") {
                 for (auto &func : M) {
                     for (auto &bb: func) {
-                        InjectOffloaderCall(M, bb, (int)StayOn, 0);
+                        Decision decision;
+                        decision.decision = StayOn;
+                        decision.bblid = 0;
+                        decision.difference = 0;
+                        InjectOffloaderCall(M, bb, decision);
                     }
                 }
             }
@@ -216,3 +250,10 @@ namespace {
 char OffloaderInjection::ID = 0;
 static RegisterPass<OffloaderInjection> RegisterMyPass(
     "OffloaderInjection", "Inject offloader when switching between CPU and PIM is required.");
+
+static void loadPass(const PassManagerBuilder &,
+                           legacy::PassManagerBase &PM) {
+    PM.add(new OffloaderInjection());
+}
+static RegisterStandardPasses clangtoolLoader_Ox(PassManagerBuilder::EP_OptimizerLast, loadPass);
+static RegisterStandardPasses clangtoolLoader_O0(PassManagerBuilder::EP_EnabledOnOptLevel0, loadPass);

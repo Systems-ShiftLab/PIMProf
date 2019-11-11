@@ -23,6 +23,9 @@
 #include <set>
 
 #include "pin.H"
+extern "C" {
+#include "xed-interface.h"
+}
 #include "../LLVMAnalysis/Common.h"
 
 #include "PinUtil.h"
@@ -65,7 +68,7 @@ class InstructionLatency {
 
   protected:
   /// Add up the cost of all instructions
-  static VOID InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, THREADID threadid);
+  static VOID InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid);
 
     /// The instrumentation function for normal instructions
   static VOID InstructionInstrument(INS ins, VOID *void_self);
@@ -92,13 +95,13 @@ class MemoryLatency {
   protected:
 
     /// Do on instruction cache reference
-    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, THREADID threadid);
+    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd, THREADID threadid);
 
     /// Do on multi-line data cache references
-    static VOID DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid);
+    static VOID DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);
 
     /// Do on a single-line data cache reference
-    static VOID DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid);
+    static VOID DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);
 
     /// The instrumentation function for memory instructions
     static VOID InstructionInstrument(INS ins, VOID *void_self);

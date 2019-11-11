@@ -61,7 +61,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     decision.clear();
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         FLT64 mpki = (FLT64)_cost_package->_cache_miss[i] / _cost_package->_instr_cnt[i] * 1000;
-        infomsg() << i << " " << _cost_package->_cache_miss[i] << " " << _cost_package->_instr_cnt[i] << " " << mpki << std::endl;
+        // infomsg() << i << " " << _cost_package->_cache_miss[i] << " " << _cost_package->_instr_cnt[i] << " " << mpki << std::endl;
         if (mpki >= 10) {
             decision.push_back(PIM);
         }
@@ -109,7 +109,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     PrintDecisionStat(out, result, "PIMProf opt");
     out << std::endl;
     PrintDecision(out, result, false);
-    PrintDecision(infomsg(), result, true);
+    // PrintDecision(infomsg(), result, true);
 
     return result;
 }

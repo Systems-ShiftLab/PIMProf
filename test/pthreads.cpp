@@ -8,7 +8,7 @@
 
 void *perform_work(void *arguments){
   int index = *((int *)arguments);
-  int sleep_time = 1 + rand() % NUM_THREADS;
+  int sleep_time = 1;
   printf("THREAD %d: Started.\n", index);
   printf("THREAD %d: Will be sleeping for %d seconds.\n", index, sleep_time);
   sleep(sleep_time);

@@ -85,7 +85,7 @@ namespace {
 
     std::unordered_map<UUID, Decision, HashFunc> decision_map;
 
-    void InjectOffloaderCall(Module &M, BasicBlock &BB, Decision decision) {
+    void InjectOffloaderCall(Module &M, BasicBlock &BB) {
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
@@ -99,31 +99,42 @@ namespace {
             )
         );
 
-        std::vector<Value *> args;
-        args.push_back(ConstantInt::get(
-            IntegerType::get(M.getContext(),64), decision.decision));
-        std::cout << decision.decision << " " << decision.bblid << " " << decision.difference << std::endl;
-        args.push_back(ConstantInt::get(
-            IntegerType::get(M.getContext(),64), decision.bblid));
-        args.push_back(ConstantFP::get(
-            Type::getDoubleTy(M.getContext()), decision.difference));
+        for (auto &instruction : BB) {
+            if (CallInst *callInst = dyn_cast<CallInst>(&instruction)) {
+                if (Function *calledFunction = callInst->getCalledFunction()) {
+                    if (calledFunction->getName().startswith("PIMProfAnnotationHead")) {
+                        auto *hi = dyn_cast<llvm::ConstantInt>(callInst->getArgOperand(0));
+                        auto *lo = dyn_cast<llvm::ConstantInt>(callInst->getArgOperand(1));
+                        uint64_t hival = hi->getValue().getLimitedValue();
+                        uint64_t loval = lo->getValue().getLimitedValue();
+                        Decision decision = decision_map[UUID(hival, loval)];
+                        std::cout << std::hex << hival << " " << loval;
+                        std::cout << decision.decision << " " << decision.bblid << " " << decision.difference << std::endl;
+                        std::vector<Value *> args;
+                        args.push_back(ConstantInt::get(
+                            IntegerType::get(M.getContext(),64), decision.decision));
+                        
+                        args.push_back(ConstantInt::get(
+                            IntegerType::get(M.getContext(),64), decision.bblid));
+                        args.push_back(ConstantFP::get(
+                            Type::getDoubleTy(M.getContext()), decision.difference));
+                        CallInst *head_instr = CallInst::Create(
+                            offloader, ArrayRef<Value *>(args), "",
+                            callInst);
+                    }
+                }
+            }
+        }
 
-        // need to skip all PHIs and LandingPad instructions
-        // check the declaration of getFirstInsertionPt()
-        Instruction *beginning = &(*BB.getFirstInsertionPt());
-        CallInst *head_instr = CallInst::Create(
-            offloader, ArrayRef<Value *>(args), "",
-            beginning);
-
-        // insert instruction metadata
-        MDNode* md = MDNode::get(
-            ctx, 
-            ConstantAsMetadata::get(
-                ConstantInt::get(
-                    IntegerType::get(M.getContext(),64), decision.bblid)
-            )
-        );
-        head_instr->setMetadata(PIMProfBBLIDMetadata, md);
+        // // insert instruction metadata
+        // MDNode* md = MDNode::get(
+        //     ctx, 
+        //     ConstantAsMetadata::get(
+        //         ConstantInt::get(
+        //             IntegerType::get(M.getContext(),64), decision.bblid)
+        //     )
+        // );
+        // head_instr->setMetadata(PIMProfBBLIDMetadata, md);
     }
 
     class PIMProfAAW : public AssemblyAnnotationWriter {
@@ -151,7 +162,6 @@ namespace {
                 assert(false);
             }
             else if (StayOn == INVALID && InputFilename != "") {
-                std::cout << "wawa" << std::endl;
                 // Read decisions from file
                 std::ifstream ifs(InputFilename.c_str(), std::ifstream::in);
                 std::string line;
@@ -201,20 +211,18 @@ namespace {
                         // }
                         // errs() << "\n";
 
-                        std::string BB_content;
-                        raw_string_ostream rso(BB_content);
-                        rso << bb;
-                        uint64_t bblhash[2];
-                        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
-                        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
-                        UUID uuid(bblhash[1], bblhash[0]);
-                        if (decision_map.find(uuid) == decision_map.end()) {
-                            std::cerr << "cannot find same function.";
-                            // assert(false);
-                        }
-                        auto decision = decision_map[uuid];
-                        std::cout << "wow" << decision.decision << " " << decision.bblid << " " << decision.difference << std::endl;
-                        InjectOffloaderCall(M, bb, decision);
+                        // std::string BB_content;
+                        // raw_string_ostream rso(BB_content);
+                        // rso << bb;
+                        // uint64_t bblhash[2];
+                        // MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+                        // // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+                        // UUID uuid(bblhash[1], bblhash[0]);
+                        // if (decision_map.find(uuid) == decision_map.end()) {
+                        //     std::cerr << "cannot find same function.";
+                        //     // assert(false);
+                        // }
+                        InjectOffloaderCall(M, bb);
                     }
                     errs() << "\n";
                 }
@@ -222,11 +230,7 @@ namespace {
             else if (StayOn != INVALID && InputFilename == "") {
                 for (auto &func : M) {
                     for (auto &bb: func) {
-                        Decision decision;
-                        decision.decision = StayOn;
-                        decision.bblid = 0;
-                        decision.difference = 0;
-                        InjectOffloaderCall(M, bb, decision);
+                        InjectOffloaderCall(M, bb);
                     }
                 }
             }

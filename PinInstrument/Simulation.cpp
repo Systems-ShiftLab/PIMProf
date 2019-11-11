@@ -47,14 +47,13 @@ void InstructionLatency::instrument() {
 }
 
 
-VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, THREADID threadid)
+VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid)
 {
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "instrcount: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-
         self->_cost_package->_total_instr_cnt++;
         if (bblid == GLOBALBBLID) {
             PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
@@ -62,13 +61,17 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
         }
         self->_cost_package->_instr_cnt[bblid]++;
         if (ismem) {
+            // ignore the instruction
         }
         else {
-            for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-                self->_cost_package->_bbl_instruction_cost[i][bblid] += self->_cost_package->_instruction_latency[i][opcode];
+            COST cost = self->_cost_package->_instruction_latency[CPU][opcode];
+            self->_cost_package->_bbl_instruction_cost[CPU][bblid] += cost;
+            cost = self->_cost_package->_instruction_latency[PIM][opcode];
+            if (issimd) {
+                cost = cost / self->_cost_package->_core_count[PIM] * self->_cost_package->_core_count[CPU];
             }
+            self->_cost_package->_bbl_instruction_cost[PIM][bblid] += cost;
         }
-
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }
@@ -86,10 +89,16 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
         InstructionLatency *self = (InstructionLatency *)void_self;
         UINT32 opcode = (UINT32)(INS_Opcode(ins));
         BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
+        xed_decoded_inst_t *xedd = INS_XedDec(ins);
+        BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
+        // if (issimd) {
+        //     infomsg() << OPCODE_StringShort(opcode) << std::endl;
+        // }
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
             IARG_PTR, (VOID *)self,
             IARG_ADDRINT, opcode,
             IARG_BOOL, ismem,
+            IARG_BOOL, issimd,
             IARG_THREAD_ID,
             IARG_END);
     }
@@ -167,14 +176,14 @@ void MemoryLatency::instrument()
 // }
 
 
-VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, THREADID threadid)
+VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd, THREADID threadid)
 {
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "instrcache: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->InstrCacheRef(addr, bblid);
+        self->_storage->InstrCacheRef(addr, bblid, issimd);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
     // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
@@ -186,14 +195,14 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, THREADID th
     // }
 }
 
-VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid)
+VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
 {
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "datamulti: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRefMulti(addr, size, accessType, bblid);
+        self->_storage->DataCacheRefMulti(addr, size, accessType, bblid, issimd);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
     // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
@@ -205,14 +214,14 @@ VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 
     // }
 }
 
-VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, THREADID threadid)
+VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
 {
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     // infomsg() << "datasingle: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRefSingle(addr, size, accessType, bblid);
+        self->_storage->DataCacheRefSingle(addr, size, accessType, bblid, issimd);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
     // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
@@ -235,11 +244,14 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
     // affect the result much
     if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail && rtn_name != "") {
         MemoryLatency *self = (MemoryLatency *)void_self;
+        xed_decoded_inst_t *xedd = INS_XedDec(ins);
+        BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
         // all instruction fetches access I-cache
         INS_InsertCall(
             ins, IPOINT_BEFORE, (AFUNPTR)InstrCacheRef,
             IARG_PTR, (VOID *)self,
             IARG_INST_PTR,
+            IARG_BOOL, issimd,
             IARG_THREAD_ID,
             IARG_END);
         if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
@@ -253,6 +265,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
                 IARG_MEMORYREAD_EA,
                 IARG_MEMORYREAD_SIZE,
                 IARG_UINT32, ACCESS_TYPE_LOAD,
+                IARG_BOOL, issimd,
                 IARG_THREAD_ID,
                 IARG_END);
         }
@@ -267,6 +280,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
                 IARG_MEMORYWRITE_EA,
                 IARG_MEMORYWRITE_SIZE,
                 IARG_UINT32, ACCESS_TYPE_STORE,
+                IARG_BOOL, issimd,
                 IARG_THREAD_ID,
                 IARG_END);
         }

@@ -174,18 +174,23 @@ CACHE_LEVEL::~CACHE_LEVEL()
 }
 
 
-VOID CACHE_LEVEL::AddMemCost(BBLID bblid)
+VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
 {
     // When this is a CPU cache level, for example,
     // _hitcost[PIM] will be assigned to 0
     if (bblid != GLOBALBBLID) {
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++)
-            _storage->_cost_package->_bbl_memory_cost[i][bblid] += _hitcost[i];
+        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += _hitcost[CPU];
+        if (issimd) {
+            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += (_hitcost[PIM] / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU]);
+        }
+        else {
+            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += _hitcost[PIM];
+        }
     }
 } 
 
 
-BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
+BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
     const ADDRINT highAddr = addr + size;
     BOOL allHit = true;
@@ -194,7 +199,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLI
     const ADDRINT notLineMask = ~(lineSize - 1);
     do
     {
-        allHit &= AccessSingleLine(addr, accessType, bblid);
+        allHit &= AccessSingleLine(addr, accessType, bblid, issimd);
         addr = (addr & notLineMask) + lineSize; // start of next cache line
 
     } while (addr < highAddr);
@@ -203,7 +208,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLI
 }
 
 
-BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid)
+BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
     ADDRINT tagaddr;
     UINT32 setIndex;
@@ -215,7 +220,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID b
     CACHE_TAG *tag = set->Find(tagaddr);
     BOOL hit = (tag != NULL);
 
-    AddMemCost(bblid);
+    AddMemCost(bblid, issimd);
 
     _access[accessType][hit]++;
 
@@ -234,7 +239,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID b
         // _hitcost[CPU] > 0 means that this is a CPU cache level
         if (_next_level->_storage_level == MEM && _hitcost[CPU] > 0)
             SplitOnMiss(tagaddr);
-        _next_level->AccessSingleLine(addr, accessType, bblid);
+        _next_level->AccessSingleLine(addr, accessType, bblid, issimd);
     }
     if (hit && _hitcost[CPU] > 0) {
         InsertOnHit(tagaddr, accessType, bblid);
@@ -285,17 +290,22 @@ MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel st
         _hitcost[i] = hitcost[i];
 }
 
-VOID MEMORY_LEVEL::AddMemCost(BBLID bblid)
+VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
 {
     if (bblid != GLOBALBBLID) {
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++)
-            _storage->_cost_package->_bbl_memory_cost[i][bblid] += _hitcost[i];
+        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += _hitcost[CPU];
+        if (issimd) {
+            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += (_hitcost[PIM] / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU]);
+        }
+        else {
+            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += _hitcost[PIM];
+        }
     }
 }
 
-BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
+BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
     // TODO: Implement this later
     const ADDRINT highAddr = addr + size;
@@ -305,7 +315,7 @@ BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBL
     const ADDRINT notLineMask = ~(lineSize - 1);
     do
     {
-        allHit &= AccessSingleLine(addr, accessType, bblid);
+        allHit &= AccessSingleLine(addr, accessType, bblid, issimd);
         addr = (addr & notLineMask) + lineSize; // start of next cache line
 
     } while (addr < highAddr);
@@ -314,10 +324,10 @@ BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBL
 }
 
 
-BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid)
+BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
     // always hit memory
-    AddMemCost(bblid);
+    AddMemCost(bblid, issimd);
     _access[accessType][true]++;
     return true;
 }
@@ -481,7 +491,7 @@ void STORAGE::WriteStats(const std::string filename)
     out.close();
 }
 
-VOID STORAGE::InstrCacheRef(ADDRINT addr, BBLID bblid)
+VOID STORAGE::InstrCacheRef(ADDRINT addr, BBLID bblid, BOOL issimd)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[ITLB]->AccessSingleLine(addr, accessType);
@@ -489,30 +499,30 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, BBLID bblid)
     // assuming instruction cache access does not cross cache line
     // first level I-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage_top[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD, bblid);
+        _storage_top[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD, bblid, issimd);
     }
 }
 
 
-VOID STORAGE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
+VOID STORAGE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage_top[i][DL1]->Access(addr, size, accessType, bblid);
+        _storage_top[i][DL1]->Access(addr, size, accessType, bblid, issimd);
     }
 }
 
-VOID STORAGE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid)
+VOID STORAGE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage_top[i][DL1]->Access(addr, size, accessType, bblid);
+        _storage_top[i][DL1]->Access(addr, size, accessType, bblid, issimd);
     }
 }
 

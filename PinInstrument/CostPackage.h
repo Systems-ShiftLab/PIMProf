@@ -91,7 +91,6 @@ class CostPackage {
 
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
         if (_inParallelRegion[bbl]) {
-            // infomsg() << "wow" << bbl << std::endl;
             return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
         }
         else {

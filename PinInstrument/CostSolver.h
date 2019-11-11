@@ -43,6 +43,7 @@ class CostSolver {
 
     double _batchthreshold;
     int _batchsize;
+    int _mpkithreshold;
   
     /// the cache flush/fetch cost of each site
     COST _flush_cost[MAX_COST_SITE];

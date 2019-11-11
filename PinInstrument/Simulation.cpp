@@ -60,6 +60,9 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
             return;
         }
         self->_cost_package->_instr_cnt[bblid]++;
+        if (issimd) {
+            self->_cost_package->_simd_instr_cnt[bblid]++;
+        }
         if (ismem) {
             // ignore the instruction
         }

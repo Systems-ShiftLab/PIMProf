@@ -89,6 +89,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         }
         pkg._bbl_visit_cnt.push_back(0);
         pkg._instr_cnt.push_back(0);
+        pkg._simd_instr_cnt.push_back(0);
         pkg._cache_miss.push_back(0);
     }
     // overwrite _inParallelRegion[] if 

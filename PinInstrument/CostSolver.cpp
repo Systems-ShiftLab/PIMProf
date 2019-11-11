@@ -59,10 +59,11 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
     //
     decision.clear();
+    infomsg() << "bblid\tmiss\tinstr\tmpki\tsimd" << std::endl;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         FLT64 mpki = (FLT64)_cost_package->_cache_miss[i] / _cost_package->_instr_cnt[i] * 1000;
-        // infomsg() << i << " " << _cost_package->_cache_miss[i] << " " << _cost_package->_instr_cnt[i] << " " << mpki << std::endl;
-        if (mpki >= 10) {
+        infomsg() << i << "\t" << _cost_package->_cache_miss[i] << "\t" << _cost_package->_instr_cnt[i] << "\t" << mpki << "\t" << _cost_package->_simd_instr_cnt[i] << std::endl;
+        if (mpki >= 20) {
             decision.push_back(PIM);
         }
         else {

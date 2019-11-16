@@ -62,6 +62,7 @@ class DataReuseSegment {
     inline VOID clear() {
         _headID = GLOBALBBLID;
         _set.clear();
+        _count = 1;
     }
 
     inline std::set<BBLID>::iterator begin() {
@@ -111,6 +112,7 @@ class DataReuseSegment {
 /* ===================================================================== */
 class TrieNode {
   public:
+    // the leaf node stores the head of the segment
     bool _isLeaf;
     std::map<BBLID, TrieNode *> _children;
     BBLID _curID;

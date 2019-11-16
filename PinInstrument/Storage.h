@@ -352,7 +352,7 @@ class STORAGE_LEVEL_BASE
   protected:
     STORAGE *_storage;
     STORAGE_LEVEL_BASE *_next_level;
-    // _hitcost should be assigned to zero if not used
+    // _hitcost should be assigned to 0 if not used
     COST _hitcost[MAX_COST_SITE];
 
   public:

@@ -92,7 +92,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._simd_instr_cnt.push_back(0);
         pkg._cache_miss.push_back(0);
     }
-    // overwrite _inParallelRegion[] if 
+    // overwrite _inParallelRegion[] if in spawned worker thread
     if (threadid == 1) {
         pkg._inParallelRegion[it->second] = true;
     }
@@ -191,5 +191,6 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
 
     ofs.open("bblcdf.out", std::ofstream::out);
     // TODO: Need bug fix, cause Pin out of memory error
-    // self->_cost_solver.PrintAnalytics(ofs);
+    self->_cost_solver.PrintAnalytics(ofs);
+    self->_instruction_latency.WriteConfig("testconfig.ini");
 }

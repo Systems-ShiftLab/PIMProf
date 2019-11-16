@@ -58,6 +58,7 @@ class CostPackage {
 
   public:
     UINT64 _total_instr_cnt = 0;
+    UINT64 _total_simd_instr_cnt = 0;
     std::vector<UINT64> _bbl_visit_cnt;
     std::vector<UINT64> _instr_cnt;
     std::vector<UINT64> _simd_instr_cnt;

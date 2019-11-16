@@ -55,6 +55,9 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
         self->_cost_package->_total_instr_cnt++;
+        if (issimd) {
+            self->_cost_package->_total_simd_instr_cnt++;
+        }
         if (bblid == GLOBALBBLID) {
             PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
             return;
@@ -67,9 +70,9 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
             // ignore the instruction
         }
         else {
-            COST cost = self->_cost_package->_instruction_latency[CPU][opcode];
+            COST cost = self->_cost_package->_instruction_latency[CPU][opcode] * self->_cost_package->_thread_count;
             self->_cost_package->_bbl_instruction_cost[CPU][bblid] += cost;
-            cost = self->_cost_package->_instruction_latency[PIM][opcode];
+            cost = self->_cost_package->_instruction_latency[PIM][opcode] * self->_cost_package->_thread_count;
             if (issimd) {
                 cost = cost / self->_cost_package->_core_count[PIM] * self->_cost_package->_core_count[CPU];
             }
@@ -86,17 +89,19 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
     if (RTN_Valid(rtn))
         rtn_name = RTN_Name(rtn);
     // do not instrument the annotation function
-    // whether or not instrument instruction with invalid rtn does not
-    // affect the result much
-    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail && rtn_name != "") {
+    // regions with invalid names can be JIT code, for example, so cannot be ignored
+    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
         InstructionLatency *self = (InstructionLatency *)void_self;
         UINT32 opcode = (UINT32)(INS_Opcode(ins));
         BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
         xed_decoded_inst_t *xedd = INS_XedDec(ins);
         BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
-        // if (issimd) {
-        //     infomsg() << OPCODE_StringShort(opcode) << std::endl;
-        // }
+        // infomsg() << std::hex << INS_Address(ins) << " " << OPCODE_StringShort(opcode) << std::endl;
+        // TODO: fix it later
+        issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
+        if (issimd) {
+            infomsg() << std::hex << INS_Address(ins) << std::dec << " " << OPCODE_StringShort(opcode) << std::endl;
+        }
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
             IARG_PTR, (VOID *)self,
             IARG_ADDRINT, opcode,
@@ -243,9 +248,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
     if (RTN_Valid(rtn))
         rtn_name = RTN_Name(rtn);
     // do not instrument the annotation function
-    // whether or not instrument instruction with invalid rtn does not
-    // affect the result much
-    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail && rtn_name != "") {
+    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
         MemoryLatency *self = (MemoryLatency *)void_self;
         xed_decoded_inst_t *xedd = INS_XedDec(ins);
         BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);

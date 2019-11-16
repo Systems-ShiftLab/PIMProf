@@ -16,7 +16,7 @@ static const std::string PIMProfOffloader = "_Z16PIMProfOffloaderii";
 
 static const std::string PIMProfBBLIDMetadata = "basicblock.id";
 
-static const std::string OpenMPIdentifier = ".omp_outlined";
+static const std::string OpenMPIdentifier = ".omp";
 
 static const std::string PThreadsIdentifier = "pthread_create";
 

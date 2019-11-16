@@ -64,11 +64,16 @@ VOID STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID 
     if (bblid != GLOBALBBLID) {
         DataReuseSegment &seg = _storage->_cost_package->_tag_seg_map[tag];
         seg.insert(bblid);
+        INT32 threadcount = _storage->_cost_package->_thread_count;
+        if (threadcount > seg.getCount())
+            seg.setCount(threadcount);
         // split then insert on store
         if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
             _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), seg);
             seg.clear();
             seg.insert(bblid);
+            if (threadcount > seg.getCount())
+                seg.setCount(threadcount);
         }
     }
 }
@@ -179,15 +184,15 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
     // When this is a CPU cache level, for example,
     // _hitcost[PIM] will be assigned to 0
     if (bblid != GLOBALBBLID) {
-        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += _hitcost[CPU];
+        COST cost = _hitcost[CPU] * _storage->_cost_package->_thread_count;
+        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += cost;
+        cost = _hitcost[PIM] * _storage->_cost_package->_thread_count;
         if (issimd) {
-            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += (_hitcost[PIM] / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU]);
+            cost = cost / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU];
         }
-        else {
-            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += _hitcost[PIM];
-        }
+        _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += cost;
     }
-} 
+}
 
 
 BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
@@ -295,13 +300,13 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
     if (bblid != GLOBALBBLID) {
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
-        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += _hitcost[CPU];
+        COST cost = _hitcost[CPU] * _storage->_cost_package->_thread_count;
+        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += cost;
+        cost = _hitcost[PIM] * _storage->_cost_package->_thread_count;
         if (issimd) {
-            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += (_hitcost[PIM] / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU]);
+            cost = cost / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU];
         }
-        else {
-            _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += _hitcost[PIM];
-        }
+        _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += cost;
     }
 }
 

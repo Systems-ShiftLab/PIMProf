@@ -67,13 +67,17 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
             self->_cost_package->_simd_instr_cnt[bblid]++;
         }
 
-        COST cost = self->_cost_package->_instruction_latency[CPU][opcode] * self->_cost_package->_thread_count;
-        self->_cost_package->_bbl_instruction_cost[CPU][bblid] += cost;
-        cost = self->_cost_package->_instruction_latency[PIM][opcode] * self->_cost_package->_thread_count;
-        if (issimd) {
-            cost = cost / self->_cost_package->_core_count[PIM] * self->_cost_package->_core_count[CPU];
+        for (int i = 0; i < MAX_COST_SITE; i++) {
+            // estimating the cost of all threads by looking at the cost of only one thread
+            COST cost = self->_cost_package->_instruction_latency[i][opcode] * self->_cost_package->_thread_count;
+            // if we assume a SIMD instruction can be infinitely parallelized,
+            // then the cost of each instruction will be 1/n if we are having n cores.
+            if (issimd) {
+                cost = cost / self->_cost_package->_core_count[i];
+                self->_cost_package->_total_simd_cost[i] += cost;
+            }
+            self->_cost_package->_bbl_instruction_cost[i][bblid] += cost;
         }
-        self->_cost_package->_bbl_instruction_cost[PIM][bblid] += cost;
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }

@@ -475,6 +475,9 @@ std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
     std::cout << "total instr: " << _cost_package->_total_instr_cnt << std::endl;
     std::cout << "total simd instr: " << _cost_package->_total_simd_instr_cnt << std::endl;
 
+    std::cout << "CPU simd cost: " << _cost_package->_total_simd_cost[CPU] << std::endl;
+    std::cout << "PIM simd cost: " << _cost_package->_total_simd_cost[PIM] << std::endl;
+
     std::cout << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
 
     // std::vector<std::vector<UINT32>> cdftemp;

@@ -184,13 +184,15 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
     // When this is a CPU cache level, for example,
     // _hitcost[PIM] will be assigned to 0
     if (bblid != GLOBALBBLID) {
-        COST cost = _hitcost[CPU] * _storage->_cost_package->_thread_count;
-        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += cost;
-        cost = _hitcost[PIM] * _storage->_cost_package->_thread_count;
-        if (issimd) {
-            cost = cost / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU];
+        // theoretical parallelism can only be computed once
+        issimd &= (!_storage->_cost_package->_inParallelRegion[bblid]);
+        for (int i = 0; i < MAX_COST_SITE; i++) {
+            COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
+            if (issimd) {
+                cost = cost / _storage->_cost_package->_core_count[i];
+            }
+            _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
         }
-        _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += cost;
     }
 }
 
@@ -298,15 +300,19 @@ MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel st
 VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
 {
     if (bblid != GLOBALBBLID) {
+#ifdef DEBUG
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
-        COST cost = _hitcost[CPU] * _storage->_cost_package->_thread_count;
-        _storage->_cost_package->_bbl_memory_cost[CPU][bblid] += cost;
-        cost = _hitcost[PIM] * _storage->_cost_package->_thread_count;
-        if (issimd) {
-            cost = cost / _storage->_cost_package->_core_count[PIM] * _storage->_cost_package->_core_count[CPU];
+#endif
+        // theoretical parallelism can only be computed once
+        issimd &= (!_storage->_cost_package->_inParallelRegion[bblid]);
+        for (int i = 0; i < MAX_COST_SITE; i++) {
+            COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
+            if (issimd) {
+                cost = cost / _storage->_cost_package->_core_count[i];
+            }
+            _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
         }
-        _storage->_cost_package->_bbl_memory_cost[PIM][bblid] += cost;
     }
 }
 

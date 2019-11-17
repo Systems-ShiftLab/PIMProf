@@ -7,6 +7,8 @@ endif
 
 all: llvm pin lib
 
+debug: llvm pin_debug lib
+
 llvm: build
 	cd $(BUILD_DIR) && LLVM_HOME=$(LLVM_HOME) cmake ..
 	make -C $(BUILD_DIR)
@@ -14,6 +16,10 @@ llvm: build
 pin: build
 	mkdir -p $(PIN_BUILD_DIR)
 	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR)
+
+pin_debug: build
+	mkdir -p $(PIN_BUILD_DIR)
+	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR) DEBUG=1
 
 lib: $(ANNOTATION_SO)
 
@@ -23,7 +29,7 @@ $(ANNOTATION_SO): $(ANNOTATION_BC)
 $(ANNOTATION_BC): llvm
 	$(LLVM_BUILD_DIR)/AnnotationGeneration.exe -o $(ANNOTATION_BC)
 
-test: all
+test: debug
 	make -C $(TEST_DIR)
 
 build:

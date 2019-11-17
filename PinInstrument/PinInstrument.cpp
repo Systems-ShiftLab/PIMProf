@@ -87,17 +87,22 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
             pkg._bbl_memory_cost[i].push_back(0);
         }
+#ifdef DEBUG
         pkg._bbl_visit_cnt.push_back(0);
-        pkg._instr_cnt.push_back(0);
+        pkg._bbl_instr_cnt.push_back(0);
         pkg._simd_instr_cnt.push_back(0);
         pkg._cache_miss.push_back(0);
+#endif
     }
     // overwrite _inParallelRegion[] if in spawned worker thread
     if (threadid == 1) {
         pkg._inParallelRegion[it->second] = true;
     }
     pkg._thread_bbl_scope[threadid].push(it->second);
+
+#ifdef DEBUG
     self->_cost_package._bbl_visit_cnt[it->second]++;
+#endif
     // infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << std::endl;
 
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);

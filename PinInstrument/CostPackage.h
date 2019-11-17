@@ -56,15 +56,21 @@ class CostPackage {
     /// needs to acquire the write lock when pushing back a new BBLScope for the new thread
     std::vector<BBLScope> _thread_bbl_scope;
 
+#ifdef DEBUG
   public:
     UINT64 _total_instr_cnt = 0;
     UINT64 _total_simd_instr_cnt = 0;
     COST _total_simd_cost[MAX_COST_SITE] = {0};
     std::vector<UINT64> _bbl_visit_cnt;
-    std::vector<UINT64> _instr_cnt;
+    std::vector<UINT64> _bbl_instr_cnt;
     std::vector<UINT64> _simd_instr_cnt;
     std::vector<UINT64> _cache_miss;
 
+    COST _type_instr_cnt[MAX_INDEX] = {0};
+    COST _type_instr_cost[MAX_COST_SITE][MAX_INDEX] = {0};
+#endif
+
+  public:
     /// Construction of latency table follows the opcode generation function in
     /// $(PIN_ROOT)/source/tools/SimpleExamples/opcodemix.cpp
     COST _instruction_latency[MAX_COST_SITE][MAX_INDEX];

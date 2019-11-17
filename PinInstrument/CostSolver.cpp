@@ -42,27 +42,29 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
     DECISION decision, result;
 
-    std::cout << std::left << std::setw(14) << "PLAN"
-              << std::left << std::setw(15) << "INSTRUCTION"
-              << std::left << std::setw(15) << "MEMORY"
-              << std::left << std::setw(15) << "PARTIAL"
-              << std::left << std::setw(15) << "REUSE"
-              << std::left << std::setw(15) << "TOTAL"
+    std::cout << std::right << std::setw(14) << "PLAN"
+              << std::right << std::setw(15) << "INSTRUCTION"
+              << std::right << std::setw(15) << "MEMORY"
+              << std::right << std::setw(15) << "PARTIAL"
+              << std::right << std::setw(15) << "REUSE"
+              << std::right << std::setw(15) << "TOTAL"
               << std::endl;
-    out << std::left << std::setw(14) << "PLAN"
-              << std::left << std::setw(15) << "INSTRUCTION"
-              << std::left << std::setw(15) << "MEMORY"
-              << std::left << std::setw(15) << "PARTIAL"
-              << std::left << std::setw(15) << "REUSE"
-              << std::left << std::setw(15) << "TOTAL"
+    out << std::right << std::setw(14) << "PLAN"
+              << std::right << std::setw(15) << "INSTRUCTION"
+              << std::right << std::setw(15) << "MEMORY"
+              << std::right << std::setw(15) << "PARTIAL"
+              << std::right << std::setw(15) << "REUSE"
+              << std::right << std::setw(15) << "TOTAL"
               << std::endl;
 
     //
     decision.clear();
+
+#ifdef DEBUG
     infomsg() << "bblid\tmiss\tinstr\tmpki\tsimd" << std::endl;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-        FLT64 mpki = (FLT64)_cost_package->_cache_miss[i] / _cost_package->_instr_cnt[i] * 1000;
-        infomsg() << i << "\t" << _cost_package->_cache_miss[i] << "\t" << _cost_package->_instr_cnt[i] << "\t" << mpki << "\t" << _cost_package->_simd_instr_cnt[i] << std::endl;
+        FLT64 mpki = (FLT64)_cost_package->_cache_miss[i] / _cost_package->_bbl_instr_cnt[i] * 1000;
+        infomsg() << i << "\t" << _cost_package->_cache_miss[i] << "\t" << _cost_package->_bbl_instr_cnt[i] << "\t" << mpki << "\t" << _cost_package->_simd_instr_cnt[i] << std::endl;
         if (mpki >= _mpkithreshold) {
             decision.push_back(PIM);
         }
@@ -72,6 +74,8 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     }
     PrintDecisionStat(std::cout, decision, "MPKI");
     PrintDecisionStat(out, decision, "MPKI");
+#endif
+
     // pure CPU
     decision.clear();
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
@@ -405,27 +409,28 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
         std::vector<std::pair<UUID, UINT32>> sorted_hash(_cost_package->_bbl_hash.begin(), _cost_package->_bbl_hash.end());
         std::sort(sorted_hash.begin(), sorted_hash.end(),
             [](auto &a, auto &b) { return a.second < b.second; });
-        out << std::left << std::setw(7) << "BBLID" 
-            << std::left << std::setw(10) << "Decision" 
-            << std::left << std::setw(7) << "isomp"
-            << std::left << std::setw(15) << "CPUIns" 
-            << std::left << std::setw(15) << "PIMIns"
-            << std::left << std::setw(15) << "CPUMem" 
-            << std::left << std::setw(15) << "PIMMem"
-            << std::left << std::setw(15) << "difference"
-            << std::left << std::setw(18) << "Hash(hi)" 
-            << std::left << std::setw(16) << "Hash(lo)"
+        out << std::right << std::setw(7) << "BBLID" 
+            << std::right << std::setw(10) << "Decision" 
+            << std::right << std::setw(7) << "isomp"
+            << std::right << std::setw(15) << "CPUIns" 
+            << std::right << std::setw(15) << "PIMIns"
+            << std::right << std::setw(15) << "CPUMem" 
+            << std::right << std::setw(15) << "PIMMem"
+            << std::right << std::setw(15) << "difference"
+            << std::right << std::setw(18) << "Hash(hi)" 
+            << std::right << std::setw(18) << "Hash(lo)"
             << std::endl;
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             ASSERTX(sorted_hash[i].second == i);
-            out << std::left << std::setw(7) << i
-                << std::left << std::setw(10) << (decision[i] == PIM ? "P" : "C")
-                << std::left << std::setw(7) << (_cost_package->_inParallelRegion[i] ? "O" : "X")
-                << std::left << std::setw(15) << _cost_package->BBLInstructionCost(CPU, i)
-                << std::left << std::setw(15) << _cost_package->BBLInstructionCost(PIM, i)
-                << std::left << std::setw(15) << _cost_package->BBLMemoryCost(CPU, i)
-                << std::left << std::setw(15) << _cost_package->BBLMemoryCost(PIM, i)
-                << std::left << std::setw(15) << _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i]
+            out << std::right << std::setw(7) << i
+                << std::right << std::setw(10) << (decision[i] == PIM ? "P" : "C")
+                << std::right << std::setw(7) << (_cost_package->_inParallelRegion[i] ? "O" : "X")
+                << std::right << std::setw(15) << _cost_package->BBLInstructionCost(CPU, i)
+                << std::right << std::setw(15) << _cost_package->BBLInstructionCost(PIM, i)
+                << std::right << std::setw(15) << _cost_package->BBLMemoryCost(CPU, i)
+                << std::right << std::setw(15) << _cost_package->BBLMemoryCost(PIM, i)
+                << std::right << std::setw(15) << _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i]
+                << "  "
                 << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.first
                 << "  "
                 << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.second
@@ -454,37 +459,56 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
         }
     }
 
-    out << std::left << std::setw(14) << name + ":"
-        << std::left << std::setw(15) << cur_instr_cost 
-        << std::left << std::setw(15) << cur_mem_cost
-        << std::left << std::setw(15) << (cur_instr_cost + cur_mem_cost) 
-        << std::left << std::setw(15) << cur_reuse_cost
-        << std::left << std::setw(15) << (cur_instr_cost + cur_mem_cost + cur_reuse_cost)
+    out << std::right << std::setw(14) << name + ":"
+        << std::right << std::setw(15) << cur_instr_cost 
+        << std::right << std::setw(15) << cur_mem_cost
+        << std::right << std::setw(15) << (cur_instr_cost + cur_mem_cost) 
+        << std::right << std::setw(15) << cur_reuse_cost
+        << std::right << std::setw(15) << (cur_instr_cost + cur_mem_cost + cur_reuse_cost)
         << std::endl;
     return out;
 }
 
 std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
 {
+#ifdef DEBUG
     UINT64 total = 0;
     UINT64 total_visit = 0;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-        total += _cost_package->_instr_cnt[i];
+        total += _cost_package->_bbl_instr_cnt[i];
         total_visit += _cost_package->_bbl_visit_cnt[i];
     }
+
+    std::cout << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
+
+    std::cout << std::right << std::setw(8) << "opcode"
+              << std::right << std::setw(15) << "name"
+              << std::right << std::setw(20) << "cnt"
+              << std::right << std::setw(15) << "CPUCost"
+              << std::right << std::setw(15) << "PIMCost"
+              << std::endl;
+    for (UINT32 i = 0; i < MAX_INDEX; i++) {
+        if (_cost_package->_type_instr_cnt[i] > 0) {
+            std::cout << std::right << std::setw(8) << i
+                  << std::right << std::setw(15) << OPCODE_StringShort(i)
+                  << std::right << std::setw(20) << _cost_package->_type_instr_cnt[i]
+                  << std::right << std::setw(15) << _cost_package->_type_instr_cost[CPU][i]
+                  << std::right << std::setw(15) << _cost_package->_type_instr_cost[PIM][i]
+                  << std::endl;
+        }
+    }
+
     std::cout << "total instr: " << _cost_package->_total_instr_cnt << std::endl;
     std::cout << "total simd instr: " << _cost_package->_total_simd_instr_cnt << std::endl;
 
     std::cout << "CPU simd cost: " << _cost_package->_total_simd_cost[CPU] << std::endl;
     std::cout << "PIM simd cost: " << _cost_package->_total_simd_cost[PIM] << std::endl;
-
-    std::cout << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
-
+#endif
     // std::vector<std::vector<UINT32>> cdftemp;
     // std::vector<UINT32> cdf; 
     // for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-    //     UINT32 per = _cost_package->_instr_cnt[i] / _cost_package->_bbl_visit_cnt[i];
-    //     // ASSERTX(_cost_package->_instr_cnt[i] % _cost_package->_bbl_visit_cnt[i] == 0);
+    //     UINT32 per = _cost_package->_bbl_instr_cnt[i] / _cost_package->_bbl_visit_cnt[i];
+    //     // ASSERTX(_cost_package->_bbl_instr_cnt[i] % _cost_package->_bbl_visit_cnt[i] == 0);
     //     for (; cdf.size() <= per; cdf.push_back(0));
     //     cdf[per] += _cost_package->_bbl_visit_cnt[i];
 

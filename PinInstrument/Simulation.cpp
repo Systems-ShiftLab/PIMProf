@@ -66,18 +66,14 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
         if (issimd) {
             self->_cost_package->_simd_instr_cnt[bblid]++;
         }
-        if (ismem) {
-            // ignore the instruction
+
+        COST cost = self->_cost_package->_instruction_latency[CPU][opcode] * self->_cost_package->_thread_count;
+        self->_cost_package->_bbl_instruction_cost[CPU][bblid] += cost;
+        cost = self->_cost_package->_instruction_latency[PIM][opcode] * self->_cost_package->_thread_count;
+        if (issimd) {
+            cost = cost / self->_cost_package->_core_count[PIM] * self->_cost_package->_core_count[CPU];
         }
-        else {
-            COST cost = self->_cost_package->_instruction_latency[CPU][opcode] * self->_cost_package->_thread_count;
-            self->_cost_package->_bbl_instruction_cost[CPU][bblid] += cost;
-            cost = self->_cost_package->_instruction_latency[PIM][opcode] * self->_cost_package->_thread_count;
-            if (issimd) {
-                cost = cost / self->_cost_package->_core_count[PIM] * self->_cost_package->_core_count[CPU];
-            }
-            self->_cost_package->_bbl_instruction_cost[PIM][bblid] += cost;
-        }
+        self->_cost_package->_bbl_instruction_cost[PIM][bblid] += cost;
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }

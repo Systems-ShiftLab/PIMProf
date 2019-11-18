@@ -54,7 +54,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
     // infomsg() << "instrcount: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-#ifdef DEBUG
+#ifdef PIMPROFDEBUG
         self->_cost_package->_total_instr_cnt++;
         if (issimd) {
             self->_cost_package->_total_simd_instr_cnt++;
@@ -68,7 +68,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
         // theoretical parallelism can only be computed once
         issimd &= (!self->_cost_package->_inParallelRegion[bblid]);
 
-#ifdef DEBUG
+#ifdef PIMPROFDEBUG
         self->_cost_package->_bbl_instr_cnt[bblid]++;
         if (issimd) {
             self->_cost_package->_simd_instr_cnt[bblid]++;
@@ -87,7 +87,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
                     cost = cost / self->_cost_package->_core_count[i];
                 }
                 self->_cost_package->_bbl_instruction_cost[i][bblid] += cost;
-#ifdef DEBUG
+#ifdef PIMPROFDEBUG
                 if (issimd) {
                     self->_cost_package->_total_simd_cost[i] += cost;
                 }

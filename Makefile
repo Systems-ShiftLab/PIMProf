@@ -19,7 +19,7 @@ pin: build
 
 pin_debug: build
 	mkdir -p $(PIN_BUILD_DIR)
-	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR) DEBUG=1
+	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR) PIMPROFDEBUG=1
 
 lib: $(ANNOTATION_SO)
 

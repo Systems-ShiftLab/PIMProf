@@ -87,7 +87,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
             pkg._bbl_memory_cost[i].push_back(0);
         }
-#ifdef DEBUG
+#ifdef PIMPROFDEBUG
         pkg._bbl_visit_cnt.push_back(0);
         pkg._bbl_instr_cnt.push_back(0);
         pkg._simd_instr_cnt.push_back(0);
@@ -100,7 +100,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
     }
     pkg._thread_bbl_scope[threadid].push(it->second);
 
-#ifdef DEBUG
+#ifdef PIMPROFDEBUG
     self->_cost_package._bbl_visit_cnt[it->second]++;
 #endif
     // infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << std::endl;

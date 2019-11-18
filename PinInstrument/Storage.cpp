@@ -300,7 +300,7 @@ MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel st
 VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
 {
     if (bblid != GLOBALBBLID) {
-#ifdef DEBUG
+#ifdef PIMPROFDEBUG
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
 #endif

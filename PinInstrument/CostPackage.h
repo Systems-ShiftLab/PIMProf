@@ -56,7 +56,7 @@ class CostPackage {
     /// needs to acquire the write lock when pushing back a new BBLScope for the new thread
     std::vector<BBLScope> _thread_bbl_scope;
 
-#ifdef DEBUG
+#ifdef PIMPROFDEBUG
   public:
     UINT64 _total_instr_cnt = 0;
     UINT64 _total_simd_instr_cnt = 0;

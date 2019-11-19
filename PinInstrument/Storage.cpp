@@ -189,7 +189,7 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
             if (issimd) {
-                cost = cost / _storage->_cost_package->_core_count[i];
+                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
         }
@@ -309,7 +309,7 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
             if (issimd) {
-                cost = cost / _storage->_cost_package->_core_count[i];
+                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
         }

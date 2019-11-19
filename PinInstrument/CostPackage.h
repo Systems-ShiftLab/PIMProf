@@ -80,6 +80,7 @@ class CostPackage {
     COST _ilp[MAX_COST_SITE];
     COST _mlp[MAX_COST_SITE];
     UINT32 _core_count[MAX_COST_SITE];
+    UINT32 _simd_cost_multiplier[MAX_COST_SITE];
 
     /// the control latency when switching between sites
     COST _control_latency[MAX_COST_SITE][MAX_COST_SITE];

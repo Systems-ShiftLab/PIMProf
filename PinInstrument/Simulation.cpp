@@ -84,7 +84,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
                 // if we assume a SIMD instruction can be infinitely parallelized,
                 // then the cost of each instruction will be 1/n if we are having n cores.
                 if (issimd) {
-                    cost = cost / self->_cost_package->_core_count[i];
+                    cost = cost / self->_cost_package->_core_count[i] * self->_cost_package->_simd_cost_multiplier[i];
                 }
                 self->_cost_package->_bbl_instruction_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG

@@ -11,7 +11,7 @@ debug: llvm pin_debug lib
 
 llvm: build
 	cd $(BUILD_DIR) && LLVM_HOME=$(LLVM_HOME) cmake ..
-	make -C $(BUILD_DIR)
+	make -C $(BUILD_DIR) VERBOSE=1
 
 pin: build
 	mkdir -p $(PIN_BUILD_DIR)

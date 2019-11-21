@@ -91,7 +91,7 @@ namespace {
         // declare extern annotator function
         Function *offloader = dyn_cast<Function>(
             M.getOrInsertFunction(
-                PIMProfOffloader, 
+                PIMProfOffloaderName, 
                 FunctionType::getVoidTy(ctx), 
                 Type::getInt64Ty(ctx),
                 Type::getInt64Ty(ctx),

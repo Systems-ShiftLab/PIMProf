@@ -14,7 +14,7 @@ TEST_PY             := test.py
 CXXFLAGS := -Xclang -load -Xclang $(INJECTION_SO) -fPIC -std=c++11 -g
 LDFLAGS  := -pthread
 
-all: $(DECISION)
+all: offload
 
 $(DECISION): $(TEST_EXE) $(TEST_SO)
 	$(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -o $@ -- ./$(TEST_EXE)
@@ -33,4 +33,4 @@ $(TEST_SO): $(TEST_OBJ) $(ANNOTATION_SO)
 	$(CLANGXX) $(CXXFLAGS) -S -emit-llvm $<
 	$(CLANGXX) $(CXXFLAGS) -c -o $@ $<
 
-.PHONY: all clean
+.PHONY: all offload clean

@@ -184,6 +184,7 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
     // When this is a CPU cache level, for example,
     // _hitcost[PIM] will be assigned to 0
     if (bblid != GLOBALBBLID) {
+        issimd |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
         issimd &= (!_storage->_cost_package->_inParallelRegion[bblid]);
         for (int i = 0; i < MAX_COST_SITE; i++) {
@@ -304,6 +305,7 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
 #endif
+        issimd |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
         issimd &= (!_storage->_cost_package->_inParallelRegion[bblid]);
         for (int i = 0; i < MAX_COST_SITE; i++) {

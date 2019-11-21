@@ -43,6 +43,7 @@ class CostPackage {
   public:
     std::unordered_map<UUID, UINT32, HashFunc> _bbl_hash;
     BBLID _bbl_size = 0;
+    bool _inAcceleratorFunction;
     /// whether this region is in parallelizable region
     /// the value will be overwritten to true if in spawned thread
     std::vector<bool> _inParallelRegion;

@@ -121,11 +121,25 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
 
+VOID PinInstrument::DoAtAcceleratorHead(PinInstrument *self)
+{
+    CostPackage &pkg = self->_cost_package;
+    pkg._inAcceleratorFunction = true;
+    infomsg() << "see EncodeFrame" << std::endl;
+}
+
+VOID PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
+{
+    CostPackage &pkg = self->_cost_package;
+    pkg._inAcceleratorFunction = false;
+}
+
 VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
 {
     // find annotator head and tail by their names
     RTN annotator_head = RTN_FindByName(img, PIMProfAnnotationHead.c_str());
     RTN annotator_tail = RTN_FindByName(img, PIMProfAnnotationTail.c_str());
+    RTN encode_frame = RTN_FindByName(img, "Encode_frame");
 
     if (RTN_Valid(annotator_head) && RTN_Valid(annotator_tail))
     {
@@ -155,6 +169,23 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
             IARG_THREAD_ID,
             IARG_END);
         RTN_Close(annotator_tail);
+    }
+    // TODO: dirty hack, fix later
+    if (RTN_Valid(encode_frame)) {
+        RTN_Open(encode_frame);
+        RTN_InsertCall(
+            encode_frame,
+            IPOINT_BEFORE,
+            (AFUNPTR)DoAtAcceleratorHead,
+            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotationHead
+            IARG_END);
+        RTN_InsertCall(
+            encode_frame,
+            IPOINT_AFTER,
+            (AFUNPTR)DoAtAcceleratorTail,
+            IARG_PTR, void_self, // Pass the pointer of bbl_scope as an argument of DoAtAnnotationHead
+            IARG_END);
+        RTN_Close(encode_frame);
     }
 }
 

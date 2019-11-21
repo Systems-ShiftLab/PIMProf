@@ -66,6 +66,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
             return;
         }
         // theoretical parallelism can only be computed once
+        issimd |= self->_cost_package->_inAcceleratorFunction;
         issimd &= (!self->_cost_package->_inParallelRegion[bblid]);
 
 #ifdef PIMPROFDEBUG

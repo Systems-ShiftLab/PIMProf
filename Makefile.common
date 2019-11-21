@@ -16,4 +16,4 @@ INJECTION_SO        := $(LLVM_BUILD_DIR)/libAnnotationInjection.so
 
 PININSTRUMENT_SO    := $(PIN_BUILD_DIR)/PinInstrument.so
 
-DEFAULT_CONFIG      := $(PIMPROF_DIR)/Configs/defaultconfig.ini
+DEFAULT_CONFIG      := $(PIMPROF_DIR)/Configs/defaultconfig_32.ini

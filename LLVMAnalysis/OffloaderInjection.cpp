@@ -204,24 +204,24 @@ namespace {
                 // simply assume that the input program is the same as the input in annotator injection pass
                 for (auto &func : M) {
                     for (auto &bb: func) {
-                        // errs() << "Before offloading: " << bb.getName() << "\n";
-                        // for (auto i = bb.begin(), ie = bb.end(); i != ie; i++) {
-                        //     (*i).print(errs());
-                        //     errs() << "\n";
-                        // }
-                        // errs() << "\n";
+                        errs() << "Before offloading: " << bb.getName() << "\n";
+                        for (auto i = bb.begin(), ie = bb.end(); i != ie; i++) {
+                            (*i).print(errs());
+                            errs() << "\n";
+                        }
+                        errs() << "\n";
 
-                        // std::string BB_content;
-                        // raw_string_ostream rso(BB_content);
-                        // rso << bb;
-                        // uint64_t bblhash[2];
-                        // MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
-                        // // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
-                        // UUID uuid(bblhash[1], bblhash[0]);
-                        // if (decision_map.find(uuid) == decision_map.end()) {
-                        //     std::cerr << "cannot find same function.";
-                        //     // assert(false);
-                        // }
+                        std::string BB_content;
+                        raw_string_ostream rso(BB_content);
+                        rso << bb;
+                        uint64_t bblhash[2];
+                        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+                        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+                        UUID uuid(bblhash[1], bblhash[0]);
+                        if (decision_map.find(uuid) == decision_map.end()) {
+                            std::cerr << "cannot find same function.";
+                            // assert(false);
+                        }
                         InjectOffloaderCall(M, bb);
                     }
                     errs() << "\n";

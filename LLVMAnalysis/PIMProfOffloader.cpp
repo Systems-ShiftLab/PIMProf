@@ -29,29 +29,35 @@ void print_affinity() {
     }
 }
 
-void PIMProfOffloader(int site, int bblid, double difference) {
-    if (site != PIMProfPreviousSite) {
-        PIMProfPreviousSite = site;
-        cpu_set_t mask;
-        int status;
-
-        CPU_ZERO(&mask);
-        if (site == 0) {
-            for (int i = 0; i < PIMCoreIdBegin; i++) {
-                CPU_SET(i, &mask);
-            }
-        }
-        else if (site == 1) {
-            for (int i = PIMCoreIdBegin; i < PIMCoreIdEnd; i++) {
-                CPU_SET(i, &mask);
-            }
-        }
-        else {
-            assert(0);
-        }
-        status = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
-        assert(status != -1);
-    }
-    printf("%s", (site == 0 ? "C" : "P"));
-    // print_affinity();
+int PIMProfOffloader(int decision, int mode) 
+{
+    printf("PIMProfOffloader: %d %d\n", decision, mode);
+    return 0;
 }
+
+// void PIMProfOffloader(int site, int bblid, double difference) {
+//     if (site != PIMProfPreviousSite) {
+//         PIMProfPreviousSite = site;
+//         cpu_set_t mask;
+//         int status;
+
+//         CPU_ZERO(&mask);
+//         if (site == 0) {
+//             for (int i = 0; i < PIMCoreIdBegin; i++) {
+//                 CPU_SET(i, &mask);
+//             }
+//         }
+//         else if (site == 1) {
+//             for (int i = PIMCoreIdBegin; i < PIMCoreIdEnd; i++) {
+//                 CPU_SET(i, &mask);
+//             }
+//         }
+//         else {
+//             assert(0);
+//         }
+//         status = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+//         assert(status != -1);
+//     }
+//     printf("%s", (site == 0 ? "C" : "P"));
+//     // print_affinity();
+// }

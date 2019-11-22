@@ -13,6 +13,9 @@ ANNOTATION_BC       := $(LLVM_BUILD_DIR)/libPIMProfAnnotation.bc
 ANNOTATION_SO       := $(ANNOTATION_BC:%.bc=%.so)
 
 INJECTION_SO        := $(LLVM_BUILD_DIR)/libAnnotationInjection.so
+OFFLOADING_SO       := $(LLVM_BUILD_DIR)/libOffloaderInjection.so
+
+PIMPROFOFFLOADER_SO        := $(LLVM_BUILD_DIR)/libPIMProfOffloader.so
 
 PININSTRUMENT_SO    := $(PIN_BUILD_DIR)/PinInstrument.so
 

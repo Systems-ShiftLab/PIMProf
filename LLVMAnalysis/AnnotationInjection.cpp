@@ -50,12 +50,6 @@ namespace {
             )
         );
 
-        // errs() << "Before injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
 
         // use the content of BB itself as the hash key
         std::string BB_content;
@@ -65,7 +59,14 @@ namespace {
 
 
         MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
-        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+
+        errs() << "Before injection: " << BB.getName() << "\n";
+        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+            (*i).print(errs());
+            errs() << "\n";
+        }
+        errs() << "\n";
+        errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
         // divide all parameters into uint64_t, because this is what pin supports
         Value *hi = ConstantInt::get(
@@ -104,22 +105,6 @@ namespace {
         AnnotationInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            // find all functions that are called by pthread
-            // for (auto &func : M) {
-            //     for (auto &bb : func) {
-            //         for (auto &I : bb) {
-            //             if(CallInst* call_inst = dyn_cast<CallInst>(&I)) {
-            //                 Function *f = call_inst->getCalledFunction();
-            //                 if (f->getName() == PThreadsIdentifier) {
-            //                     Argument *arg = f->arg_begin();
-            //                     arg += 2;
-            //                     arg->print(errs());
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
             // inject annotator function to each basic block
             // attach basic block id to terminator
             for (auto &func : M) {

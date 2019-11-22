@@ -67,74 +67,73 @@ namespace {
         }
     };
 
-    static cl::opt<CallSite> StayOn(
-        cl::desc("Instead of specifying a filename, specify that the entire program will stay in the same place"),
-        cl::values(
-            clEnumVal(CPU, "Entire program will stay on CPU"),
-            clEnumVal(PIM, "Entire program will stay on PIM")
-        ),
-        cl::init(INVALID)
-    );
-
-    static cl::opt<std::string> InputFilename(
-        "decision",
-        cl::desc("Specify filename of offloading decision for OffloaderInjection pass."),
-        cl::value_desc("decision file"),
-        cl::init("")
-    );
-
     std::unordered_map<UUID, Decision, HashFunc> decision_map;
 
     void InjectOffloaderCall(Module &M, BasicBlock &BB) {
+        Decision decision;
+        std::string BB_content;
+        raw_string_ostream rso(BB_content);
+        rso << BB;
+        uint64_t bblhash[2];
+        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+
+        errs() << "Before offloader injection: " << BB.getName() << "\n";
+        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+            (*i).print(errs());
+            errs() << "\n";
+        }
+        errs() << "\n";
+        errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+
+        UUID uuid(bblhash[1], bblhash[0]);
+        if (decision_map.find(uuid) == decision_map.end()) {
+            std::cerr << "cannot find same function." << std::endl;
+            // assert(false);
+            decision.decision = CPU;
+        }
+        else {
+            std::cerr << "found same function." << std::endl;
+            decision = decision_map[uuid];
+        }
+
         LLVMContext &ctx = M.getContext();
 
         // declare extern annotator function
         Function *offloader = dyn_cast<Function>(
             M.getOrInsertFunction(
                 PIMProfOffloaderName, 
-                FunctionType::getVoidTy(ctx), 
-                Type::getInt64Ty(ctx),
-                Type::getInt64Ty(ctx),
-                Type::getDoubleTy(ctx)
+                FunctionType::getInt32Ty(ctx),
+                Type::getInt32Ty(ctx),
+                Type::getInt32Ty(ctx)
             )
         );
 
-        for (auto &instruction : BB) {
-            if (CallInst *callInst = dyn_cast<CallInst>(&instruction)) {
-                if (Function *calledFunction = callInst->getCalledFunction()) {
-                    if (calledFunction->getName().startswith("PIMProfAnnotationHead")) {
-                        auto *hi = dyn_cast<llvm::ConstantInt>(callInst->getArgOperand(0));
-                        auto *lo = dyn_cast<llvm::ConstantInt>(callInst->getArgOperand(1));
-                        uint64_t hival = hi->getValue().getLimitedValue();
-                        uint64_t loval = lo->getValue().getLimitedValue();
-                        Decision decision = decision_map[UUID(hival, loval)];
-                        std::cout << std::hex << hival << " " << loval;
-                        std::cout << decision.decision << " " << decision.bblid << " " << decision.difference << std::endl;
-                        std::vector<Value *> args;
-                        args.push_back(ConstantInt::get(
-                            IntegerType::get(M.getContext(),64), decision.decision));
-                        
-                        args.push_back(ConstantInt::get(
-                            IntegerType::get(M.getContext(),64), decision.bblid));
-                        args.push_back(ConstantFP::get(
-                            Type::getDoubleTy(M.getContext()), decision.difference));
-                        CallInst *head_instr = CallInst::Create(
-                            offloader, ArrayRef<Value *>(args), "",
-                            callInst);
-                    }
-                }
-            }
-        }
+        // divide all parameters into uint64_t, because this is what pin supports
+        Value *dec = ConstantInt::get(
+            IntegerType::get(M.getContext(), 32), decision.decision);
+        Value *mode0 = ConstantInt::get(
+            IntegerType::get(M.getContext(), 32), 0);
+        Value *mode1 = ConstantInt::get(
+            IntegerType::get(M.getContext(), 32), 1);
 
-        // // insert instruction metadata
-        // MDNode* md = MDNode::get(
-        //     ctx, 
-        //     ConstantAsMetadata::get(
-        //         ConstantInt::get(
-        //             IntegerType::get(M.getContext(),64), decision.bblid)
-        //     )
-        // );
-        // head_instr->setMetadata(PIMProfBBLIDMetadata, md);
+        std::vector<Value *> arglist;
+        arglist.push_back(dec);
+        arglist.push_back(mode0);
+        // need to skip all PHIs and LandingPad instructions
+        // check the declaration of getFirstInsertionPt()
+        Instruction *beginning = &(*BB.getFirstInsertionPt());
+
+        CallInst *head_instr = CallInst::Create(
+            offloader, ArrayRef<Value *>(arglist), "",
+            beginning);
+
+        arglist.clear();
+        arglist.push_back(dec);
+        arglist.push_back(mode1);
+
+        CallInst *tail_instr = CallInst::Create(
+            offloader, ArrayRef<Value *>(arglist), "",
+            BB.getTerminator());
     }
 
     class PIMProfAAW : public AssemblyAnnotationWriter {
@@ -156,93 +155,59 @@ namespace {
         OffloaderInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            // assign unique id to each basic block
-            if (StayOn == INVALID && InputFilename == "") {
-                std::cerr << "Must specify either a place for the program to stay or give an input filename. Refer to -h.";
-                assert(false);
-            }
-            else if (StayOn == INVALID && InputFilename != "") {
-                // Read decisions from file
-                std::ifstream ifs(InputFilename.c_str(), std::ifstream::in);
-                std::string line;
-                // skip the preceding lines
-                for (int i = 0; i < 8; i++) {
-                    std::getline(ifs, line);
-                }
-                while(std::getline(ifs, line)) {
-                    std::stringstream ss(line);
-                    std::string token;
-                    Decision decision;
-                    uint64_t hi, lo;
-                    for (int i = 0; i < 10; i++) {
-                        if (i == 0) {
-                            ss >> decision.bblid;
-                        }
-                        else if (i == 1) {
-                            ss >> token;
-                            decision.decision = (token == "P" ? PIM : CPU);
-                        }
-                        else if (i == 7) {
-                            ss >> decision.difference;
-                        }
-                        else if (i == 8) {
-                            ss >> std::hex >> hi;
-                        }
-                        else if (i == 9) {
-                            ss >> std::hex >> lo;
-                        }
-                        else {
-                            // ignore it
-                            ss >> token;
-                        }
-                    }
-                    decision_map[UUID(hi, lo)] = decision;
-                }
-                ifs.close();
-                // inject offloader function to each basic block
-                // according to their basic block ID and corresponding decision
-                // simply assume that the input program is the same as the input in annotator injection pass
-                for (auto &func : M) {
-                    for (auto &bb: func) {
-                        errs() << "Before offloading: " << bb.getName() << "\n";
-                        for (auto i = bb.begin(), ie = bb.end(); i != ie; i++) {
-                            (*i).print(errs());
-                            errs() << "\n";
-                        }
-                        errs() << "\n";
+            char *InputFilename = std::getenv(PIMProfEnvName.c_str());
 
-                        std::string BB_content;
-                        raw_string_ostream rso(BB_content);
-                        rso << bb;
-                        uint64_t bblhash[2];
-                        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
-                        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
-                        UUID uuid(bblhash[1], bblhash[0]);
-                        if (decision_map.find(uuid) == decision_map.end()) {
-                            std::cerr << "cannot find same function.";
-                            // assert(false);
-                        }
-                        InjectOffloaderCall(M, bb);
+            std::cout << "filename: " << InputFilename << std::endl;
+            std::ifstream ifs(InputFilename, std::ifstream::in);
+            std::string line;
+            // skip the preceding lines
+            for (int i = 0; i < 8; i++) {
+                std::getline(ifs, line);
+            }
+            while(std::getline(ifs, line)) {
+                std::stringstream ss(line);
+                std::string token;
+                Decision decision;
+                uint64_t hi, lo;
+                for (int i = 0; i < 10; i++) {
+                    if (i == 0) {
+                        ss >> decision.bblid;
                     }
-                    errs() << "\n";
-                }
-            }
-            else if (StayOn != INVALID && InputFilename == "") {
-                for (auto &func : M) {
-                    for (auto &bb: func) {
-                        InjectOffloaderCall(M, bb);
+                    else if (i == 1) {
+                        ss >> token;
+                        decision.decision = (token == "P" ? PIM : CPU);
+                    }
+                    else if (i == 7) {
+                        ss >> decision.difference;
+                    }
+                    else if (i == 8) {
+                        ss >> std::hex >> hi;
+                    }
+                    else if (i == 9) {
+                        ss >> std::hex >> lo;
+                    }
+                    else {
+                        // ignore it
+                        ss >> token;
                     }
                 }
+                decision_map[UUID(hi, lo)] = decision;
             }
-            else {
-                std::cerr << "Can only specify either the place for the program to stay or the input filename.";
-                assert(false);
-            }
-            
-            // dump entire program
-            PIMProfAAW aaw = PIMProfAAW();
-            for (auto &func: M) {
-                func.print(outs(), &aaw);
+            ifs.close();
+            // inject offloader function to each basic block
+            // according to their basic block ID and corresponding decision
+            // simply assume that the input program is the same as the input in annotator injection pass
+            for (auto &func : M) {
+                for (auto &bb: func) {
+                    // errs() << "Before offloading: " << bb.getName() << "\n";
+                    // for (auto i = bb.begin(), ie = bb.end(); i != ie; i++) {
+                    //     (*i).print(errs());
+                    //     errs() << "\n";
+                    // }
+                    // errs() << "\n";
+                    InjectOffloaderCall(M, bb);
+                }
+                errs() << "\n";
             }
 
             // M.print(errs(), nullptr);

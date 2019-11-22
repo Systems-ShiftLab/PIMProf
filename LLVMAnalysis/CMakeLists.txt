@@ -27,13 +27,11 @@ target_compile_features(${ANNOTATIONGENERATION_EXE} PRIVATE
 set_target_properties(${ANNOTATIONGENERATION_EXE} PROPERTIES
     COMPILE_FLAGS "-fno-rtti -fPIC")
 
-# set(CFGDUMP "CFGDump")
-# set(CFGDUMP_SRC "${CFGDUMP}.cpp")
-# set(CFGDUMP_EXE "${CFGDUMP}.exe")
-# add_executable(${CFGDUMP_EXE}
-#    ${CFGDUMP_SRC})
-# target_link_libraries(${CFGDUMP_EXE} LLVM)
-# target_compile_features(${CFGDUMP_EXE} PRIVATE
-#     cxx_range_for cxx_auto_type)
-# set_target_properties(${CFGDUMP_EXE} PROPERTIES
-#     COMPILE_FLAGS "-fno-rtti")
+set(OFFLOADER "PIMProfOffloader")
+set(OFFLOADER_SRC "${OFFLOADER}.cpp")
+add_library(${OFFLOADER} SHARED
+    ${OFFLOADER_SRC})
+target_compile_features(${OFFLOADER} PRIVATE
+    cxx_range_for cxx_auto_type)
+set_target_properties(${OFFLOADER} PROPERTIES
+    COMPILE_FLAGS "-fno-rtti")

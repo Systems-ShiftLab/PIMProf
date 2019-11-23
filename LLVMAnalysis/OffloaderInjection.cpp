@@ -106,6 +106,7 @@ namespace {
                 PIMProfOffloaderName, 
                 FunctionType::getInt32Ty(ctx),
                 Type::getInt32Ty(ctx),
+                Type::getInt32Ty(ctx),
                 Type::getInt32Ty(ctx)
             )
         );
@@ -117,10 +118,13 @@ namespace {
             IntegerType::get(M.getContext(), 32), 0);
         Value *mode1 = ConstantInt::get(
             IntegerType::get(M.getContext(), 32), 1);
+        Value *bblid = ConstantInt::get(
+            IntegerType::get(M.getContext(), 32), decision.bblid);
 
         std::vector<Value *> arglist;
         arglist.push_back(dec);
         arglist.push_back(mode0);
+        arglist.push_back(bblid);
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
@@ -132,6 +136,7 @@ namespace {
         arglist.clear();
         arglist.push_back(dec);
         arglist.push_back(mode1);
+        arglist.push_back(bblid);
 
         CallInst *tail_instr = CallInst::Create(
             offloader, ArrayRef<Value *>(arglist), "",

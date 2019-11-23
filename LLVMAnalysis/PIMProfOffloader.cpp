@@ -29,9 +29,9 @@ void print_affinity() {
     }
 }
 
-int PIMProfOffloader(int decision, int mode) 
+int PIMProfOffloader(int decision, int mode, int bblid) 
 {
-    printf("PIMProfOffloader: %d %d\n", decision, mode);
+    printf("PIMProfOffloader: %d %d %d\n", decision, mode, bblid);
     return 0;
 }
 

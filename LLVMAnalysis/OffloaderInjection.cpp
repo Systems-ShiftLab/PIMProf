@@ -91,6 +91,7 @@ namespace {
             not_found_cnt++;
             // std::cerr << "cannot find same function." << std::endl;
             decision.decision = CPU;
+            decision.bblid = -1;
         }
         else {
             found_cnt++;

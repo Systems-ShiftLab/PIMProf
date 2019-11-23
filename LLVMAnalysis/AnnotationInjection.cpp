@@ -60,13 +60,13 @@ namespace {
 
         MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
 
-        errs() << "Before injection: " << BB.getName() << "\n";
-        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-            (*i).print(errs());
-            errs() << "\n";
-        }
-        errs() << "\n";
-        errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+        // errs() << "Before injection: " << BB.getName() << "\n";
+        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+        //     (*i).print(errs());
+        //     errs() << "\n";
+        // }
+        // errs() << "\n";
+        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
         // divide all parameters into uint64_t, because this is what pin supports
         Value *hi = ConstantInt::get(

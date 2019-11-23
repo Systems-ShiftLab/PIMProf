@@ -68,6 +68,7 @@ namespace {
     };
 
     std::unordered_map<UUID, Decision, HashFunc> decision_map;
+    int found_cnt = 0, not_found_cnt = 0;
 
     void InjectOffloaderCall(Module &M, BasicBlock &BB) {
         Decision decision;
@@ -77,22 +78,23 @@ namespace {
         uint64_t bblhash[2];
         MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
 
-        errs() << "Before offloader injection: " << BB.getName() << "\n";
-        for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-            (*i).print(errs());
-            errs() << "\n";
-        }
-        errs() << "\n";
-        errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+        // errs() << "Before offloader injection: " << BB.getName() << "\n";
+        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+        //     (*i).print(errs());
+        //     errs() << "\n";
+        // }
+        // errs() << "\n";
+        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
         UUID uuid(bblhash[1], bblhash[0]);
         if (decision_map.find(uuid) == decision_map.end()) {
-            std::cerr << "cannot find same function." << std::endl;
-            // assert(false);
+            not_found_cnt++;
+            // std::cerr << "cannot find same function." << std::endl;
             decision.decision = CPU;
         }
         else {
-            std::cerr << "found same function." << std::endl;
+            found_cnt++;
+            // std::cerr << "found same function." << std::endl;
             decision = decision_map[uuid];
         }
 
@@ -207,7 +209,12 @@ namespace {
                     // errs() << "\n";
                     InjectOffloaderCall(M, bb);
                 }
-                errs() << "\n";
+            }
+            errs() << "Found = " << found_cnt << ", Not Found = " << not_found_cnt << "\n";
+
+             PIMProfAAW aaw = PIMProfAAW();
+            for (auto &func: M) {
+                func.print(outs(), &aaw);
             }
 
             // M.print(errs(), nullptr);

@@ -45,6 +45,7 @@ using namespace llvm;
 namespace {
     enum CallSite {
         CPU, PIM, MAX_COST_SITE,
+        DEFAULT = 0x0fffffff,
         INVALID = 0x3fffffff // a placeholder that does not count as a cost site
     };
 
@@ -54,6 +55,7 @@ namespace {
         CallSite decision;
         int bblid;
         double difference;
+        int parallel;
     };
 
     class HashFunc
@@ -69,6 +71,8 @@ namespace {
 
     std::unordered_map<UUID, Decision, HashFunc> decision_map;
     int found_cnt = 0, not_found_cnt = 0;
+
+    CallSite ROI = DEFAULT;
 
     void InjectOffloaderCall(Module &M, BasicBlock &BB) {
         Decision decision;
@@ -92,6 +96,7 @@ namespace {
             // std::cerr << "cannot find same function." << std::endl;
             decision.decision = CPU;
             decision.bblid = -1;
+            decision.parallel = -1;
         }
         else {
             found_cnt++;
@@ -100,17 +105,35 @@ namespace {
         }
 
         LLVMContext &ctx = M.getContext();
-
-        // declare extern annotator function
-        Function *offloader = dyn_cast<Function>(
-            M.getOrInsertFunction(
-                PIMProfOffloaderName, 
-                FunctionType::getInt32Ty(ctx),
-                Type::getInt32Ty(ctx),
-                Type::getInt32Ty(ctx),
-                Type::getInt32Ty(ctx)
-            )
-        );
+        
+        Function *offloader;
+        // if the decision of current BB matches the site we want to annotate
+        // or if we annotate both
+        if (ROI == decision.decision || ROI == DEFAULT) {
+            // declare extern annotator function
+            offloader = dyn_cast<Function>(
+                M.getOrInsertFunction(
+                    PIMProfOffloaderName, 
+                    FunctionType::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx)
+                )
+            );
+        }
+        else {
+            offloader = dyn_cast<Function>(
+                M.getOrInsertFunction(
+                    PIMProfOffloaderNullName, 
+                    FunctionType::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx),
+                    Type::getInt32Ty(ctx)
+                )
+            );
+        }
 
         // divide all parameters into uint64_t, because this is what pin supports
         Value *dec = ConstantInt::get(
@@ -121,14 +144,19 @@ namespace {
             IntegerType::get(M.getContext(), 32), 1);
         Value *bblid = ConstantInt::get(
             IntegerType::get(M.getContext(), 32), decision.bblid);
+        Value *parallel = ConstantInt::get(
+            IntegerType::get(M.getContext(), 32), decision.parallel);
+
 
         std::vector<Value *> arglist;
         arglist.push_back(dec);
         arglist.push_back(mode0);
         arglist.push_back(bblid);
+        arglist.push_back(parallel);
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
+
 
         CallInst *head_instr = CallInst::Create(
             offloader, ArrayRef<Value *>(arglist), "",
@@ -138,10 +166,55 @@ namespace {
         arglist.push_back(dec);
         arglist.push_back(mode1);
         arglist.push_back(bblid);
+        arglist.push_back(parallel);
 
         CallInst *tail_instr = CallInst::Create(
             offloader, ArrayRef<Value *>(arglist), "",
             BB.getTerminator());
+    }
+
+    void InjectOffloaderCall(Module &M, Function &F) {
+        LLVMContext &ctx = M.getContext();
+
+        // declare extern annotator function
+        Function *offloader = dyn_cast<Function>(
+            M.getOrInsertFunction(
+                PIMProfOffloader2Name, 
+                FunctionType::getInt32Ty(ctx),
+                Type::getInt32Ty(ctx)
+            )
+        );
+
+        Value *mode0 = ConstantInt::get(
+            IntegerType::get(M.getContext(), 32), 0);
+        Value *mode1 = ConstantInt::get(
+            IntegerType::get(M.getContext(), 32), 1);
+
+        std::vector<Value *> arglist;
+        arglist.push_back(mode0);
+        // need to skip all PHIs and LandingPad instructions
+        // check the declaration of getFirstInsertionPt()
+        Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
+
+        CallInst *head_instr = CallInst::Create(
+            offloader, ArrayRef<Value *>(arglist), "",
+            beginning);
+
+        arglist.clear();
+        arglist.push_back(mode1);
+
+        // insert an end call before every return instruction
+        for (auto &BB : F) {
+            for (auto &I : BB) {
+                if (isa<ReturnInst>(I)) {
+                    CallInst *tail_instr = CallInst::Create(
+                        offloader, ArrayRef<Value *>(arglist), "",
+                        &I);
+                }
+            }
+        }
+
+        
     }
 
     class PIMProfAAW : public AssemblyAnnotationWriter {
@@ -163,10 +236,24 @@ namespace {
         OffloaderInjection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            char *InputFilename = std::getenv(PIMProfEnvName.c_str());
-
-            std::cout << "filename: " << InputFilename << std::endl;
-            std::ifstream ifs(InputFilename, std::ifstream::in);
+            char *decisionfileenv = NULL;
+            char *roienv = NULL;
+            decisionfileenv = std::getenv(PIMProfDecisionEnv.c_str());
+            roienv = std::getenv(PIMProfROIEnv.c_str());
+            assert(decisionfileenv != NULL);
+            std::cout << "filename: " << decisionfileenv << std::endl;
+            std::cout << "roi: " << roienv << std::endl;
+            std::ifstream ifs(decisionfileenv, std::ifstream::in);
+            if (roienv != NULL && strcmp(roienv, "CPUONLY") == 0) {
+                ROI = CPU;
+            }
+            else if (roienv != NULL && strcmp(roienv, "PIMONLY") == 0) {
+                ROI = PIM;
+            }
+            else {
+                // if ROI == DEFAULT, we insert everything accordingly
+                ROI = DEFAULT;
+            }
             std::string line;
             // skip the preceding lines
             for (int i = 0; i < 8; i++) {
@@ -184,6 +271,10 @@ namespace {
                     else if (i == 1) {
                         ss >> token;
                         decision.decision = (token == "P" ? PIM : CPU);
+                    }
+                    else if (i == 2) {
+                        ss >> token;
+                        decision.parallel = (token == "O" ? 1 : 0);
                     }
                     else if (i == 7) {
                         ss >> decision.difference;
@@ -213,12 +304,18 @@ namespace {
                     //     errs() << "\n";
                     // }
                     // errs() << "\n";
+                    
                     InjectOffloaderCall(M, bb);
+                }
+            }
+            for (auto &func : M) {
+                if (func.getName() == "main") {
+                    InjectOffloaderCall(M, func);
                 }
             }
             errs() << "Found = " << found_cnt << ", Not Found = " << not_found_cnt << "\n";
 
-             PIMProfAAW aaw = PIMProfAAW();
+            PIMProfAAW aaw = PIMProfAAW();
             for (auto &func: M) {
                 func.print(outs(), &aaw);
             }

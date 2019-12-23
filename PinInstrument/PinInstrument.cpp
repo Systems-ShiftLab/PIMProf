@@ -197,8 +197,8 @@ VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, V
     self->_cost_package._thread_count++;
     infomsg() << "ThreadStart:" << threadid << " " << self->_cost_package._thread_count << std::endl;
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
-    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    // PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
+    // PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
 
 VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 flags, VOID *void_self)

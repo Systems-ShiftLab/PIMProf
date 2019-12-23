@@ -15,8 +15,6 @@ ANNOTATION_SO       := $(ANNOTATION_BC:%.bc=%.so)
 INJECTION_SO        := $(LLVM_BUILD_DIR)/libAnnotationInjection.so
 OFFLOADING_SO       := $(LLVM_BUILD_DIR)/libOffloaderInjection.so
 
-PIMPROFOFFLOADER_SO        := $(LLVM_BUILD_DIR)/libPIMProfOffloader.so
-
 PININSTRUMENT_SO    := $(PIN_BUILD_DIR)/PinInstrument.so
 
 DEFAULT_CONFIG      := $(PIMPROF_DIR)/Configs/defaultconfig_32.ini

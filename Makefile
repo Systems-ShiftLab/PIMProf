@@ -32,6 +32,9 @@ $(ANNOTATION_BC): llvm
 test: debug
 	make -C $(TEST_DIR)
 
+testzsim: debug
+	make test.zsim -C $(TEST_DIR)
+
 build:
 	mkdir -p $(BUILD_DIR)
 

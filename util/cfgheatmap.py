@@ -6,8 +6,13 @@ import tikzplotlib
 
 import numpy as np
 import seaborn as sb
+import matplotlib
 import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
+
+matplotlib.rcParams['font.serif'] = "Times New Roman"
+# Then, "ALWAYS use sans-serif fonts"
+matplotlib.rcParams['font.family'] = "serif"
 
 
 PIMmax = 1e8
@@ -51,12 +56,12 @@ def heatmap(costdiff, decision, lb, ub):
     #decisionslice = [""] * (lb % N) + decision[lb:ub+1] + [""] * (N - ub % N - 1)
     costslice = costdiff[lb:ub+1] + [0] * (N - (ub-lb) % N - 1)
     decisionslice = decision[lb:ub+1] + [""] * (N - (ub-lb) % N - 1)
-    #fig, ax = plt.subplots(figsize=(11, 20))
+    #fig, ax = plt.subplots(figsize=(11, 80))
     fig, ax = plt.subplots(figsize=(8, 3))
     #fig, ax = plt.subplots()
-    ax.xaxis.set_tick_params(labeltop="on")
+    #ax.xaxis.set_tick_params(labeltop="on")
 
-    costslice = [(log10(abs(i)) if abs(i) > 1 else 0) * np.sign(i) for i in costslice]
+    costslice = [-(log10(abs(i)) if abs(i) > 1 else 0) * np.sign(i) for i in costslice]
     # print(costslice)
     decisionslice = [("" if i != "P" else "PIM") for i in decisionslice]
     costarr = np.reshape(np.array(costslice), (-1, N))
@@ -78,11 +83,12 @@ def heatmap(costdiff, decision, lb, ub):
     cb = ax.collections[-1].colorbar
     cb.ax.yaxis.set_ticks_position("none")
     #cb.ax.set_yticklabels(["CPU friendly","-1e6","-1e3","0","1e3","1e6","PIM friendly"])
-    cb.ax.set_yticklabels(["CPU friendly","Neutral","PIM friendly"])
+    cb.ax.set_yticklabels(["PIM friendly","Neutral","CPU friendly"])
 
     # plt.title("Each block (X, Y) represents a basic block.", y=-0.15)
 
     plt.savefig("cfgheatmap.pdf", format="pdf")
+    #plt.savefig("cfgheatmap.png", format="png", dpi=600)
     plt.show()
 
 def proc(costfile, lb, ub):
@@ -99,6 +105,7 @@ def proc(costfile, lb, ub):
     # skip unused lines:
     for line in costfile.readlines()[8:]:
         line = line.split()
+        print(line)
         decision.append(line[1])
         costdiff.append(float(line[-3]))
     # print(decision)
@@ -115,6 +122,8 @@ def main(costfilename, lb="-1", ub="-1"):
         proc(costfile, int(lb), int(ub))
 
 if __name__ == "__main__":
+    if len(sys.argv) == 2:
+        main(sys.argv[1])
     if len(sys.argv) == 3:
         main(sys.argv[1], sys.argv[2])
     if len(sys.argv) == 4:

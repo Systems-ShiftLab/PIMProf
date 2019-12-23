@@ -6,6 +6,7 @@
 #include <err.h>
 #include <sched.h>  // sched_setaffinity
 #include <unistd.h>
+// #include "gem5/m5ops.h"
 
 const unsigned PIMCoreIdBegin = 1;
 const unsigned PIMCoreIdEnd = 2;
@@ -29,9 +30,19 @@ void print_affinity() {
     }
 }
 
-int PIMProfOffloader(int decision, int mode, int bblid) 
+int PIMProfOffloader(int decision, int mode, int bblid, int parallel)
 {
-    printf("PIMProfOffloader: %d %d %d\n", decision, mode, bblid);
+    printf("PIMProfOffloader: %d %d %d %d\n", decision, mode, bblid, parallel);
+    // if(mode==0){
+    //     m5_work_begin(decision,0);
+    // }else{
+    //     m5_work_end(decision,0);
+    // }
+
+    return 0;
+}
+
+int PIMProfOffloader2(int mode) {
     return 0;
 }
 

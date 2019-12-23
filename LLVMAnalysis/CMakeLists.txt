@@ -1,37 +1,41 @@
-set(ANNOTATIONINJECTION "AnnotationInjection")
-set(ANNOTATIONINJECTION_SRC "${ANNOTATIONINJECTION}.cpp")
-add_library(${ANNOTATIONINJECTION} SHARED
-    ${ANNOTATIONINJECTION_SRC} "MurmurHash3.cpp")
-target_compile_features(${ANNOTATIONINJECTION} PRIVATE
-    cxx_range_for cxx_auto_type)
-set_target_properties(${ANNOTATIONINJECTION} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti -fPIC")
+# set the targets
+set(LLVMPASS_SRC "AnnotationInjection.cpp" "OffloaderInjection.cpp")
+set(LLVMEXE_SRC "AnnotationGeneration.cpp")
+set(LIB_SRC "PIMProfOffloader.cpp" "zsimhooks.cpp" "PIMProfTimer.cpp")
 
-set(OFFLOADERINJECTION "OffloaderInjection")
-set(OFFLOADERINJECTION_SRC "${OFFLOADERINJECTION}.cpp")
-add_library(${OFFLOADERINJECTION} SHARED
-    ${OFFLOADERINJECTION_SRC} "MurmurHash3.cpp")
-target_compile_features(${OFFLOADERINJECTION} PRIVATE
-    cxx_range_for cxx_auto_type)
-set_target_properties(${OFFLOADERINJECTION} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti -fPIC")
+# process LLVMPASS targets
+foreach(SRCFILE ${LLVMPASS_SRC})
+    get_filename_component(SRCNAME ${SRCFILE} NAME_WE)
+    add_library(${SRCNAME} SHARED
+        ${SRCFILE} "MurmurHash3.cpp")
+    target_compile_features(${SRCNAME} PRIVATE
+        cxx_range_for cxx_auto_type)
+    set_target_properties(${SRCNAME} PROPERTIES
+        COMPILE_FLAGS "-fno-rtti -fPIC")
+endforeach(SRCFILE ${LLVMPASS_SRC})
 
-set(ANNOTATIONGENERATION "AnnotationGeneration")
-set(ANNOTATIONGENERATION_SRC "${ANNOTATIONGENERATION}.cpp")
-set(ANNOTATIONGENERATION_EXE "${ANNOTATIONGENERATION}.exe")
-add_executable(${ANNOTATIONGENERATION_EXE}
-    ${ANNOTATIONGENERATION_SRC})
-target_link_libraries(${ANNOTATIONGENERATION_EXE} LLVM)
-target_compile_features(${ANNOTATIONGENERATION_EXE} PRIVATE
-    cxx_range_for cxx_auto_type)
-set_target_properties(${ANNOTATIONGENERATION_EXE} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti -fPIC")
+# process LLVMEXE targets
+foreach(SRCFILE ${LLVMEXE_SRC})
+    get_filename_component(SRCNAME ${SRCFILE} NAME_WE)
+    set(EXE ${SRCNAME}.exe)
+    add_executable(${EXE}
+        ${SRCFILE})
+    target_link_libraries(${EXE} LLVM)
+    target_compile_features(${EXE} PRIVATE
+        cxx_range_for cxx_auto_type)
+    set_target_properties(${EXE} PROPERTIES
+        COMPILE_FLAGS "-fno-rtti -fPIC")
+endforeach(SRCFILE ${LLVMEXE_SRC})
 
-set(OFFLOADER "PIMProfOffloader")
-set(OFFLOADER_SRC "${OFFLOADER}.cpp")
-add_library(${OFFLOADER} SHARED
-    ${OFFLOADER_SRC})
-target_compile_features(${OFFLOADER} PRIVATE
-    cxx_range_for cxx_auto_type)
-set_target_properties(${OFFLOADER} PROPERTIES
-    COMPILE_FLAGS "-fno-rtti")
+# process other LIB targets
+foreach(SRCFILE ${LIB_SRC})
+    get_filename_component(SRCNAME ${SRCFILE} NAME_WE)
+    add_library(${SRCNAME} SHARED
+        ${SRCFILE})
+    target_compile_features(${SRCNAME} PRIVATE
+        cxx_range_for cxx_auto_type)
+    set_target_properties(${SRCNAME} PROPERTIES
+        COMPILE_FLAGS "-fno-rtti")
+endforeach(SRCFILE ${LIB_SRC})
+
+

@@ -3,16 +3,25 @@
 #include <assert.h>
 #include <pthread.h>
 #include <unistd.h>
+#ifdef ZSIM
+#include "zsimhooks.h"
+#endif // ZSIM
 
 #define NUM_THREADS 5
 
 void *perform_work(void *arguments){
+#ifdef ZSIM
+    PIMPROF_BEGIN_REG_PARALLEL
+#endif // ZSIM
   int index = *((int *)arguments);
   int sleep_time = 1;
   printf("THREAD %d: Started.\n", index);
   printf("THREAD %d: Will be sleeping for %d seconds.\n", index, sleep_time);
   sleep(sleep_time);
   printf("THREAD %d: Ended.\n", index);
+#ifdef ZSIM
+    PIMPROF_END_REG_PARALLEL
+#endif // ZSIM
   return 0;
 }
 

@@ -98,6 +98,14 @@ namespace {
         CallInst *tail_instr = CallInst::Create(
             annotator_tail, ArrayRef<Value *>(arglist), "",
             BB.getTerminator());
+
+        // errs() << "After injection: " << BB.getName() << "\n";
+        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+        //     (*i).print(errs());
+        //     errs() << "\n";
+        // }
+        // errs() << "\n";
+        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
     }
 
     struct AnnotationInjection : public ModulePass {

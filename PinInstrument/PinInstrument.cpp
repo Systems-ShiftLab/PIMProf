@@ -80,7 +80,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._bbl_hash[bblhash] = pkg._bbl_size;
         it = pkg._bbl_hash.find(bblhash);
         pkg._bbl_size++;
-        pkg._inParallelRegion.push_back(isomp);
+        pkg._bbl_parallelizable.push_back(0);
         for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
             pkg._bbl_instruction_cost[i].push_back(0);
         }
@@ -94,16 +94,21 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._cache_miss.push_back(0);
 #endif
     }
-    // overwrite _inParallelRegion[] if in spawned worker thread
+    if (isomp) {
+        pkg._in_omp_parallel++;
+    }
+    pkg._bbl_parallelizable[it->second] |= (pkg._in_omp_parallel > 0);
+
+    // overwrite _bbl_parallelizable[] if in spawned worker thread
     if (threadid == 1) {
-        pkg._inParallelRegion[it->second] = true;
+        pkg._bbl_parallelizable[it->second] = true;
     }
     pkg._thread_bbl_scope[threadid].push(it->second);
 
 #ifdef PIMPROFDEBUG
     self->_cost_package._bbl_visit_cnt[it->second]++;
 #endif
-    // infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << std::endl;
+    // infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << " " << pkg._in_omp_parallel << std::endl;
 
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
@@ -114,9 +119,14 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
 
     CostPackage &pkg = self->_cost_package;
     auto bblhash = UUID(bblhash_hi, bblhash_lo);
-    // infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << std::endl;
+    if (isomp) {
+        pkg._in_omp_parallel--;
+    }
     ASSERTX(pkg._thread_bbl_scope[threadid].top() == pkg._bbl_hash[bblhash]);
     pkg._thread_bbl_scope[threadid].pop();
+
+    // infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << " " << pkg._in_omp_parallel << std::endl;
+
 
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
@@ -218,6 +228,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
         std::ofstream::out);
     CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
     ofs.close();
+    infomsg() << "parallel:" << self->_cost_package._in_omp_parallel << std::endl;
 
     ofs.open("BBLReuseCost.dot", std::ofstream::out);
     self->_cost_package._data_reuse.print(

@@ -44,9 +44,11 @@ class CostPackage {
     std::unordered_map<UUID, UINT32, HashFunc> _bbl_hash;
     BBLID _bbl_size = 0;
     bool _inAcceleratorFunction;
-    /// whether this region is in parallelizable region
+    /// whether the current function is in .omp function
+    int _in_omp_parallel = 0;
+    /// whether this bbl is in parallelizable region
     /// the value will be overwritten to true if in spawned thread
-    std::vector<bool> _inParallelRegion;
+    std::vector<bool> _bbl_parallelizable;
 
   // multithread parameters
   public:
@@ -101,7 +103,7 @@ class CostPackage {
     void initialize();
 
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
-        if (_inParallelRegion[bbl]) {
+        if (_bbl_parallelizable[bbl]) {
             return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
         }
         else {
@@ -110,7 +112,7 @@ class CostPackage {
 
     }
     inline COST BBLMemoryCost(CostSite site, BBLID bbl) {
-        if (_inParallelRegion[bbl]) {
+        if (_bbl_parallelizable[bbl]) {
             return _bbl_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
         }
         else {

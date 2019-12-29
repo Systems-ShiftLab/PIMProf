@@ -129,7 +129,7 @@ VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
             if (decision[bblid] == CPU) {
                 // if the initial W can be parallelized, then we assume that
                 // the data corresponding to the chain can be flushed/fetched in parallel
-                if (_cost_package->_inParallelRegion[bblid])
+                if (_cost_package->_bbl_parallelizable[bblid])
                     cost += root->_count * (_flush_cost[CPU] / _cost_package->_core_count[CPU] + _fetch_cost[PIM] / _cost_package->_core_count[PIM]);
                 else
                     cost += root->_count * (_flush_cost[CPU] + _fetch_cost[PIM]);
@@ -137,7 +137,7 @@ VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
             // If the initial W is on PIM and there are subsequent R/W on CPU,
             // then this segment contributes to a flush of PIM and data fetch from CPU
             else {
-                if (_cost_package->_inParallelRegion[bblid])
+                if (_cost_package->_bbl_parallelizable[bblid])
                     cost += root->_count * (_flush_cost[PIM] / _cost_package->_core_count[PIM] + _fetch_cost[CPU] / _cost_package->_core_count[CPU]);
                 else
                     cost += root->_count * (_flush_cost[PIM] + _fetch_cost[CPU]);
@@ -430,7 +430,7 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
             ASSERTX(sorted_hash[i].second == i);
             out << std::right << std::setw(7) << i
                 << std::right << std::setw(10) << (decision[i] == PIM ? "P" : "C")
-                << std::right << std::setw(7) << (_cost_package->_inParallelRegion[i] ? "O" : "X")
+                << std::right << std::setw(7) << (_cost_package->_bbl_parallelizable[i] ? "O" : "X")
                 << std::right << std::setw(15) << _cost_package->BBLInstructionCost(CPU, i)
                 << std::right << std::setw(15) << _cost_package->BBLInstructionCost(PIM, i)
                 << std::right << std::setw(15) << _cost_package->BBLMemoryCost(CPU, i)

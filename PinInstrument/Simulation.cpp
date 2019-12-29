@@ -24,8 +24,6 @@ void InstructionLatency::initialize(CostPackage *cost_package)
             _cost_package->_instruction_latency[i][j] = 1;
         }
     }
-
-    // SetBBLSize(_cost_package->_bbl_size);
 }
 
 void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &reader)
@@ -33,14 +31,6 @@ void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &rea
     initialize(cost_package);
     ReadConfig(reader);
 }
-
-// void InstructionLatency::SetBBLSize(BBLID bbl_size) {
-//     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-//         _cost_package->_bbl_instruction_cost[i].resize(bbl_size);
-//         memset(&_cost_package->_bbl_instruction_cost[i][0], 0, bbl_size * sizeof _cost_package->_bbl_instruction_cost[i][0]);
-//     }
-// }
-
 
 void InstructionLatency::instrument() {
     INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
@@ -67,7 +57,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
         }
         // theoretical parallelism can only be computed once
         issimd |= self->_cost_package->_inAcceleratorFunction;
-        issimd &= (!self->_cost_package->_inParallelRegion[bblid]);
+        issimd &= (!self->_cost_package->_bbl_parallelizable[bblid]);
 
 #ifdef PIMPROFDEBUG
         self->_cost_package->_bbl_instr_cnt[bblid]++;
@@ -212,13 +202,6 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd
         self->_storage->InstrCacheRef(addr, bblid, issimd);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-    // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
-    //     infomsg() << "inst" << std::endl;
-    //     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-    // }
-    // else {
-    //     infomsg() << "fck inst" << std::endl;
-    // }
 }
 
 VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
@@ -231,13 +214,6 @@ VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 
         self->_storage->DataCacheRefMulti(addr, size, accessType, bblid, issimd);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-    // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
-    //     infomsg() << "datamulti" << std::endl;
-    //     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-    // }
-    // else {
-    //     infomsg() << "fck datamulti" << std::endl;
-    // }
 }
 
 VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
@@ -250,13 +226,6 @@ VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32
         self->_storage->DataCacheRefSingle(addr, size, accessType, bblid, issimd);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-    // if (PIN_RWMutexTryWriteLock(&self->_cost_package->_thread_count_rwmutex)) {
-    //     infomsg() << "datasingle" << std::endl;
-    //     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-    // }
-    // else {
-    //     infomsg() << "fck datasingle" << std::endl;
-    // }
 }
 
 VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)

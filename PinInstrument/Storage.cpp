@@ -186,7 +186,7 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
     if (bblid != GLOBALBBLID) {
         issimd |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
-        issimd &= (!_storage->_cost_package->_inParallelRegion[bblid]);
+        issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
             if (issimd) {
@@ -307,7 +307,7 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
 #endif
         issimd |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
-        issimd &= (!_storage->_cost_package->_inParallelRegion[bblid]);
+        issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
             if (issimd) {

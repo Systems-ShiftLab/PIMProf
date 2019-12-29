@@ -57,8 +57,8 @@ def heatmap(costdiff, decision, lb, ub):
     costslice = costdiff[lb:ub+1] + [0] * (N - (ub-lb) % N - 1)
     decisionslice = decision[lb:ub+1] + [""] * (N - (ub-lb) % N - 1)
     #fig, ax = plt.subplots(figsize=(11, 80))
-    fig, ax = plt.subplots(figsize=(8, 3))
-    #fig, ax = plt.subplots()
+    #fig, ax = plt.subplots(figsize=(8, 3))
+    fig, ax = plt.subplots()
     #ax.xaxis.set_tick_params(labeltop="on")
 
     costslice = [-(log10(abs(i)) if abs(i) > 1 else 0) * np.sign(i) for i in costslice]
@@ -103,7 +103,7 @@ def proc(costfile, lb, ub):
     costdiff = []
 
     # skip unused lines:
-    for line in costfile.readlines()[8:]:
+    for line in costfile.readlines()[7:]:
         line = line.split()
         print(line)
         decision.append(line[1])

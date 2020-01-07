@@ -54,6 +54,7 @@ void PinInstrument::initialize(int argc, char *argv[])
 void PinInstrument::instrument()
 {
     IMG_AddInstrumentFunction(ImageInstrument, (VOID *)this);
+    INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
     PIN_AddThreadStartFunction(ThreadStart, (VOID *)this);
     PIN_AddThreadFiniFunction(ThreadFinish, (VOID *)this);
     PIN_AddFiniFunction(FinishInstrument, (VOID *)this);
@@ -67,6 +68,24 @@ void PinInstrument::simulate()
 
     // Never returns
     PIN_StartProgram();
+}
+
+VOID PinInstrument::DoAtROIHead(PinInstrument *self, THREADID threadid)
+{
+    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
+    if (self->_command_line_parser.enableroi()) {
+        self->_cost_package._thread_in_roi[threadid] = true;
+    }
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+}
+
+VOID PinInstrument::DoAtROITail(PinInstrument *self, THREADID threadid)
+{
+    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
+    if (self->_command_line_parser.enableroi()) {
+        self->_cost_package._thread_in_roi[threadid] = false;
+    }
+    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
 }
 
 VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
@@ -199,11 +218,45 @@ VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
     }
 }
 
+VOID PinInstrument::HandleMagicOP(PinInstrument *self, ADDRINT op, THREADID threadid)
+{
+    switch(op) {
+      case 1:
+        DoAtROIHead(self, threadid); break;
+      case 2:
+        DoAtROITail(self, threadid); break;
+      default:
+        errormsg() << "Invalid Magic OP " << op << "." << std::endl;
+        ASSERTX(0);
+    }
+}
+
+VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
+{
+    if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == LEVEL_BASE::REG_RCX && INS_OperandReg(ins, 1) == LEVEL_BASE::REG_RCX) {
+        //info("Instrumenting magic op");
+        INS_InsertCall(
+            ins,
+            IPOINT_BEFORE,
+            (AFUNPTR)HandleMagicOP,
+            IARG_PTR, void_self,
+            IARG_REG_VALUE, REG_ECX,
+            IARG_THREAD_ID,
+            IARG_END);
+    }
+}
+
 VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
     PIN_RWMutexWriteLock(&self->_cost_package._thread_count_rwmutex);
     self->_cost_package._thread_bbl_scope.push_back(BBLScope());
+    if (self->_command_line_parser.enableroi()) {
+        self->_cost_package._thread_in_roi.push_back(false);
+    }
+    else {
+        self->_cost_package._thread_in_roi.push_back(true);
+    }
     self->_cost_package._thread_count++;
     infomsg() << "ThreadStart:" << threadid << " " << self->_cost_package._thread_count << std::endl;
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
@@ -240,4 +293,9 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
     // TODO: Need bug fix, cause Pin out of memory error
     self->_cost_solver.PrintAnalytics(ofs);
     self->_instruction_latency.WriteConfig("testconfig.ini");
+    ofs.close();
+
+    ofs.open("CacheStats.out", std::ofstream::out);
+    self->_storage.WriteStats(ofs);
+    ofs.close();
 }

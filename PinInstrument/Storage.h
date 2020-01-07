@@ -542,11 +542,9 @@ class STORAGE
     /// Do on instruction cache reference
     VOID InstrCacheRef(ADDRINT addr, BBLID bblid, BOOL issimd);
 
-    /// Do on multi-line data cache references
-    VOID DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
+    /// Do on data cache reference
+    VOID DataCacheRef(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
 
-    /// Do on a single-line data cache reference
-    VOID DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
 };
 
 } // namespace PIMProf

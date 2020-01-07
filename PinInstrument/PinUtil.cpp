@@ -27,16 +27,16 @@ KNOB<std::string> KnobConfig(
     "pintool",
     "c", "",
     "specify config file name");
-// KNOB<std::string> KnobControlFlow(
-//     KNOB_MODE_WRITEONCE,
-//     "pintool",
-//     "b", "",
-//     "specify file name containing control flow graph information");
 KNOB<std::string> KnobOutput(
     KNOB_MODE_WRITEONCE,
     "pintool",
     "o", "",
     "specify file name containing PIM offloading decision");
+KNOB<bool> KnobEnableROI(
+    KNOB_MODE_WRITEONCE,
+    "pintool",
+    "roi", "0",
+    "specify whether ROI mode is enabled, if enabled, only regions between PIMProfROIHead and PIMProfROITail is analyzed");
 
 void CommandLineParser::initialize(int argc, char *argv[])
 {
@@ -47,7 +47,7 @@ void CommandLineParser::initialize(int argc, char *argv[])
 
     _configfile = KnobConfig.Value();
     _outputfile = KnobOutput.Value();
-    // _controlflowfile = KnobControlFlow.Value();
+    _enableroi = KnobEnableROI;
 
     if (_configfile == "") {
         errormsg() << "No config file provided." << std::endl;
@@ -57,8 +57,4 @@ void CommandLineParser::initialize(int argc, char *argv[])
         _outputfile = "decision.out";
         warningmsg() << "No output file name specified. Printing output to " + _outputfile + "." << std::endl;
     }
-    // if (_controlflowfile == "") {
-    //     errormsg() << "Control flow graph file correpsonding to the input program not provided." << std::endl;
-    //     ASSERTX(0);
-    // }
 }

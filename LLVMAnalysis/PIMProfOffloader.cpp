@@ -32,13 +32,12 @@ void print_affinity() {
 
 int PIMProfOffloader(int decision, int mode, int bblid, int parallel)
 {
-    printf("PIMProfOffloader: %d %d %d %d\n", decision, mode, bblid, parallel);
+    // printf("PIMProfOffloader: %d %d %d %d\n", decision, mode, bblid, parallel);
     // if(mode==0){
     //     m5_work_begin(decision,0);
     // }else{
     //     m5_work_end(decision,0);
     // }
-
     return 0;
 }
 

@@ -52,12 +52,14 @@ class CostPackage {
 
   // multithread parameters
   public:
+    /// protect everything in this region
     PIN_RWMUTEX _thread_count_rwmutex;
     /// thread count and the corresponding RW lock
     INT32 _thread_count = 0;
     /// indicate which BBL each thread is in now
     /// needs to acquire the write lock when pushing back a new BBLScope for the new thread
     std::vector<BBLScope> _thread_bbl_scope;
+    std::vector<bool> _thread_in_roi;
 
 #ifdef PIMPROFDEBUG
   public:

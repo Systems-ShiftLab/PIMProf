@@ -34,11 +34,13 @@ static cl::opt<std::string> OutputFilename(
 // provide definition of function if it has not been defined
 // intended behavior:
 // ; Function Attrs: noinline nounwind optnone uwtable
-// define i64 @Annotation(i64, i64, i64) {
-//     %2 = alloca i64, align 4
-//     store i64 %0, i64* %2, align 4
-//     %3 = load i64, i64* %2, align 4
-//     ret i64 %3
+// define i64 @PIMProfAnnotationHead(i64, i64, i64) #0 {
+//   %4 = alloca i64, align 4
+//   store i64 %0, i64* %4, align 4
+//   store i64 %1, i64* %4, align 4
+//   store i64 %2, i64* %4, align 4
+//   %5 = load i64, i64* %4, align 4
+//   ret i64 %5, !basicblock.id !0
 // }
 void CreateAnnotationFunction(const std::string name, Module &M)
 {

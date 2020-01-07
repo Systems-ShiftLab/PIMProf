@@ -5,13 +5,18 @@
 #include <unistd.h>
 #ifdef ZSIM
 #include "zsimhooks.h"
+#else
+#include "PIMProfAnnotation.h"
 #endif // ZSIM
 
 #define NUM_THREADS 5
 
 void *perform_work(void *arguments){
+
 #ifdef ZSIM
-    PIMPROF_BEGIN_REG_PARALLEL
+  PIMPROF_BEGIN_REG_PARALLEL
+#else
+  PIMProfROIBegin();
 #endif // ZSIM
   int index = *((int *)arguments);
   int sleep_time = 1;
@@ -20,7 +25,9 @@ void *perform_work(void *arguments){
   sleep(sleep_time);
   printf("THREAD %d: Ended.\n", index);
 #ifdef ZSIM
-    PIMPROF_END_REG_PARALLEL
+  PIMPROF_END_REG_PARALLEL
+#else
+  PIMProfROIEnd();
 #endif // ZSIM
   return 0;
 }

@@ -36,12 +36,15 @@ void InstructionLatency::instrument() {
     INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
 }
 
-
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid)
 {
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     // infomsg() << "instrcount: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
+    if (!self->_cost_package->_thread_in_roi[threadid]) {
+        PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+        return;
+    }
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
 #ifdef PIMPROFDEBUG
@@ -96,9 +99,9 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
     std::string rtn_name = "";
     if (RTN_Valid(rtn))
         rtn_name = RTN_Name(rtn);
-    // do not instrument the annotation function
+    // do not instrument any function
     // regions with invalid names can be JIT code, for example, so cannot be ignored
-    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
+    if (rtn_name.find("PIMProf") == std::string::npos) {
         InstructionLatency *self = (InstructionLatency *)void_self;
         UINT32 opcode = (UINT32)(INS_Opcode(ins));
         BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
@@ -191,12 +194,15 @@ void MemoryLatency::instrument()
 //     }
 // }
 
-
 VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd, THREADID threadid)
 {
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     // infomsg() << "instrcache: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
+    if (!self->_cost_package->_thread_in_roi[threadid]) {
+        PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+        return;
+    }
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
         self->_storage->InstrCacheRef(addr, bblid, issimd);
@@ -204,29 +210,22 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }
 
-VOID MemoryLatency::DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
+VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
 {
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     // infomsg() << "datamulti: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
+    if (!self->_cost_package->_thread_in_roi[threadid]) {
+        PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+        return;
+    }
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRefMulti(addr, size, accessType, bblid, issimd);
+        self->_storage->DataCacheRef(addr, size, accessType, bblid, issimd);
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }
 
-VOID MemoryLatency::DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
-{
-    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
-    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
-    // infomsg() << "datasingle: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
-    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
-    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRefSingle(addr, size, accessType, bblid, issimd);
-    }
-    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
-}
 
 VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
 {
@@ -235,10 +234,11 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
     if (RTN_Valid(rtn))
         rtn_name = RTN_Name(rtn);
     // do not instrument the annotation function
-    if (rtn_name != PIMProfAnnotationHead && rtn_name != PIMProfAnnotationTail) {
+    if (rtn_name.find("PIMProf") == std::string::npos) {
         MemoryLatency *self = (MemoryLatency *)void_self;
         xed_decoded_inst_t *xedd = INS_XedDec(ins);
         BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
+
         // all instruction fetches access I-cache
         INS_InsertCall(
             ins, IPOINT_BEFORE, (AFUNPTR)InstrCacheRef,
@@ -248,12 +248,9 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
             IARG_THREAD_ID,
             IARG_END);
         if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
-            const UINT32 size = INS_MemoryReadSize(ins);
-            const AFUNPTR DataCacheRef = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
-
             // only predicated-on memory instructions access D-cache
             INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, DataCacheRef,
+                ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
                 IARG_PTR, (VOID *)self,
                 IARG_MEMORYREAD_EA,
                 IARG_MEMORYREAD_SIZE,
@@ -263,12 +260,9 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
                 IARG_END);
         }
         if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins)) {
-            const UINT32 size = INS_MemoryWriteSize(ins);
-            const AFUNPTR DataCacheRef = (size <= 4 ? (AFUNPTR)DataCacheRefSingle : (AFUNPTR)DataCacheRefMulti);
-
             // only predicated-on memory instructions access D-cache
             INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, DataCacheRef,
+                ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
                 IARG_PTR, (VOID *)self,
                 IARG_MEMORYWRITE_EA,
                 IARG_MEMORYWRITE_SIZE,

@@ -97,11 +97,8 @@ class MemoryLatency {
     /// Do on instruction cache reference
     static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd, THREADID threadid);
 
-    /// Do on multi-line data cache references
-    static VOID DataCacheRefMulti(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);
-
-    /// Do on a single-line data cache reference
-    static VOID DataCacheRefSingle(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);
+    /// Do on data cache reference
+    static VOID DataCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);
 
     /// The instrumentation function for memory instructions
     static VOID InstructionInstrument(INS ins, VOID *void_self);

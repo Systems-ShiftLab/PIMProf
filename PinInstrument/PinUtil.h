@@ -110,14 +110,16 @@ class CommandLineParser {
     std::string _configfile;
     std::string _outputfile;
     std::string _controlflowfile;
+    bool _enableroi;
     
   public:
     void initialize(int argc, char *argv[]);
 
-    std::string rootdir() { return _rootdir; }
-    std::string configfile() { return _configfile; }
-    std::string outputfile() { return _outputfile; }
-    std::string controlflowfile() { return _controlflowfile; }
+    inline std::string rootdir() { return _rootdir; }
+    inline std::string configfile() { return _configfile; }
+    inline std::string outputfile() { return _outputfile; }
+    inline std::string controlflowfile() { return _controlflowfile; }
+    inline bool enableroi() { return _enableroi; }
 
     inline int Usage(std::ostream &out) {
         out << "Invalid argument."

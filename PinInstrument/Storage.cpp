@@ -488,12 +488,14 @@ void STORAGE::WriteConfig(const std::string filename)
 
 std::ostream& STORAGE::WriteStats(std::ostream& out)
 {
-    // TODO: ignore this for now
-    // for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-    //     for (UINT32 j = 0; j < MAX_LEVEL; j++) {
-    //         _storage[i][j]->StatsLong(out);
-    //     }
-    // }
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        for (UINT32 j = 0; j < MAX_LEVEL; j++) {
+            if (_storage[i][j] != NULL) {
+                _storage[i][j]->StatsLong(out);
+                out << std::endl << std::endl;
+            }
+        }
+    }
     return out;
 }
 void STORAGE::WriteStats(const std::string filename)
@@ -517,18 +519,7 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, BBLID bblid, BOOL issimd)
 }
 
 
-VOID STORAGE::DataCacheRefMulti(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
-{
-    // TODO: We do not consider TLB cost for now.
-    // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
-
-    // first level D-cache
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage_top[i][DL1]->Access(addr, size, accessType, bblid, issimd);
-    }
-}
-
-VOID STORAGE::DataCacheRefSingle(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
+VOID STORAGE::DataCacheRef(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);

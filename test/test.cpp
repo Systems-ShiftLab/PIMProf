@@ -1,7 +1,9 @@
 #include <iostream>
 #ifdef ZSIM
 #include "zsimhooks.h"
-#endif // ZSIM
+#else
+#include "PIMProfAnnotation.h"
+#endif // PIMPROF
 using namespace std;
 
 void print4();
@@ -16,6 +18,8 @@ int main()
     for (int i = 0; i < 5; i++) {
 #ifdef ZSIM
     PIMPROF_BEGIN_REG_PARALLEL
+#else
+    PIMProfROIBegin();
 #endif // ZSIM
         cout << "it is begin" << endl;
         int j = i % 5;
@@ -37,9 +41,11 @@ int main()
         cout << "it is end" << endl;
 #ifdef ZSIM
     PIMPROF_END_REG_PARALLEL
+#else
+    PIMProfROIEnd();
 #endif // ZSIM
     }
-    pthreads_exec();
+    // pthreads_exec();
 #ifdef ZSIM
     PIMPROF_END_PROGRAM
 #endif // ZSIM

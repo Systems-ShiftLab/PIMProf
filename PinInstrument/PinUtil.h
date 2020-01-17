@@ -56,7 +56,7 @@ class BBLScope {
   public:
     inline BBLScope()
     {
-        // push a fake global bblid
+        // push a fake global bblid    inline std::string controlflowfile() { return _controlflowfile; }
         bblidstack.push(GLOBALBBLID);
     }
     inline void push(BBLID bblid)
@@ -109,8 +109,9 @@ class CommandLineParser {
     std::string _rootdir;
     std::string _configfile;
     std::string _outputfile;
-    std::string _controlflowfile;
+    std::string _statsfile;
     bool _enableroi;
+    bool _enableroidecision;
     
   public:
     void initialize(int argc, char *argv[]);
@@ -118,8 +119,9 @@ class CommandLineParser {
     inline std::string rootdir() { return _rootdir; }
     inline std::string configfile() { return _configfile; }
     inline std::string outputfile() { return _outputfile; }
-    inline std::string controlflowfile() { return _controlflowfile; }
+    inline std::string statsfile() { return _statsfile; }
     inline bool enableroi() { return _enableroi; }
+    inline bool enableroidecision() { return _enableroidecision; }
 
     inline int Usage(std::ostream &out) {
         out << "Invalid argument."

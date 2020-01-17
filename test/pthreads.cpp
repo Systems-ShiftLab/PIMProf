@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <pthread.h>
 #include <unistd.h>
-#ifdef ZSIM
-#include "zsimhooks.h"
+#if defined ZSIM
+#include "PIMProfZSimHooks.h"
 #else
 #include "PIMProfAnnotation.h"
 #endif // ZSIM
@@ -13,7 +13,7 @@
 
 void *perform_work(void *arguments){
 
-#ifdef ZSIM
+#if defined ZSIM
   PIMPROF_BEGIN_REG_PARALLEL
 #else
   PIMProfROIBegin();
@@ -24,7 +24,7 @@ void *perform_work(void *arguments){
   printf("THREAD %d: Will be sleeping for %d seconds.\n", index, sleep_time);
   sleep(sleep_time);
   printf("THREAD %d: Ended.\n", index);
-#ifdef ZSIM
+#if defined ZSIM
   PIMPROF_END_REG_PARALLEL
 #else
   PIMProfROIEnd();

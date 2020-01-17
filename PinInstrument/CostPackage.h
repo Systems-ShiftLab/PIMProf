@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_map>
+#include <memory>
 
 #include "pin.H"
 #include "PinUtil.h"
@@ -60,6 +61,11 @@ class CostPackage {
     /// needs to acquire the write lock when pushing back a new BBLScope for the new thread
     std::vector<BBLScope> _thread_bbl_scope;
     std::vector<bool> _thread_in_roi;
+    std::vector<bool> _thread_in_roidecision;
+
+  public:
+    std::vector<INT32> _previous_instr;
+    std::vector<std::ofstream *> _trace_file;
 
 #ifdef PIMPROFDEBUG
   public:
@@ -95,6 +101,7 @@ class CostPackage {
     std::vector<COST> _bbl_instruction_cost[MAX_COST_SITE];
     /// the total memory cost of each BB
     std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
+    std::vector<CostSite> _roi_decision;
 
   public:
     /// keep track of the data reuse cost

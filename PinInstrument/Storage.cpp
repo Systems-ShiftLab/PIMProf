@@ -228,7 +228,12 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID b
     CACHE_TAG *tag = set->Find(tagaddr);
     BOOL hit = (tag != NULL);
 
-    AddMemCost(bblid, issimd);
+    // Since the cost in config is the total access latency of hitting a cache level
+    // we only increase the total cost when there is a hit.
+    if (hit) {
+        AddMemCost(bblid, issimd);
+    }
+    
 
     _access[accessType][hit]++;
 

@@ -92,6 +92,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     PrintDecisionStat(std::cout, decision, "Pure PIM");
     PrintDecisionStat(out, decision, "Pure PIM");
 
+
     // greedy decision
     decision.clear();
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
@@ -109,12 +110,19 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
     // Optimal
     result = FindOptimal();
-
     PrintDecisionStat(std::cout, result, "PIMProf opt");
     PrintDecisionStat(out, result, "PIMProf opt");
     out << std::endl;
     PrintDecision(out, result, false);
-    // PrintDecision(infomsg(), result, true);
+
+    if (!_cost_package->_roi_decision.empty()) {
+        out << std::endl;
+        // decision based on ROI
+        PrintDecisionStat(std::cout, _cost_package->_roi_decision, "ROIDecision");
+        PrintDecisionStat(out, _cost_package->_roi_decision, "ROI decision");
+        out << std::endl;
+        PrintDecision(out, _cost_package->_roi_decision, false);
+    }
 
     return result;
 }

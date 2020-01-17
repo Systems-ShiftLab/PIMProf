@@ -28,6 +28,7 @@
 #include "Simulation.h"
 #include "DataReuse.h"
 #include "CostSolver.h"
+#include "../LLVMAnalysis/PIMProfAnnotation.h"
 
 
 namespace PIMProf {
@@ -67,6 +68,10 @@ class PinInstrument {
     /// In other word, instructions outside the ROI will not call the analysis routine.
     static VOID DoAtROIHead(PinInstrument *self, THREADID threadid);
     static VOID DoAtROITail(PinInstrument *self, THREADID threadid);
+
+    /// ROI decision head and tail are used to mark out by hand the regions that will be offloaded to PIM
+    static VOID DoAtROIDecisionHead(PinInstrument *self, THREADID threadid);
+    static VOID DoAtROIDecisionTail(PinInstrument *self, THREADID threadid);
 
     /// Annotation head and tail are used to mark out the beginning and end of a basic block.
     static VOID DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid);

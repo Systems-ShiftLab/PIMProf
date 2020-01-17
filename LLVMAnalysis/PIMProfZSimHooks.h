@@ -72,26 +72,26 @@ static inline void zsim_work_end() { zsim_magic_op(ZSIM_MAGIC_OP_WORK_END); }
     #define PIMPROF_END_PROGRAM zsim_PIM_function_end(); zsim_roi_end();
     #define PIMPROF_BEGIN_REG_PARALLEL zsim_PIM_function_end();
     #define PIMPROF_END_REG_PARALLEL zsim_PIM_function_begin();
+    #warning ZSIM == 0
 #elif ZSIM == 1
     #define PIMPROF_BEGIN_PROGRAM zsim_roi_begin();
     #define PIMPROF_END_PROGRAM zsim_roi_end();
     #define PIMPROF_BEGIN_REG_PARALLEL zsim_PIM_function_begin();
     #define PIMPROF_END_REG_PARALLEL zsim_PIM_function_end();
+    #warning ZSIM == 1
 #elif ZSIM == 2
     #define PIMPROF_BEGIN_PROGRAM zsim_roi_begin(); zsim_PIM_function_begin();
     #define PIMPROF_END_PROGRAM zsim_roi_end(); zsim_PIM_function_end();
     #define PIMPROF_BEGIN_REG_PARALLEL ;
     #define PIMPROF_END_REG_PARALLEL ;
+    #warning ZSIM == 2
 #elif ZSIM == 3
     #define PIMPROF_BEGIN_PROGRAM zsim_roi_begin();
     #define PIMPROF_END_PROGRAM zsim_roi_end();
     #define PIMPROF_BEGIN_REG_PARALLEL zsim_roi_end();
     #define PIMPROF_END_REG_PARALLEL zsim_roi_begin();
+    #warning ZSIM == 3
 #else
-    #define PIMPROF_BEGIN_PROGRAM ;
-    #define PIMPROF_END_PROGRAM ;
-    #define PIMPROF_BEGIN_REG_PARALLEL ;
-    #define PIMPROF_END_REG_PARALLEL ;
 #endif
 
 #endif // __PIMPROF_ZSIMHOOKS__

@@ -32,11 +32,21 @@ KNOB<std::string> KnobOutput(
     "pintool",
     "o", "",
     "specify file name containing PIM offloading decision");
+KNOB<std::string> KnobStats(
+    KNOB_MODE_WRITEONCE,
+    "pintool",
+    "s", "",
+    "specify file name for statistics");
 KNOB<bool> KnobEnableROI(
     KNOB_MODE_WRITEONCE,
     "pintool",
     "roi", "0",
     "specify whether ROI mode is enabled, if enabled, only regions between PIMProfROIHead and PIMProfROITail is analyzed");
+KNOB<bool> KnobEnableROIDecision(
+    KNOB_MODE_WRITEONCE,
+    "pintool",
+    "roidecision", "0",
+    "specify whether ROI decision mode is enabled, if enabled, regions between PIMProfROIHead and PIMProfROITail will be offloaded to PIM and the rest stay on CPU");
 
 void CommandLineParser::initialize(int argc, char *argv[])
 {
@@ -47,7 +57,9 @@ void CommandLineParser::initialize(int argc, char *argv[])
 
     _configfile = KnobConfig.Value();
     _outputfile = KnobOutput.Value();
+    _statsfile = KnobStats.Value();
     _enableroi = KnobEnableROI;
+    _enableroidecision = KnobEnableROIDecision;
 
     if (_configfile == "") {
         errormsg() << "No config file provided." << std::endl;
@@ -56,5 +68,9 @@ void CommandLineParser::initialize(int argc, char *argv[])
     if (_outputfile == "") {
         _outputfile = "decision.out";
         warningmsg() << "No output file name specified. Printing output to " + _outputfile + "." << std::endl;
+    }
+    if (_statsfile == "") {
+        _statsfile = "CacheStats.out";
+        warningmsg() << "No statistic file name specified. Printing output to " + _statsfile + "." << std::endl;
     }
 }

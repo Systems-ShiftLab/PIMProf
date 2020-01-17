@@ -16,9 +16,9 @@ TEST_PY             := test.py
 TEST_OBJ_2          := test.o.2 print4.o.2 pthreads.o.2
 TEST_EXE_2          := test.exe.2
 
-CXXFLAGS := -fPIC -std=c++11 -g -I$(PIMPROF_DIR)/LLVMAnalysis/ -O3
-INJCXXFLAGS := -Xclang -load -Xclang $(INJECTION_SO) $(CXXFLAGS)
-OFFCXXFLAGS := -Xclang -load -Xclang $(OFFLOADING_SO) $(CXXFLAGS)
+CXXFLAGS := -fPIC -std=c++11 -g -I$(PIMPROF_DIR)/LLVMAnalysis/ -fopenmp -O3
+INJCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(INJECTION_SO)
+OFFCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(OFFLOADING_SO)
 LDFLAGS  := -pthread
 
 all: offload
@@ -27,13 +27,13 @@ offload: $(TEST_EXE_2)
 	./$(TEST_EXE_2)
 
 $(DECISION): $(TEST_EXE) $(TEST_SO)
-	$(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -o $@ -roi -- ./$(TEST_EXE)
+	export OMP_NUM_THREADS=1 && $(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -o $@ -roi -- ./$(TEST_EXE)
 
 $(TEST_EXE_2): $(TEST_OBJ_2) $(PIMPROFOFFLOADER_SO)
-	$(CLANGXX) -o $@ $^ -L$(LLVM_BUILD_DIR) -Wl,-rpath=$(LLVM_BUILD_DIR) $(LDFLAGS)
+	$(CLANGXX) $(OFFCXXFLAGS) -o $@ $^ -L$(LLVM_BUILD_DIR) -Wl,-rpath=$(LLVM_BUILD_DIR) $(LDFLAGS)
 
 $(TEST_EXE): $(TEST_OBJ) $(ANNOTATION_SO)
-	$(CLANGXX) -o $@ $^ $(LDFLAGS)
+	$(CLANGXX) $(INJCXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(TEST_SO): $(TEST_OBJ) $(ANNOTATION_SO)
 	$(CLANGXX) -shared -fPIC -o $@ $^ $(LDFLAGS)
@@ -42,11 +42,14 @@ $(TEST_SO): $(TEST_OBJ) $(ANNOTATION_SO)
 	export PIMPROFDECISION=$(TEST_DIR)/$(DECISION) && $(CLANGXX) $(OFFCXXFLAGS) -c -o $@ $< > test.dump 2>&1
 
 %.o: %.cpp
-	$(CLANGXX) $(INJCXXFLAGS) -S -emit-llvm $<
-	$(CLANGXX) $(INJCXXFLAGS) -c -o $@ $<
+	$(CLANGXX) $(INJCXXFLAGS) -DPIMPROF -S -emit-llvm $<
+	$(CLANGXX) $(INJCXXFLAGS) -DPIMPROF -c -o $@ $<
 
 test.zsim: test.cpp print4.cpp pthreads.cpp
-	$(CLANGXX) $(CXXFLAGS) -DZSIM=1 -fopenmp -o $@ $^ -L$(LLVM_BUILD_DIR) -Wl,-rpath=$(LLVM_BUILD_DIR) -lzsimhooks $(LDFLAGS)
+	$(CLANGXX) $(CXXFLAGS) -DZSIM=1 -o $@ $^
+
+test.sniper: test.cpp print4.cpp pthreads.cpp
+	$(CLANGXX) $(SNIPER_CXX_FLAGS) $(SNIPER_CFLAGS) -DSNIPER=1 -o $@ $^ -lm -static -L/home/warsier/Documents/sniper_pim_prof/sniper/lib
 
 clean:
 	rm -rf *.o *.exe *.bc *.ll *.out *.log *.dot test.zsim test.dump

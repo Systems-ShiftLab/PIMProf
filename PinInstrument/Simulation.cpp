@@ -41,7 +41,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     // infomsg() << "instrcount: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
-    if (!self->_cost_package->_thread_in_roi[threadid]) {
+    if (!self->_cost_package->_thread_in_roi[threadid] && self->_cost_package->_roi_decision.empty()) {
         PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
         return;
     }
@@ -89,6 +89,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
 #endif
             }
         }
+        std::cout << OPCODE_StringShort(opcode) << std::endl;
     }
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }
@@ -112,7 +113,7 @@ VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
         issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
         if (issimd) {
             infomsg() << std::hex << INS_Address(ins) << std::dec << " " << OPCODE_StringShort(opcode) << std::endl;
-        }
+        };
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
             IARG_PTR, (VOID *)self,
             IARG_ADDRINT, opcode,
@@ -199,10 +200,18 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     // infomsg() << "instrcache: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
-    if (!self->_cost_package->_thread_in_roi[threadid]) {
+    if (!self->_cost_package->_thread_in_roi[threadid] && self->_cost_package->_roi_decision.empty()) {
         PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
         return;
     }
+    // self->_cost_package->_previous_instr[threadid]++;
+    // (*self->_cost_package->_trace_file[threadid])
+    //     << threadid << " "
+    //     << threadid << " " // we assume coreid == threadid
+    //     << "- "
+    //     << "I "
+    //     << addr << " "
+    //     << 64 << std::endl;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
         self->_storage->InstrCacheRef(addr, bblid, issimd);
@@ -215,10 +224,18 @@ VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size,
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
     // infomsg() << "datamulti: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
-    if (!self->_cost_package->_thread_in_roi[threadid]) {
+    if (!self->_cost_package->_thread_in_roi[threadid] && self->_cost_package->_roi_decision.empty()) {
         PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
         return;
     }
+    (*self->_cost_package->_trace_file[threadid])
+        << threadid << " "
+        << threadid << " " // we assume coreid == threadid
+        << self->_cost_package->_previous_instr[threadid] << " "
+        << (accessType == ACCESS_TYPE_LOAD ? "L " : "S ")
+        << addr << " "
+        << size << std::endl;
+    self->_cost_package->_previous_instr[threadid] = 0;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
         self->_storage->DataCacheRef(addr, size, accessType, bblid, issimd);
@@ -253,6 +270,18 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
                 ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
                 IARG_PTR, (VOID *)self,
                 IARG_MEMORYREAD_EA,
+                IARG_MEMORYREAD_SIZE,
+                IARG_UINT32, ACCESS_TYPE_LOAD,
+                IARG_BOOL, issimd,
+                IARG_THREAD_ID,
+                IARG_END);
+        }
+        if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins)) {
+            // only predicated-on memory instructions access D-cache
+            INS_InsertPredicatedCall(
+                ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
+                IARG_PTR, (VOID *)self,
+                IARG_MEMORYREAD2_EA,
                 IARG_MEMORYREAD_SIZE,
                 IARG_UINT32, ACCESS_TYPE_LOAD,
                 IARG_BOOL, issimd,

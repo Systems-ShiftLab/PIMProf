@@ -1,7 +1,7 @@
 # set the targets
 set(LLVMPASS_SRC "AnnotationInjection.cpp" "OffloaderInjection.cpp")
 set(LLVMEXE_SRC "AnnotationGeneration.cpp")
-set(LIB_SRC "PIMProfOffloader.cpp" "zsimhooks.cpp" "PIMProfTimer.cpp")
+set(LIB_SRC "PIMProfOffloader.cpp" "PIMProfZSimHooks.cpp" "PIMProfTimer.cpp")
 
 # process LLVMPASS targets
 foreach(SRCFILE ${LLVMPASS_SRC})

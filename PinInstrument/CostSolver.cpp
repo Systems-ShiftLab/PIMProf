@@ -45,6 +45,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     std::cout << std::right << std::setw(14) << "PLAN"
               << std::right << std::setw(15) << "INSTRUCTION"
               << std::right << std::setw(15) << "MEMORY"
+              << std::right << std::setw(15) << "INS_MEM"
               << std::right << std::setw(15) << "PARTIAL"
               << std::right << std::setw(15) << "REUSE"
               << std::right << std::setw(15) << "TOTAL"
@@ -52,6 +53,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     out << std::right << std::setw(14) << "PLAN"
               << std::right << std::setw(15) << "INSTRUCTION"
               << std::right << std::setw(15) << "MEMORY"
+              << std::right << std::setw(15) << "INS_MEM"
               << std::right << std::setw(15) << "PARTIAL"
               << std::right << std::setw(15) << "REUSE"
               << std::right << std::setw(15) << "TOTAL"
@@ -460,6 +462,7 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
     COST cur_reuse_cost = 0;
     COST cur_instr_cost = 0;
     COST cur_mem_cost = 0;
+    COST cur_ins_mem_cost = 0;
     std::map<BBLID, TrieNode *>::iterator it = _cost_package->_data_reuse.getRoot()->_children.begin();
     std::map<BBLID, TrieNode *>::iterator eit = _cost_package->_data_reuse.getRoot()->_children.end();
     for (; it != eit; it++) {
@@ -470,12 +473,14 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
         if (site == CPU || site == PIM) {
             cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
             cur_mem_cost += _cost_package->BBLMemoryCost(site, i);
+            cur_ins_mem_cost += _cost_package->BBLInstructionMemoryCost(site, i);
         }
     }
 
     out << std::right << std::setw(14) << name + ":"
         << std::right << std::setw(15) << cur_instr_cost 
         << std::right << std::setw(15) << cur_mem_cost
+        << std::right << std::setw(15) << cur_ins_mem_cost
         << std::right << std::setw(15) << (cur_instr_cost + cur_mem_cost) 
         << std::right << std::setw(15) << cur_reuse_cost
         << std::right << std::setw(15) << (cur_instr_cost + cur_mem_cost + cur_reuse_cost)

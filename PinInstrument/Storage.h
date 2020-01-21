@@ -473,6 +473,8 @@ class CACHE_LEVEL : public STORAGE_LEVEL_BASE
     // modifiers
     VOID AddMemCost(BBLID bblid, BOOL issimd);
 
+    VOID AddInstructionMemCost(BBLID bblid, BOOL issimd);
+
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
     BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);

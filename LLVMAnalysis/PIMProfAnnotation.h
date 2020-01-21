@@ -19,13 +19,13 @@ static inline void PIMProfMagicOP(uint64_t op) {
 #define MAGIC_OP_PIMPROFROIDECISIONEND (4)
 
 static inline void PIMProfROIBegin() {
-    printf("PIMProf ROI begin\n");
+    // printf("PIMProf ROI begin\n");
     PIMProfMagicOP(MAGIC_OP_PIMPROFROIBEGIN);
 }
 
 static inline void PIMProfROIEnd() {
     PIMProfMagicOP(MAGIC_OP_PIMPROFROIEND);
-    printf("PIMProf ROI end\n");
+    // printf("PIMProf ROI end\n");
 }
 
 static inline void PIMProfROIDecisionBegin() {

@@ -215,6 +215,22 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLI
     return allHit;
 }
 
+VOID CACHE_LEVEL::AddInstructionMemCost(BBLID bblid, BOOL issimd)
+{
+    if (bblid != GLOBALBBLID) {
+        issimd |= _storage->_cost_package->_inAcceleratorFunction;
+        // theoretical parallelism can only be computed once
+        issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
+        for (int i = 0; i < MAX_COST_SITE; i++) {
+            COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
+            if (issimd) {
+                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
+            }
+            _storage->_cost_package->_bbl_instruction_memory_cost[i][bblid] += cost;
+        }
+    }
+}
+
 
 BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
 {
@@ -232,6 +248,9 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID b
     // we only increase the total cost when there is a hit.
     if (hit) {
         AddMemCost(bblid, issimd);
+        if (_storage_level == 0) {
+            AddInstructionMemCost(bblid, issimd);
+        }
     }
     
 

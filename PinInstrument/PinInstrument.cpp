@@ -127,6 +127,9 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         if (self->_command_line_parser.enableroidecision()) {
             pkg._roi_decision.push_back(CostSite::CPU);
         }
+        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+            pkg._bbl_instruction_memory_cost[i].push_back(0);
+        }
 #ifdef PIMPROFDEBUG
         pkg._bbl_visit_cnt.push_back(0);
         pkg._bbl_instr_cnt.push_back(0);

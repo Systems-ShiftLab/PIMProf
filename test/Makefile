@@ -8,7 +8,7 @@ $(error PIMPROF_DIR is not set in Makefile.config)
 endif
 
 DECISION            := decision.out
-TEST_OBJ            := test.o print4.o pthreads.o
+TEST_OBJ            := test.o # print4.o pthreads.o
 TEST_SO             := libtest.so
 TEST_EXE            := test.exe
 TEST_PY             := test.py
@@ -16,7 +16,7 @@ TEST_PY             := test.py
 TEST_OBJ_2          := test.o.2 print4.o.2 pthreads.o.2
 TEST_EXE_2          := test.exe.2
 
-CXXFLAGS := -fPIC -std=c++11 -g -I$(PIMPROF_DIR)/LLVMAnalysis/ -fopenmp -O3
+CXXFLAGS := -fPIC -std=c++11 -g -I$(PIMPROF_DIR)/LLVMAnalysis/ -fopenmp -O3 -mno-sse4 -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -mno-avx2
 INJCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(INJECTION_SO)
 OFFCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(OFFLOADING_SO)
 LDFLAGS  := -pthread

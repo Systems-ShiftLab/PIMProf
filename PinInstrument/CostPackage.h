@@ -103,6 +103,9 @@ class CostPackage {
     std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
     std::vector<CostSite> _roi_decision;
 
+    /// debug purpose: the instruction memory cost of each BB
+    std::vector<COST> _bbl_instruction_memory_cost[MAX_COST_SITE];
+
   public:
     /// keep track of the data reuse cost
     DataReuse _data_reuse;
@@ -126,6 +129,14 @@ class CostPackage {
         }
         else {
             return _bbl_memory_cost[site][bbl] / _mlp[site];
+        }
+    }
+    inline COST BBLInstructionMemoryCost(CostSite site, BBLID bbl) {
+        if (_bbl_parallelizable[bbl]) {
+            return _bbl_instruction_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
+        }
+        else {
+            return _bbl_instruction_memory_cost[site][bbl] / _mlp[site];
         }
     }
 };

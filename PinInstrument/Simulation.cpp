@@ -188,13 +188,6 @@ void MemoryLatency::instrument()
 }
 
 
-// VOID MemoryLatency::SetBBLSize(BBLID bbl_size) {
-//     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-//         _cost_package->_bbl_memory_cost[i].resize(bbl_size);
-//         memset(&_cost_package->_bbl_memory_cost[i][0], 0, bbl_size * sizeof _cost_package->_bbl_memory_cost[i][0]);
-//     }
-// }
-
 VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd, THREADID threadid)
 {
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
@@ -219,7 +212,7 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd
     PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
 }
 
-VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
+VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
 {
     PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
     BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
@@ -229,12 +222,12 @@ VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size,
         return;
     }
     (*self->_cost_package->_trace_file[threadid])
-        << threadid << " "
-        << threadid << " " // we assume coreid == threadid
-        << self->_cost_package->_previous_instr[threadid] << " "
-        << (accessType == ACCESS_TYPE_LOAD ? "L " : "S ")
-        << addr << " "
-        << size << std::endl;
+        << "[" << threadid << "] "
+        << (accessType == ACCESS_TYPE_LOAD ? "R, " : "W, ")
+        << std::hex << "0x" << addr << std::dec << " "
+        << size
+        << std::hex << " (0x" << ip << ")" << std::dec
+        << std::endl;
     self->_cost_package->_previous_instr[threadid] = 0;
     if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
     (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
@@ -269,6 +262,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
             INS_InsertPredicatedCall(
                 ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
                 IARG_PTR, (VOID *)self,
+                IARG_INST_PTR,
                 IARG_MEMORYREAD_EA,
                 IARG_MEMORYREAD_SIZE,
                 IARG_UINT32, ACCESS_TYPE_LOAD,
@@ -281,6 +275,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
             INS_InsertPredicatedCall(
                 ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
                 IARG_PTR, (VOID *)self,
+                IARG_INST_PTR,
                 IARG_MEMORYREAD2_EA,
                 IARG_MEMORYREAD_SIZE,
                 IARG_UINT32, ACCESS_TYPE_LOAD,
@@ -293,6 +288,7 @@ VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
             INS_InsertPredicatedCall(
                 ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
                 IARG_PTR, (VOID *)self,
+                IARG_INST_PTR,
                 IARG_MEMORYWRITE_EA,
                 IARG_MEMORYWRITE_SIZE,
                 IARG_UINT32, ACCESS_TYPE_STORE,

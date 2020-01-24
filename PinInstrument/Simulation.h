@@ -95,7 +95,7 @@ class MemoryLatency {
   protected:
 
     /// Do on instruction cache reference
-    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, BOOL issimd, THREADID threadid);
+    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, BOOL issimd, THREADID threadid);
 
     /// Do on data cache reference
     static VOID DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);

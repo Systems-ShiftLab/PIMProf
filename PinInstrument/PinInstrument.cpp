@@ -92,6 +92,8 @@ VOID PinInstrument::DoAtROIDecisionHead(PinInstrument *self, THREADID threadid)
 {
     PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
     if (self->_command_line_parser.enableroidecision()) {
+        if (!self->_cost_package._thread_in_roidecision[threadid])
+            self->_cost_package._enter_roi_cnt++;
         self->_cost_package._thread_in_roidecision[threadid] = true;
     }
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
@@ -101,6 +103,8 @@ VOID PinInstrument::DoAtROIDecisionTail(PinInstrument *self, THREADID threadid)
 {
     PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
     if (self->_command_line_parser.enableroidecision()) {
+        if (self->_cost_package._thread_in_roidecision[threadid])
+            self->_cost_package._exit_roi_cnt++;
         self->_cost_package._thread_in_roidecision[threadid] = false;
     }
     PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
@@ -353,5 +357,7 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
 
     ofs.open(self->_command_line_parser.statsfile().c_str(), std::ofstream::out);
     self->_storage.WriteStats(ofs);
+    ofs << "Number of times entering ROI: " << self->_cost_package._enter_roi_cnt << std::endl;
+    ofs << "Number of times exiting ROI: " << self->_cost_package._exit_roi_cnt << std::endl;
     ofs.close();
 }

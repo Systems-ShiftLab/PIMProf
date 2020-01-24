@@ -81,6 +81,11 @@ class CostPackage {
     COST _type_instr_cost[MAX_COST_SITE][MAX_INDEX] = {0};
 #endif
 
+    /// the number of site changes can only be known when
+    /// -roidecision is enabled, i.e., the site is known
+    UINT64 _enter_roi_cnt = 0;
+    UINT64 _exit_roi_cnt = 0;
+
   public:
     /// Construction of latency table follows the opcode generation function in
     /// $(PIN_ROOT)/source/tools/SimpleExamples/opcodemix.cpp

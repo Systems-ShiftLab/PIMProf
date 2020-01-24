@@ -377,6 +377,7 @@ BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID 
 STORAGE::STORAGE()
 {
     memset(_storage, 0, sizeof(_storage));
+    memset(_last_icacheline, 0, sizeof(_last_icacheline));
 }
 
 STORAGE::~STORAGE()
@@ -530,15 +531,38 @@ void STORAGE::WriteStats(const std::string filename)
     out.close();
 }
 
-VOID STORAGE::InstrCacheRef(ADDRINT addr, BBLID bblid, BOOL issimd)
+VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[ITLB]->AccessSingleLine(addr, accessType);
 
-    // assuming instruction cache access does not cross cache line
     // first level I-cache
+    // assuming the core reads full instruction cache lines and caches them internally for subsequent instructions, similar assumption as Sniper and ZSim.
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage_top[i][IL1]->AccessSingleLine(addr, ACCESS_TYPE_LOAD, bblid, issimd);
+        const ADDRINT lineSize = static_cast<CACHE_LEVEL *>(_storage_top[i][IL1])->LineSize();
+        const ADDRINT notLineMask = ~(lineSize - 1);
+        ADDRINT curLine = addr & notLineMask;
+        ADDRINT nextLine = curLine + lineSize;
+        
+        // if accessing same cache line as the one previously accessed
+        if (curLine == _last_icacheline[i]) {
+            if (addr + size >= nextLine) {
+                _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, issimd);
+                _last_icacheline[i] = nextLine;
+            }
+            // otherwise do nothing
+        }
+        else {
+            if (addr + size >= nextLine) {
+                _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, issimd);
+                _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, issimd);
+                _last_icacheline[i] = nextLine;
+            }
+            else {
+                _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, issimd);
+                _last_icacheline[i] = curLine;
+            }
+        }
     }
 }
 

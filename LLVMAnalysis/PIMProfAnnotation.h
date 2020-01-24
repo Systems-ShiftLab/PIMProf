@@ -19,30 +19,30 @@ static inline void PIMProfMagicOP(uint64_t op) {
 #define MAGIC_OP_PIMPROFROIDECISIONEND (4)
 
 static inline void PIMProfROIBegin() {
-    // printf("PIMProf ROI begin\n");
+    printf("PIMProf ROI begin\n");
     PIMProfMagicOP(MAGIC_OP_PIMPROFROIBEGIN);
 }
 
 static inline void PIMProfROIEnd() {
     PIMProfMagicOP(MAGIC_OP_PIMPROFROIEND);
-    // printf("PIMProf ROI end\n");
+    printf("PIMProf ROI end\n");
 }
 
 static inline void PIMProfROIDecisionBegin() {
-    // printf("PIMProf ROI decision begin\n");
+    printf("PIMProf ROI decision begin\n");
     PIMProfMagicOP(MAGIC_OP_PIMPROFROIDECISIONBEGIN);
 }
 
 static inline void PIMProfROIDecisionEnd() {
     PIMProfMagicOP(MAGIC_OP_PIMPROFROIDECISIONEND);
-    // printf("PIMProf ROI decision end\n");
+    printf("PIMProf ROI decision end\n");
 }
 
 #ifdef PIMPROF
-    #define PIMPROF_BEGIN_PROGRAM ;
-    #define PIMPROF_END_PROGRAM ;
-    #define PIMPROF_BEGIN_REG_PARALLEL PIMProfROIDecisionBegin();
-    #define PIMPROF_END_REG_PARALLEL PIMProfROIDecisionEnd();
+    #define PIMPROF_BEGIN_PROGRAM PIMProfROIDecisionBegin();
+    #define PIMPROF_END_PROGRAM PIMProfROIDecisionEnd();
+    #define PIMPROF_BEGIN_REG_PARALLEL PIMProfROIBegin();
+    #define PIMPROF_END_REG_PARALLEL PIMProfROIEnd();
     #warning PIMPROF enabled
 #endif
 

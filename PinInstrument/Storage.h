@@ -520,6 +520,9 @@ class STORAGE
     STORAGE_LEVEL_BASE *_storage[MAX_COST_SITE][MAX_LEVEL];
     STORAGE_LEVEL_BASE *_storage_top[MAX_COST_SITE][2];
 
+  private:
+    ADDRINT _last_icacheline[MAX_COST_SITE];
+
   public:
     /// Reference to PinInstrument data
     CostPackage *_cost_package;
@@ -542,7 +545,7 @@ class STORAGE
     VOID WriteStats(const std::string filename);
 
     /// Do on instruction cache reference
-    VOID InstrCacheRef(ADDRINT addr, BBLID bblid, BOOL issimd);
+    VOID InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd);
 
     /// Do on data cache reference
     VOID DataCacheRef(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);

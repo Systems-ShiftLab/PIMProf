@@ -183,11 +183,8 @@ void transpose(double **arr, int size)
 
 int main()
 {
-#if defined ZSIM || defined SNIPER
+#if defined ZSIM || defined SNIPER || defined PIMPROF
     PIMPROF_BEGIN_PROGRAM
-#endif
-#if defined PIMPROF
-    PIMProfROIDecisionBegin();
 #endif
 
     srand(0);
@@ -209,28 +206,20 @@ int main()
         }
     }
 
-#if defined ZSIM || defined SNIPER
+#if defined ZSIM || defined SNIPER || defined PIMPROF
     PIMPROF_BEGIN_REG_PARALLEL
-#endif
-#if defined PIMPROF
-    PIMProfROIBegin();
 #endif
 
     for (i = 0; i < ITER1; i++)
         transpose(arr, NUM2);
 
-#if defined ZSIM || defined SNIPER
+#if defined ZSIM || defined SNIPER || defined PIMPROF
     PIMPROF_END_REG_PARALLEL
 #endif
-#if defined PIMPROF
-    PIMProfROIEnd();
-#endif
+
     // pthreads_exec();
-#if defined ZSIM || defined SNIPER
+#if defined ZSIM || defined SNIPER || defined PIMPROF
     PIMPROF_END_PROGRAM
-#endif
-#if defined PIMPROF
-    PIMProfROIDecisionEnd();
 #endif
     return 0;
 }

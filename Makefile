@@ -7,7 +7,7 @@ endif
 
 all: llvm pin lib
 
-debug: llvm pin lib
+debug: llvm pin_debug lib
 
 llvm: build
 	cd $(BUILD_DIR) && LLVM_HOME=$(LLVM_HOME) cmake ..

@@ -31,7 +31,7 @@ class DataReuseSegment {
 
   public:
     inline DataReuseSegment() {
-        _headID = GLOBALBBLID;
+        _headID = -1;
         _count = 1;
     }
 
@@ -60,7 +60,7 @@ class DataReuseSegment {
     }
 
     inline VOID clear() {
-        _headID = GLOBALBBLID;
+        _headID = -1;
         _set.clear();
         _count = 1;
     }

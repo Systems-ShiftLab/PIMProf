@@ -61,7 +61,7 @@ STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, CostSite cost_site, Sto
 // the current data reuse segment of each tag is stored as a separate unordered map,
 // independent of which cache level this tag is in
 VOID STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID bblid) {
-    if (bblid != GLOBALBBLID) {
+    if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
         DataReuseSegment &seg = _storage->_cost_package->_tag_seg_map[tag];
         seg.insert(bblid);
         INT32 threadcount = _storage->_cost_package->_thread_count;
@@ -183,7 +183,7 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
 {
     // When this is a CPU cache level, for example,
     // _hitcost[PIM] will be assigned to 0
-    if (bblid != GLOBALBBLID) {
+    if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
         issimd |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
         issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
@@ -217,7 +217,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLI
 
 VOID CACHE_LEVEL::AddInstructionMemCost(BBLID bblid, BOOL issimd)
 {
-    if (bblid != GLOBALBBLID) {
+    if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
         issimd |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
         issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
@@ -324,7 +324,7 @@ MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel st
 
 VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
 {
-    if (bblid != GLOBALBBLID) {
+    if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
 #ifdef PIMPROFDEBUG
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;

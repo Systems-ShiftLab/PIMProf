@@ -35,9 +35,6 @@ namespace PIMProf {
 
 class PinInstrument {
   private:
-    CommandLineParser _command_line_parser;
-    ConfigReader _config_reader;
-
     InstructionLatency _instruction_latency;
     MemoryLatency _memory_latency;
     CostSolver _cost_solver;

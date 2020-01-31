@@ -498,9 +498,10 @@ std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
         total_visit += _cost_package->_bbl_visit_cnt[i];
     }
 
-    std::cout << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
+    out << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
+    out << std::endl;
 
-    std::cout << std::right << std::setw(8) << "opcode"
+    out << std::right << std::setw(8) << "opcode"
               << std::right << std::setw(15) << "name"
               << std::right << std::setw(20) << "cnt"
               << std::right << std::setw(15) << "CPUCost"
@@ -508,7 +509,7 @@ std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
               << std::endl;
     for (UINT32 i = 0; i < MAX_INDEX; i++) {
         if (_cost_package->_type_instr_cnt[i] > 0) {
-            std::cout << std::right << std::setw(8) << i
+            out << std::right << std::setw(8) << i
                   << std::right << std::setw(15) << OPCODE_StringShort(i)
                   << std::right << std::setw(20) << _cost_package->_type_instr_cnt[i]
                   << std::right << std::setw(15) << _cost_package->_type_instr_cost[CPU][i]
@@ -516,12 +517,13 @@ std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
                   << std::endl;
         }
     }
+    out << std::endl;
 
-    std::cout << "total instr: " << _cost_package->_total_instr_cnt << std::endl;
-    std::cout << "total simd instr: " << _cost_package->_total_simd_instr_cnt << std::endl;
+    out << "total instr: " << _cost_package->_total_instr_cnt << std::endl;
+    out << "total simd instr: " << _cost_package->_total_simd_instr_cnt << std::endl;
 
-    std::cout << "CPU simd cost: " << _cost_package->_total_simd_cost[CPU] << std::endl;
-    std::cout << "PIM simd cost: " << _cost_package->_total_simd_cost[PIM] << std::endl;
+    out << "CPU simd cost: " << _cost_package->_total_simd_cost[CPU] << std::endl;
+    out << "PIM simd cost: " << _cost_package->_total_simd_cost[PIM] << std::endl;
 #endif
     // std::vector<std::vector<UINT32>> cdftemp;
     // std::vector<UINT32> cdf; 

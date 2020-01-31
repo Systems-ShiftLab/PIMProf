@@ -42,6 +42,10 @@ class HashFunc
 
 class CostPackage {
   public:
+    CommandLineParser _command_line_parser;
+    ConfigReader _config_reader;
+
+  public:
     std::unordered_map<UUID, UINT32, HashFunc> _bbl_hash;
     BBLID _bbl_size = 0;
     bool _inAcceleratorFunction;
@@ -117,7 +121,9 @@ class CostPackage {
     std::unordered_map<ADDRINT, DataReuseSegment> _tag_seg_map;
 
   public:
-    void initialize();
+    void initialize(int argc, char *argv[]);
+
+    void initializeNewBBL(UUID bblhash);
 
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
         if (_bbl_parallelizable[bbl]) {

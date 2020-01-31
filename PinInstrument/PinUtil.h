@@ -38,7 +38,7 @@ enum StorageLevel {
 };
 extern const std::string StorageLevelName[MAX_LEVEL];
 
-const BBLID GLOBALBBLID = 0x7FFFFFFF;
+const BBLID GLOBALBBLID = 0;
 
 enum ACCESS_TYPE
 {
@@ -56,7 +56,7 @@ class BBLScope {
   public:
     inline BBLScope()
     {
-        // push a fake global bblid    inline std::string controlflowfile() { return _controlflowfile; }
+        // we set the global BBL ID as 0
         bblidstack.push(GLOBALBBLID);
     }
     inline void push(BBLID bblid)
@@ -122,6 +122,7 @@ class CommandLineParser {
     inline std::string statsfile() { return _statsfile; }
     inline bool enableroi() { return _enableroi; }
     inline bool enableroidecision() { return _enableroidecision; }
+    inline bool enableglobalbbl() { return false; } // whether considering the dependency with the global BBL
 
     inline int Usage(std::ostream &out) {
         out << "Invalid argument."

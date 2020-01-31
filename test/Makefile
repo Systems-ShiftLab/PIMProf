@@ -17,7 +17,7 @@ TEST_OBJ_2          := test.o.2 print4.o.2 pthreads.o.2
 TEST_EXE_2          := test.exe.2
 
 CXXFLAGS := -fPIC -std=c++11 -g -I$(PIMPROF_DIR)/LLVMAnalysis/ -fopenmp -O3 -mno-sse4 -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -mno-avx2
-INJCXXFLAGS := $(CXXFLAGS) # -Xclang -load -Xclang $(INJECTION_SO)
+INJCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(INJECTION_SO)
 OFFCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(OFFLOADING_SO)
 LDFLAGS  := -pthread
 

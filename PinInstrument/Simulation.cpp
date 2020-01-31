@@ -38,60 +38,61 @@ void InstructionLatency::instrument() {
 
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
-    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
-    // infomsg() << "instrcount: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
-    if (!self->_cost_package->_thread_in_roi[threadid] && self->_cost_package->_roi_decision.empty()) {
-        PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    CostPackage *pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
+    BBLID bblid = pkg->_thread_bbl_scope[threadid].top();
+    // infomsg() << "instrcount: " << pkg->_thread_count << " " << threadid << std::endl;
+    if (!pkg->_thread_in_roi[threadid] && pkg->_roi_decision.empty()) {
+        PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
         return;
     }
-    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
-    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
+    if ((pkg->_thread_count == 1 && threadid == 0) ||
+    (pkg->_thread_count >= 2 && threadid == 1)) {
 #ifdef PIMPROFDEBUG
-        self->_cost_package->_total_instr_cnt++;
+        pkg->_total_instr_cnt++;
         if (issimd) {
-            self->_cost_package->_total_simd_instr_cnt++;
+            pkg->_total_simd_instr_cnt++;
         }
 #endif
 
-        if (bblid == GLOBALBBLID) {
-            PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+        if (bblid == GLOBALBBLID && !pkg->_command_line_parser.enableglobalbbl()) {
+            PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
             return;
         }
         // theoretical parallelism can only be computed once
-        issimd |= self->_cost_package->_inAcceleratorFunction;
-        issimd &= (!self->_cost_package->_bbl_parallelizable[bblid]);
+        issimd |= pkg->_inAcceleratorFunction;
+        issimd &= (!pkg->_bbl_parallelizable[bblid]);
 
 #ifdef PIMPROFDEBUG
-        self->_cost_package->_bbl_instr_cnt[bblid]++;
+        pkg->_bbl_instr_cnt[bblid]++;
         if (issimd) {
-            self->_cost_package->_simd_instr_cnt[bblid]++;
+            pkg->_simd_instr_cnt[bblid]++;
         }
-        self->_cost_package->_type_instr_cnt[opcode]++;
+        pkg->_type_instr_cnt[opcode]++;
 #endif
 
         if (ismem) { /* do nothing*/ }
         else {
             for (int i = 0; i < MAX_COST_SITE; i++) {
                 // estimating the cost of all threads by looking at the cost of only one thread
-                COST cost = self->_cost_package->_instruction_latency[i][opcode] * self->_cost_package->_thread_count;
+                COST cost = pkg->_instruction_latency[i][opcode] * pkg->_thread_count;
                 // if we assume a SIMD instruction can be infinitely parallelized,
                 // then the cost of each instruction will be 1/n if we are having n cores.
                 if (issimd) {
-                    cost = cost / self->_cost_package->_core_count[i] * self->_cost_package->_simd_cost_multiplier[i];
+                    cost = cost / pkg->_core_count[i] * pkg->_simd_cost_multiplier[i];
                 }
-                self->_cost_package->_bbl_instruction_cost[i][bblid] += cost;
+                pkg->_bbl_instruction_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG
                 if (issimd) {
-                    self->_cost_package->_total_simd_cost[i] += cost;
+                    pkg->_total_simd_cost[i] += cost;
                 }
-                self->_cost_package->_type_instr_cost[i][opcode] += cost;
+                pkg->_type_instr_cost[i][opcode] += cost;
 #endif
             }
         }
         // std::cout << OPCODE_StringShort(opcode) << std::endl;
     }
-    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
 
 VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
@@ -190,50 +191,52 @@ void MemoryLatency::instrument()
 
 VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, BOOL issimd, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
-    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
-    // infomsg() << "instrcache: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
-    if (!self->_cost_package->_thread_in_roi[threadid] && self->_cost_package->_roi_decision.empty()) {
-        PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    CostPackage *pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
+    BBLID bblid = pkg->_thread_bbl_scope[threadid].top();
+    // infomsg() << "instrcache: " << pkg->_thread_count << " " << threadid << std::endl;
+    if (!pkg->_thread_in_roi[threadid] && pkg->_roi_decision.empty()) {
+        PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
         return;
     }
-    // self->_cost_package->_previous_instr[threadid]++;
-    // (*self->_cost_package->_trace_file[threadid])
+    // pkg->_previous_instr[threadid]++;
+    // (*pkg->_trace_file[threadid])
     //     << threadid << " "
     //     << threadid << " " // we assume coreid == threadid
     //     << "- "
     //     << "I "
     //     << addr << " "
     //     << 64 << std::endl;
-    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
-    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
+    if ((pkg->_thread_count == 1 && threadid == 0) ||
+    (pkg->_thread_count >= 2 && threadid == 1)) {
         self->_storage->InstrCacheRef(addr, size, bblid, issimd);
     }
-    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
 
 VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package->_thread_count_rwmutex);
-    BBLID bblid = self->_cost_package->_thread_bbl_scope[threadid].top();
-    // infomsg() << "datamulti: " << self->_cost_package->_thread_count << " " << threadid << std::endl;
-    if (!self->_cost_package->_thread_in_roi[threadid] && self->_cost_package->_roi_decision.empty()) {
-        PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    CostPackage *pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
+    BBLID bblid = pkg->_thread_bbl_scope[threadid].top();
+    // infomsg() << "datamulti: " << pkg->_thread_count << " " << threadid << std::endl;
+    if (!pkg->_thread_in_roi[threadid] && pkg->_roi_decision.empty()) {
+        PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
         return;
     }
-    (*self->_cost_package->_trace_file[threadid])
+    (*pkg->_trace_file[threadid])
         << "[" << threadid << "] "
         << (accessType == ACCESS_TYPE_LOAD ? "R, " : "W, ")
         << std::hex << "0x" << addr << std::dec << " "
         << size
         << std::hex << " (0x" << ip << ")" << std::dec
         << std::endl;
-    self->_cost_package->_previous_instr[threadid] = 0;
-    if ((self->_cost_package->_thread_count == 1 && threadid == 0) ||
-    (self->_cost_package->_thread_count >= 2 && threadid == 1)) {
+    pkg->_previous_instr[threadid] = 0;
+    if ((pkg->_thread_count == 1 && threadid == 0) ||
+    (pkg->_thread_count >= 2 && threadid == 1)) {
         self->_storage->DataCacheRef(addr, size, accessType, bblid, issimd);
     }
-    PIN_RWMutexUnlock(&self->_cost_package->_thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
 
 

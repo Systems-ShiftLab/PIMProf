@@ -25,16 +25,11 @@ void PinInstrument::initialize(int argc, char *argv[])
 #endif
     PIN_InitSymbols();
 
-    _command_line_parser.initialize(argc, argv);
-
-    // ReadControlFlowGraph(_command_line_parser.controlflowfile());
-
-    _config_reader = ConfigReader(_command_line_parser.configfile());
-    _cost_package.initialize();
-    _storage.initialize(&_cost_package, _config_reader);
-    _instruction_latency.initialize(&_cost_package, _config_reader);
-    _memory_latency.initialize(&_storage, &_cost_package, _config_reader);
-    _cost_solver.initialize(&_cost_package, _config_reader);
+    _cost_package.initialize(argc, argv);
+    _storage.initialize(&_cost_package, _cost_package._config_reader);
+    _instruction_latency.initialize(&_cost_package, _cost_package._config_reader);
+    _memory_latency.initialize(&_storage, &_cost_package, _cost_package._config_reader);
+    _cost_solver.initialize(&_cost_package, _cost_package._config_reader);
 
 }
 
@@ -72,78 +67,65 @@ void PinInstrument::simulate()
 
 VOID PinInstrument::DoAtROIHead(PinInstrument *self, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-    if (self->_command_line_parser.enableroi()) {
-        self->_cost_package._thread_in_roi[threadid] = true;
+    CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
+    if (pkg._command_line_parser.enableroi()) {
+        pkg._thread_in_roi[threadid] = true;
     }
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::DoAtROITail(PinInstrument *self, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-    if (self->_command_line_parser.enableroi()) {
-        self->_cost_package._thread_in_roi[threadid] = false;
+    CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
+    if (pkg._command_line_parser.enableroi()) {
+        pkg._thread_in_roi[threadid] = false;
     }
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::DoAtROIDecisionHead(PinInstrument *self, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-    if (self->_command_line_parser.enableroidecision()) {
-        if (!self->_cost_package._thread_in_roidecision[threadid])
-            self->_cost_package._enter_roi_cnt++;
-        self->_cost_package._thread_in_roidecision[threadid] = true;
+    CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
+    if (pkg._command_line_parser.enableroidecision()) {
+        if (!pkg._thread_in_roidecision[threadid])
+            pkg._enter_roi_cnt++;
+        pkg._thread_in_roidecision[threadid] = true;
     }
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::DoAtROIDecisionTail(PinInstrument *self, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-    if (self->_command_line_parser.enableroidecision()) {
-        if (self->_cost_package._thread_in_roidecision[threadid])
-            self->_cost_package._exit_roi_cnt++;
-        self->_cost_package._thread_in_roidecision[threadid] = false;
+    CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
+    if (pkg._command_line_parser.enableroidecision()) {
+        if (pkg._thread_in_roidecision[threadid])
+            pkg._exit_roi_cnt++;
+        pkg._thread_in_roidecision[threadid] = false;
     }
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-
     CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
+
     auto bblhash = UUID(bblhash_hi, bblhash_lo);
     auto it = pkg._bbl_hash.find(bblhash);
     if (it == pkg._bbl_hash.end()) {
-        pkg._bbl_hash[bblhash] = pkg._bbl_size;
+        pkg.initializeNewBBL(bblhash);
         it = pkg._bbl_hash.find(bblhash);
-        pkg._bbl_size++;
-        pkg._bbl_parallelizable.push_back(0);
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            pkg._bbl_instruction_cost[i].push_back(0);
-        }
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            pkg._bbl_memory_cost[i].push_back(0);
-        }
-        if (self->_command_line_parser.enableroidecision()) {
-            pkg._roi_decision.push_back(CostSite::CPU);
-        }
-        for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-            pkg._bbl_instruction_memory_cost[i].push_back(0);
-        }
-#ifdef PIMPROFDEBUG
-        pkg._bbl_visit_cnt.push_back(0);
-        pkg._bbl_instr_cnt.push_back(0);
-        pkg._simd_instr_cnt.push_back(0);
-        pkg._cache_miss.push_back(0);
-#endif
     }
     if (isomp) {
         pkg._in_omp_parallel++;
     }
+
+    /// TODO: commented for testing, change back later
+
     pkg._bbl_parallelizable[it->second] |= (pkg._in_omp_parallel > 0);
 
     // overwrite _bbl_parallelizable[] if in spawned worker thread
@@ -151,25 +133,26 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._bbl_parallelizable[it->second] = true;
     }
 
-    if (self->_command_line_parser.enableroidecision() && pkg._thread_in_roidecision[threadid]) {
+    if (pkg._command_line_parser.enableroidecision() && pkg._thread_in_roidecision[threadid]) {
         pkg._roi_decision[it->second] = CostSite::PIM;
+        // pkg._bbl_parallelizable[it->second] = true;
     }
 
     pkg._thread_bbl_scope[threadid].push(it->second);
 
 #ifdef PIMPROFDEBUG
-    self->_cost_package._bbl_visit_cnt[it->second]++;
+    pkg._bbl_visit_cnt[it->second]++;
 #endif
     // infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << " " << pkg._in_omp_parallel << std::endl;
 
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
-    PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-
     CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
+
     auto bblhash = UUID(bblhash_hi, bblhash_lo);
     if (isomp) {
         pkg._in_omp_parallel--;
@@ -180,7 +163,7 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
     // infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << " " << pkg._in_omp_parallel << std::endl;
 
 
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::DoAtAcceleratorHead(PinInstrument *self)
@@ -289,64 +272,67 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
-    PIN_RWMutexWriteLock(&self->_cost_package._thread_count_rwmutex);
-    self->_cost_package._thread_bbl_scope.push_back(BBLScope());
-    if (self->_command_line_parser.enableroi()) {
-        self->_cost_package._thread_in_roi.push_back(false);
+    CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexWriteLock(&pkg._thread_count_rwmutex);
+    pkg._thread_bbl_scope.push_back(BBLScope());
+    if (pkg._command_line_parser.enableroi()) {
+        pkg._thread_in_roi.push_back(false);
     }
     else {
-        self->_cost_package._thread_in_roi.push_back(true);
+        pkg._thread_in_roi.push_back(true);
     }
 
-    if (self->_command_line_parser.enableroidecision()) {
-        self->_cost_package._thread_in_roidecision.push_back(false);
+    if (pkg._command_line_parser.enableroidecision()) {
+        pkg._thread_in_roidecision.push_back(false);
     }
     else {
-        self->_cost_package._thread_in_roidecision.push_back(true);
+        pkg._thread_in_roidecision.push_back(true);
     }
 
-    self->_cost_package._previous_instr.push_back(0);
+    pkg._previous_instr.push_back(0);
     std::ofstream *ofs = new std::ofstream;
     std::stringstream ss;
-    ss << self->_cost_package._thread_count;
+    ss << pkg._thread_count;
     std::string tracefile = "MemTrace.out." + ss.str();
     ofs->open(tracefile.c_str(), std::ofstream::out);
-    self->_cost_package._trace_file.push_back(ofs);
+    pkg._trace_file.push_back(ofs);
 
-    self->_cost_package._thread_count++;
-    infomsg() << "ThreadStart:" << threadid << " " << self->_cost_package._thread_count << std::endl;
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
-    // PIN_RWMutexReadLock(&self->_cost_package._thread_count_rwmutex);
-    // PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    pkg._thread_count++;
+    infomsg() << "ThreadStart:" << threadid << " " << pkg._thread_count << std::endl;
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
+    // PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
+    // PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 flags, VOID *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
-    PIN_RWMutexWriteLock(&self->_cost_package._thread_count_rwmutex);
-    for (auto i: self->_cost_package._trace_file) {
+    CostPackage &pkg = self->_cost_package;
+    PIN_RWMutexWriteLock(&pkg._thread_count_rwmutex);
+    for (auto i: pkg._trace_file) {
         i->close();
         delete i;
     }
-    self->_cost_package._thread_count--;
-    infomsg() << "ThreadEnd:" << threadid << " " << self->_cost_package._thread_count << std::endl;
-    PIN_RWMutexUnlock(&self->_cost_package._thread_count_rwmutex);
+    pkg._thread_count--;
+    infomsg() << "ThreadEnd:" << threadid << " " << pkg._thread_count << std::endl;
+    PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
 VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
+    CostPackage &pkg = self->_cost_package;
     std::ofstream ofs(
-        self->_command_line_parser.outputfile().c_str(),
+        pkg._command_line_parser.outputfile().c_str(),
         std::ofstream::out);
     CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
     ofs.close();
-    infomsg() << "parallel:" << self->_cost_package._in_omp_parallel << std::endl;
+    infomsg() << "parallel:" << pkg._in_omp_parallel << std::endl;
 
     ofs.open("BBLReuseCost.dot", std::ofstream::out);
-    self->_cost_package._data_reuse.print(
+    pkg._data_reuse.print(
         ofs,
-        self->_cost_package._data_reuse.getRoot());
+        pkg._data_reuse.getRoot());
     ofs.close();
 
     ofs.open("bblcdf.out", std::ofstream::out);
@@ -355,9 +341,10 @@ VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
     self->_instruction_latency.WriteConfig("testconfig.ini");
     ofs.close();
 
-    ofs.open(self->_command_line_parser.statsfile().c_str(), std::ofstream::out);
+    ofs.open(pkg._command_line_parser.statsfile().c_str(), std::ofstream::out);
     self->_storage.WriteStats(ofs);
-    ofs << "Number of times entering ROI: " << self->_cost_package._enter_roi_cnt << std::endl;
-    ofs << "Number of times exiting ROI: " << self->_cost_package._exit_roi_cnt << std::endl;
+    ofs << "Number of times entering ROI: " << pkg._enter_roi_cnt << std::endl;
+    ofs << "Number of times exiting ROI: " << pkg._exit_roi_cnt << std::endl;
+    self->_cost_solver.PrintAnalytics(ofs);
     ofs.close();
 }

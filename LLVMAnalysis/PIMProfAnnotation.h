@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include "Common.h"
 
 #define COMPILER_BARRIER() { __asm__ __volatile__("" ::: "memory");}
 
@@ -13,28 +14,37 @@ static inline void PIMProfMagicOP(uint64_t op) {
     COMPILER_BARRIER();
 }
 
-#define MAGIC_OP_PIMPROFROIBEGIN (1)
-#define MAGIC_OP_PIMPROFROIEND (2)
-#define MAGIC_OP_PIMPROFROIDECISIONBEGIN (3)
-#define MAGIC_OP_PIMPROFROIDECISIONEND (4)
+#define PIMProfMagicOP(op) ({        \
+   unsigned long _op = (op); \
+   __asm__ __volatile__ (                    \
+   "mov %0, %%rax \n"             \
+   "\tmov %1, %%rbx \n"           \
+   "\tmov %2, %%rcx \n"           \
+   "\txchg %%rcx, %%rcx\n"                     \
+   :           /* output    */   \
+   : "g"(0xffff),                              \
+     "g"(0xffff),                             \
+     "g"(_op)            /* input     */   \
+   : "%rax", "%rbx", "%rcx"); /* clobbered */ \
+})
 
 static inline void PIMProfROIBegin() {
-    printf("PIMProf ROI begin\n");
-    PIMProfMagicOP(MAGIC_OP_PIMPROFROIBEGIN);
+    // printf("PIMProf ROI begin\n");
+    PIMProfMagicOP(MAGIC_OP_ROIBEGIN);
 }
 
 static inline void PIMProfROIEnd() {
-    PIMProfMagicOP(MAGIC_OP_PIMPROFROIEND);
-    printf("PIMProf ROI end\n");
+    PIMProfMagicOP(MAGIC_OP_ROIEND);
+    // printf("PIMProf ROI end\n");
 }
 
 static inline void PIMProfROIDecisionBegin() {
     printf("PIMProf ROI decision begin\n");
-    PIMProfMagicOP(MAGIC_OP_PIMPROFROIDECISIONBEGIN);
+    PIMProfMagicOP(MAGIC_OP_ROIDECISIONBEGIN);
 }
 
 static inline void PIMProfROIDecisionEnd() {
-    PIMProfMagicOP(MAGIC_OP_PIMPROFROIDECISIONEND);
+    PIMProfMagicOP(MAGIC_OP_ROIDECISIONEND);
     printf("PIMProf ROI decision end\n");
 }
 

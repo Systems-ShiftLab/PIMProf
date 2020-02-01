@@ -15,6 +15,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
 
@@ -30,26 +31,24 @@ namespace {
     void InjectAnnotationCall(Module &M, BasicBlock &BB) {
         LLVMContext &ctx = M.getContext();
 
-        // declare extern annotator function
-        Function *annotator_head = dyn_cast<Function>(
-            M.getOrInsertFunction(
-                PIMProfAnnotationHead, 
-                FunctionType::getInt64Ty(ctx), 
-                Type::getInt64Ty(ctx),
-                Type::getInt64Ty(ctx),
-                Type::getInt64Ty(ctx)
-            )
+        /***** create InlineAsm template ******/
+        std::vector<Type *> argtype {
+            Type::getInt64Ty(ctx), Type::getInt64Ty(ctx), Type::getInt64Ty(ctx)
+        };
+        FunctionType *asmty = FunctionType::get(
+            Type::getVoidTy(ctx), argtype, false
         );
-        Function *annotator_tail = dyn_cast<Function>(
-            M.getOrInsertFunction(
-                PIMProfAnnotationTail, 
-                FunctionType::getInt64Ty(ctx), 
-                Type::getInt64Ty(ctx),
-                Type::getInt64Ty(ctx),
-                Type::getInt64Ty(ctx)
-            )
+        InlineAsm *IA = InlineAsm::get(
+            asmty,
+            "mov $0, %rax \n"
+            "\tmov $1, %rbx \n"
+            "\tmov $2, %rcx \n"
+            "\txchg %rcx, %rcx\n",
+            "imr,imr,imr,~{rax},~{rbx},~{rcx},~{dirflag},~{fpsr},~{flags}",
+            true
         );
 
+        /***** generate arguments for the InlineAsm ******/
 
         // use the content of BB itself as the hash key
         std::string BB_content;
@@ -74,30 +73,33 @@ namespace {
         Value *lo = ConstantInt::get(
             IntegerType::get(M.getContext(), 64), bblhash[0]);
 
+
         std::string funcname = BB.getParent()->getName();
-        // errs() << funcname << "\n";
-        // errs() << (funcname.find(OpenMPIdentifier) != std::string::npos) << "\n";
-
-        Value *isomp = ConstantInt::get(
+        uint64_t isomp = (funcname.find(OpenMPIdentifier) != std::string::npos);
+        Value *control_head = ConstantInt::get(
             IntegerType::get(M.getContext(), 64), 
-            (funcname.find(OpenMPIdentifier) != std::string::npos));
+            ControlValue::GetControlValue(
+                MAGIC_OP_ANNOTATIONHEAD, isomp)
+        );
+        Value *control_tail = ConstantInt::get(
+            IntegerType::get(M.getContext(), 64), 
+            ControlValue::GetControlValue(
+                MAGIC_OP_ANNOTATIONTAIL, isomp)
+        );
 
-        std::vector<Value *> arglist;
-        arglist.push_back(hi);
-        arglist.push_back(lo);
-        arglist.push_back(isomp);
+        std::vector<Value *> arglist_head {hi, lo, control_head};
+        std::vector<Value *> arglist_tail {hi, lo, control_tail};
 
         // need to skip all PHIs and LandingPad instructions
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
 
-        CallInst *head_instr = CallInst::Create(
-            annotator_head, ArrayRef<Value *>(arglist), "",
-            beginning);
+        CallInst::Create(
+            IA, arglist_head, "", beginning);
+        CallInst::Create(
+            IA, arglist_tail, "", BB.getTerminator());
 
-        CallInst *tail_instr = CallInst::Create(
-            annotator_tail, ArrayRef<Value *>(arglist), "",
-            BB.getTerminator());
+        
 
         // errs() << "After injection: " << BB.getName() << "\n";
         // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {

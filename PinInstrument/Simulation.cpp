@@ -38,6 +38,7 @@ void InstructionLatency::instrument() {
 
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid)
 {
+    
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
     BBLID bblid = pkg->_thread_bbl_scope[threadid].top();
@@ -90,39 +91,29 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
 #endif
             }
         }
-        // std::cout << OPCODE_StringShort(opcode) << std::endl;
     }
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
 
 VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
 {
-    RTN rtn = INS_Rtn(ins);
-    std::string rtn_name = "";
-    if (RTN_Valid(rtn))
-        rtn_name = RTN_Name(rtn);
-    // do not instrument any function
-    // regions with invalid names can be JIT code, for example, so cannot be ignored
-    if (rtn_name.find("PIMProf") == std::string::npos) {
-        InstructionLatency *self = (InstructionLatency *)void_self;
-        UINT32 opcode = (UINT32)(INS_Opcode(ins));
-        BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
-        xed_decoded_inst_t *xedd = INS_XedDec(ins);
-        BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
-        // infomsg() << std::hex << INS_Address(ins) << " " << OPCODE_StringShort(opcode) << std::endl;
-        // TODO: fix it later
-        issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
-        if (issimd) {
-            infomsg() << std::hex << INS_Address(ins) << std::dec << " " << OPCODE_StringShort(opcode) << std::endl;
-        };
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
-            IARG_PTR, (VOID *)self,
-            IARG_ADDRINT, opcode,
-            IARG_BOOL, ismem,
-            IARG_BOOL, issimd,
-            IARG_THREAD_ID,
-            IARG_END);
-    }
+    InstructionLatency *self = (InstructionLatency *)void_self;
+    UINT32 opcode = (UINT32)(INS_Opcode(ins));
+    BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
+    xed_decoded_inst_t *xedd = INS_XedDec(ins);
+    BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
+    // TODO: fix it later
+    issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
+    // if (issimd) {
+    //     infomsg() << std::hex << INS_Address(ins) << std::dec << " " << OPCODE_StringShort(opcode) << std::endl;
+    // };
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
+        IARG_PTR, (VOID *)self,
+        IARG_ADDRINT, opcode,
+        IARG_BOOL, ismem,
+        IARG_BOOL, issimd,
+        IARG_THREAD_ID,
+        IARG_END);
 }
 
 

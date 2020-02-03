@@ -46,20 +46,12 @@ void PinInstrument::initialize(int argc, char *argv[])
 // }
 
 
-void PinInstrument::instrument()
+void PinInstrument::simulate()
 {
-    // IMG_AddInstrumentFunction(ImageInstrument, (VOID *)this);
     INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
     PIN_AddThreadStartFunction(ThreadStart, (VOID *)this);
     PIN_AddThreadFiniFunction(ThreadFinish, (VOID *)this);
     PIN_AddFiniFunction(FinishInstrument, (VOID *)this);
-}
-
-void PinInstrument::simulate()
-{
-    instrument();
-    _instruction_latency.instrument();
-    _memory_latency.instrument();
 
     // Never returns
     PIN_StartProgram();
@@ -260,6 +252,8 @@ VOID PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
 
 VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 {
+    
+    /***** deal with magical instructions *****/
     if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == LEVEL_BASE::REG_RCX && INS_OperandReg(ins, 1) == LEVEL_BASE::REG_RCX) {
         //info("Instrumenting magic op");
         INS_InsertCall(
@@ -270,6 +264,91 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
             IARG_REG_VALUE, REG_GAX,
             IARG_REG_VALUE, REG_GBX,
             IARG_REG_VALUE, REG_GCX,
+            IARG_THREAD_ID,
+            IARG_END);
+    }
+
+    PinInstrument *self = (PinInstrument *)void_self;
+
+    UINT32 opcode = (UINT32)(INS_Opcode(ins));
+    BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
+    xed_decoded_inst_t *xedd = INS_XedDec(ins);
+    BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
+    // TODO: fix it later
+    issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
+    // if (issimd) {
+    //     infomsg() << std::hex << INS_Address(ins) << std::dec << " " << OPCODE_StringShort(opcode) << std::endl;
+    // };
+
+    /***** deal with the instruction latency *****/
+    INS_InsertCall(
+        ins,
+        IPOINT_BEFORE,
+        (AFUNPTR)InstructionLatency::InstructionCount,
+        IARG_PTR, &self->_instruction_latency,
+        IARG_ADDRINT, opcode,
+        IARG_BOOL, ismem,
+        IARG_BOOL, issimd,
+        IARG_THREAD_ID,
+        IARG_END);
+
+
+    UINT32 ins_len = xed_decoded_inst_get_length(xedd);
+
+    /***** deal with the memory latency *****/
+    // all instruction fetches access I-cache
+    INS_InsertCall(
+        ins,
+        IPOINT_BEFORE,
+        (AFUNPTR)MemoryLatency::InstrCacheRef,
+        IARG_PTR, &self->_memory_latency,
+        IARG_INST_PTR,
+        IARG_UINT32, ins_len,
+        IARG_BOOL, issimd,
+        IARG_THREAD_ID,
+        IARG_END);
+    if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
+        // only predicated-on memory instructions access D-cache
+        INS_InsertPredicatedCall(
+            ins,
+            IPOINT_BEFORE,
+            (AFUNPTR)MemoryLatency::DataCacheRef,
+            IARG_PTR, &self->_memory_latency,
+            IARG_INST_PTR,
+            IARG_MEMORYREAD_EA,
+            IARG_MEMORYREAD_SIZE,
+            IARG_UINT32, ACCESS_TYPE_LOAD,
+            IARG_BOOL, issimd,
+            IARG_THREAD_ID,
+            IARG_END);
+    }
+    if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins)) {
+        // only predicated-on memory instructions access D-cache
+        INS_InsertPredicatedCall(
+            ins,
+            IPOINT_BEFORE,
+            (AFUNPTR)MemoryLatency::DataCacheRef,
+            IARG_PTR, &self->_memory_latency,
+            IARG_INST_PTR,
+            IARG_MEMORYREAD2_EA,
+            IARG_MEMORYREAD_SIZE,
+            IARG_UINT32, ACCESS_TYPE_LOAD,
+            IARG_BOOL, issimd,
+            IARG_THREAD_ID,
+            IARG_END);
+    }
+    if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins)) {
+        // only predicated-on memory instructions access D-cache
+        INS_InsertPredicatedCall(
+            ins,
+            IPOINT_BEFORE,
+            (AFUNPTR)MemoryLatency::DataCacheRef,
+            IARG_PTR, &self->_memory_latency,
+            IARG_INST_PTR,
+            IARG_MEMORYWRITE_EA,
+            IARG_MEMORYWRITE_SIZE,
+            IARG_UINT32, ACCESS_TYPE_STORE,
+            IARG_BOOL, issimd,
             IARG_THREAD_ID,
             IARG_END);
     }

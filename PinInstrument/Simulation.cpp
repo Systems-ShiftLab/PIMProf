@@ -32,10 +32,6 @@ void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &rea
     ReadConfig(reader);
 }
 
-void InstructionLatency::instrument() {
-    INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
-}
-
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid)
 {
     
@@ -91,31 +87,10 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
 #endif
             }
         }
+        std::cout << OPCODE_StringShort(opcode) << std::endl;
     }
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
-
-VOID InstructionLatency::InstructionInstrument(INS ins, VOID *void_self)
-{
-    InstructionLatency *self = (InstructionLatency *)void_self;
-    UINT32 opcode = (UINT32)(INS_Opcode(ins));
-    BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
-    xed_decoded_inst_t *xedd = INS_XedDec(ins);
-    BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
-    // TODO: fix it later
-    issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
-    // if (issimd) {
-    //     infomsg() << std::hex << INS_Address(ins) << std::dec << " " << OPCODE_StringShort(opcode) << std::endl;
-    // };
-    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)InstructionCount,
-        IARG_PTR, (VOID *)self,
-        IARG_ADDRINT, opcode,
-        IARG_BOOL, ismem,
-        IARG_BOOL, issimd,
-        IARG_THREAD_ID,
-        IARG_END);
-}
-
 
 void InstructionLatency::ReadConfig(ConfigReader &reader)
 {
@@ -172,14 +147,6 @@ void MemoryLatency::initialize(STORAGE *storage, CostPackage *cost_package, Conf
     // SetBBLSize(_cost_package->_bbl_size);
 }
 
-
-void MemoryLatency::instrument()
-{
-    INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
-    PIN_AddFiniFunction(FinishInstrument, (VOID *)this);
-}
-
-
 VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, BOOL issimd, THREADID threadid)
 {
     CostPackage *pkg = self->_cost_package;
@@ -230,72 +197,3 @@ VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, 
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
 
-
-VOID MemoryLatency::InstructionInstrument(INS ins, VOID *void_self)
-{
-    RTN rtn = INS_Rtn(ins);
-    std::string rtn_name = "";
-    if (RTN_Valid(rtn))
-        rtn_name = RTN_Name(rtn);
-    // do not instrument the annotation function
-    if (rtn_name.find("PIMProf") == std::string::npos) {
-        MemoryLatency *self = (MemoryLatency *)void_self;
-        xed_decoded_inst_t *xedd = INS_XedDec(ins);
-        BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
-        UINT32 ins_len = xed_decoded_inst_get_length(xedd);
-
-        // all instruction fetches access I-cache
-        INS_InsertCall(
-            ins, IPOINT_BEFORE, (AFUNPTR)InstrCacheRef,
-            IARG_PTR, (VOID *)self,
-            IARG_INST_PTR,
-            IARG_UINT32, ins_len,
-            IARG_BOOL, issimd,
-            IARG_THREAD_ID,
-            IARG_END);
-        if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
-            // only predicated-on memory instructions access D-cache
-            INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
-                IARG_PTR, (VOID *)self,
-                IARG_INST_PTR,
-                IARG_MEMORYREAD_EA,
-                IARG_MEMORYREAD_SIZE,
-                IARG_UINT32, ACCESS_TYPE_LOAD,
-                IARG_BOOL, issimd,
-                IARG_THREAD_ID,
-                IARG_END);
-        }
-        if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins)) {
-            // only predicated-on memory instructions access D-cache
-            INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
-                IARG_PTR, (VOID *)self,
-                IARG_INST_PTR,
-                IARG_MEMORYREAD2_EA,
-                IARG_MEMORYREAD_SIZE,
-                IARG_UINT32, ACCESS_TYPE_LOAD,
-                IARG_BOOL, issimd,
-                IARG_THREAD_ID,
-                IARG_END);
-        }
-        if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins)) {
-            // only predicated-on memory instructions access D-cache
-            INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)DataCacheRef,
-                IARG_PTR, (VOID *)self,
-                IARG_INST_PTR,
-                IARG_MEMORYWRITE_EA,
-                IARG_MEMORYWRITE_SIZE,
-                IARG_UINT32, ACCESS_TYPE_STORE,
-                IARG_BOOL, issimd,
-                IARG_THREAD_ID,
-                IARG_END);
-        }
-    }
-}
-
-VOID MemoryLatency::FinishInstrument(INT32 code, VOID *void_self)
-{
-    // nothing to do
-}

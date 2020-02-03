@@ -49,8 +49,6 @@ class PinInstrument {
 
   public:
     void initialize(int argc, char *argv[]);
-    /// insert the instrumentation function before running simulation
-    void instrument();
 
     /// run the actual simulation
     void simulate();

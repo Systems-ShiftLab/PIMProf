@@ -52,10 +52,6 @@ class InstructionLatency {
     // void SetBBLSize(BBLID bbl_size);
 
   public:
-    /// insert the instrumentation function before running simulation
-    void instrument();
-
-  public:
     /// Read instruction latency config to _instruction_latency from config_reader.
     /// Invalid values (including negative latency, non-integer values) will be ignored.
     void ReadConfig(ConfigReader &reader);
@@ -70,13 +66,11 @@ class InstructionLatency {
   /// Add up the cost of all instructions
   static VOID InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid);
 
-    /// The instrumentation function for normal instructions
-  static VOID InstructionInstrument(INS ins, VOID *void_self);
-
 };
 
 
 class MemoryLatency {
+    friend class PinInstrument;
   private:
     STORAGE *_storage;
     /// Reference to PinInstrument data
@@ -84,7 +78,6 @@ class MemoryLatency {
 
   public:
     void initialize(STORAGE *cache, CostPackage *cost_package, ConfigReader &reader);
-    void instrument();
 
   public:
     /// Read cache config from ofstream or file.
@@ -99,12 +92,6 @@ class MemoryLatency {
 
     /// Do on data cache reference
     static VOID DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);
-
-    /// The instrumentation function for memory instructions
-    static VOID InstructionInstrument(INS ins, VOID *void_self);
-
-    /// Finalization
-    static VOID FinishInstrument(INT32 code, VOID * void_self);
 };
 
 } // namespace PIMProf

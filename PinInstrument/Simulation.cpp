@@ -34,7 +34,6 @@ void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &rea
 
 VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid)
 {
-    
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
     BBLID bblid = pkg->_thread_bbl_scope[threadid].top();
@@ -56,6 +55,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
             PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
             return;
         }
+
         // theoretical parallelism can only be computed once
         issimd |= pkg->_inAcceleratorFunction;
         issimd &= (!pkg->_bbl_parallelizable[bblid]);
@@ -87,7 +87,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
 #endif
             }
         }
-        std::cout << OPCODE_StringShort(opcode) << std::endl;
+        // std::cout << OPCODE_StringShort(opcode) << std::endl;
     }
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }

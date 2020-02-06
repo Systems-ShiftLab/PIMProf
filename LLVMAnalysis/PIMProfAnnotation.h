@@ -17,15 +17,15 @@ static inline void PIMProfMagicOP(uint64_t op) {
 #define PIMProfMagicOP(op) ({        \
    unsigned long _op = (op); \
    __asm__ __volatile__ (                    \
-   "mov %0, %%rax \n"             \
+   "\txchg %%rbx, %%rbx\n"                     \
+   "\tmov %0, %%rax \n"             \
    "\tmov %1, %%rbx \n"           \
    "\tmov %2, %%rcx \n"           \
-   "\txchg %%rcx, %%rcx\n"                     \
    :           /* output    */   \
    : "g"(0xffff),                              \
      "g"(0xffff),                             \
      "g"(_op)            /* input     */   \
-   : "%rax", "%rbx", "%rcx"); /* clobbered */ \
+   : "%rax", "%rbx", "%rcx", "memory"); /* clobbered */ \
 })
 
 static inline void PIMProfROIBegin() {

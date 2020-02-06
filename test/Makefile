@@ -27,7 +27,7 @@ offload: $(TEST_EXE_2)
 	./$(TEST_EXE_2)
 
 $(DECISION): $(TEST_EXE) $(TEST_SO)
-	export OMP_NUM_THREADS=1 && $(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -roi -o $@ -- ./$(TEST_EXE)
+	export OMP_NUM_THREADS=1 && $(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -roidecision -o $@ -- ./$(TEST_EXE)
 
 $(TEST_EXE_2): $(TEST_OBJ_2) $(PIMPROFOFFLOADER_SO)
 	$(CLANGXX) $(OFFCXXFLAGS) -o $@ $^ -L$(LLVM_BUILD_DIR) -Wl,-rpath=$(LLVM_BUILD_DIR) $(LDFLAGS)

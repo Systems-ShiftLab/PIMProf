@@ -25,6 +25,8 @@
 #include "MurmurHash3.h"
 #include "Common.h"
 
+// #include <iostream>
+
 using namespace llvm;
 
 namespace {
@@ -38,12 +40,12 @@ namespace {
         FunctionType *asmty = FunctionType::get(
             Type::getVoidTy(ctx), argtype, false
         );
-        InlineAsm *IA = InlineAsm::get(
+        InlineAsm *xchgIA = InlineAsm::get(
             asmty,
-            "mov $0, %rax \n"
+            "\txchg %rbx, %rbx\n"
+            "\tmov $0, %rax \n"
             "\tmov $1, %rbx \n"
-            "\tmov $2, %rcx \n"
-            "\txchg %rcx, %rcx\n",
+            "\tmov $2, %rcx \n",
             "imr,imr,imr,~{rax},~{rbx},~{rcx},~{dirflag},~{fpsr},~{flags}",
             true
         );
@@ -76,6 +78,7 @@ namespace {
 
         std::string funcname = BB.getParent()->getName();
         uint64_t isomp = (funcname.find(OpenMPIdentifier) != std::string::npos);
+        // std::cout << isomp << " " << ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONHEAD, isomp) << std::endl;
         Value *control_head = ConstantInt::get(
             IntegerType::get(M.getContext(), 64), 
             ControlValue::GetControlValue(
@@ -95,9 +98,9 @@ namespace {
         Instruction *beginning = &(*BB.getFirstInsertionPt());
 
         CallInst::Create(
-            IA, arglist_head, "", beginning);
+            xchgIA, arglist_head, "", beginning);
         CallInst::Create(
-            IA, arglist_tail, "", BB.getTerminator());
+            xchgIA, arglist_tail, "", BB.getTerminator());
 
         
 

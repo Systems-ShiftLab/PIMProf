@@ -46,7 +46,7 @@ enum MAGIC_OP {
 class ControlValue {
   public:
     static inline uint64_t GetControlValue(uint64_t optype, uint64_t isomp) {
-        return ((isomp << 32) & optype);
+        return ((isomp << 32) | optype);
     }
     static inline uint64_t GetIsOpenMP(uint64_t controlvalue) {
         return (controlvalue >> 32);

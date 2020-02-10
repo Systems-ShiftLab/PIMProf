@@ -74,3 +74,11 @@ void CommandLineParser::initialize(int argc, char *argv[])
         warningmsg() << "No statistic file name specified. Printing output to " + _statsfile + "." << std::endl;
     }
 }
+
+VOID PIMProf::PrintInstruction(std::ostream *out, UINT64 insAddr, std::string insDis) {
+    *out << std::hex << insAddr << std::dec << " " << insDis << std::endl;
+}
+
+VOID PIMProf::PrintInfo(std::ostream *out, std::string info) {
+    *out << info << std::endl;
+}

@@ -23,9 +23,6 @@
 #include <set>
 
 #include "pin.H"
-extern "C" {
-#include "xed-interface.h"
-}
 #include "../LLVMAnalysis/Common.h"
 
 #include "PinUtil.h"

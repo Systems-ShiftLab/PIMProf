@@ -187,24 +187,24 @@ int main()
     PIMPROF_BEGIN_PROGRAM
 #endif
 
-    srand(0);
-    double **arr = matrix_alloc(NUM1);
-    double **c = matrix_alloc(NUM1);
-    int i, j;
-    for (i = 0; i < NUM1; i++)
-    {
-        for (j = 0; j < NUM1; j++)
-        {
-            arr[i][j] = rand() % 20 + 1;
-        }
-    }
-    for (i = 0; i < NUM1; i++)
-    {
-        for (j = 0; j < NUM1; j++)
-        {
-            c[i][j] = rand() % 20 + 1;
-        }
-    }
+    // srand(0);
+    // double **arr = matrix_alloc(NUM1);
+    // double **c = matrix_alloc(NUM1);
+    // int i, j;
+    // for (i = 0; i < NUM1; i++)
+    // {
+    //     for (j = 0; j < NUM1; j++)
+    //     {
+    //         arr[i][j] = rand() % 20 + 1;
+    //     }
+    // }
+    // for (i = 0; i < NUM1; i++)
+    // {
+    //     for (j = 0; j < NUM1; j++)
+    //     {
+    //         c[i][j] = rand() % 20 + 1;
+    //     }
+    // }
 
 #if defined ZSIM || defined SNIPER || defined PIMPROF
     PIMPROF_BEGIN_REG_PARALLEL

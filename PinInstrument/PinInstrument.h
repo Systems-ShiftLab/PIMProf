@@ -62,7 +62,7 @@ class PinInstrument {
     // static VOID ImageInstrument(IMG img, VOID *void_self);
 
     /// Main entrance of magic instruction instrumentation
-    static VOID TraceInstrument(TRACE trace, VOID *void_self);
+    static VOID InstructionInstrument(INS ins, VOID *void_self);
     static VOID HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT control_value, THREADID threadid);
 
     /// Annotation head and tail are used to mark out the beginning and end of a basic block.

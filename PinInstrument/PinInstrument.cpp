@@ -48,7 +48,7 @@ void PinInstrument::initialize(int argc, char *argv[])
 
 void PinInstrument::simulate()
 {
-    TRACE_AddInstrumentFunction(TraceInstrument, (VOID *)this);
+    INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
     PIN_AddThreadStartFunction(ThreadStart, (VOID *)this);
     PIN_AddThreadFiniFunction(ThreadFinish, (VOID *)this);
     PIN_AddFiniFunction(FinishInstrument, (VOID *)this);
@@ -75,7 +75,7 @@ VOID PinInstrument::HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT
       case MAGIC_OP_ROIDECISIONEND:
         DoAtROIDecisionTail(self, threadid); break;
       default:
-        errormsg() << "Invalid Magic OP " << op << "." << std::endl;
+        errormsg() << "Invalid Magic OP " << std::hex << control_value << " " << op << " " << isomp << "." << std::endl;
         ASSERTX(0);
     }
 }
@@ -95,8 +95,6 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._in_omp_parallel++;
     }
 
-    /// TODO: commented for testing, change back later
-
     pkg._bbl_parallelizable[it->second] |= (pkg._in_omp_parallel > 0);
 
     // overwrite _bbl_parallelizable[] if in spawned worker thread
@@ -106,7 +104,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
 
     if (pkg._command_line_parser.enableroidecision() && pkg._thread_in_roidecision[threadid]) {
         pkg._roi_decision[it->second] = CostSite::PIM;
-        // pkg._bbl_parallelizable[it->second] = true;
+        pkg._bbl_parallelizable[it->second] = true; // TODO: by default should be commented, uncomment just for test purpose
     }
 
     pkg._thread_bbl_scope[threadid].push(it->second);
@@ -249,131 +247,161 @@ VOID PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
 //     }
 // }
 
+int ins_to_skip = -1;
 
-VOID PinInstrument::TraceInstrument(TRACE trace, VOID *void_self)
+VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 {
-    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-        for (INS ins = BBL_InsHead(bbl); ins != BBL_InsTail(bbl) && INS_Valid(ins); ins = INS_Next(ins)) {
-            /***** deal with magical instructions *****/
-            /***
-             * Format of magical instructions:
-             * 
-             * xchg %rbx, %rbx
-             * mov <higher bits of the UUID>, %rax
-             * mov <lower bits of the UUID>, %rbx
-             * mov <the control bits>, %rcx
-             * 
-             * The magical instructions should all be skipped when analyzing performance
-            ***/
 
-            if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == LEVEL_BASE::REG_RBX && INS_OperandReg(ins, 1) == LEVEL_BASE::REG_RBX) {
-                for (int i = 0; i < 3; i++) {
-                    ins = INS_Next(ins);
-                    if (ins == BBL_InsTail(bbl)) break;
-                }
-                // instrument the last mov instruction
-                INS_InsertCall(
-                    ins,
-                    IPOINT_AFTER,
-                    (AFUNPTR)HandleMagic,
-                    IARG_PTR, void_self,
-                    IARG_REG_VALUE, REG_GAX,
-                    IARG_REG_VALUE, REG_GBX,
-                    IARG_REG_VALUE, REG_GCX,
-                    IARG_THREAD_ID,
-                    IARG_END);
-                continue;
-            }
+    /***** deal with magical instructions *****/
+    /***
+     * Format of magical instructions:
+     * 
+     * xchg %rbx, %rbx
+     * mov <higher bits of the UUID>, %rax
+     * mov <lower bits of the UUID>, %rbx
+     * mov <the control bits>, %rcx
+     * 
+     * The magical instructions should all be skipped when analyzing performance
+    ***/
 
-            /***** deal with non-magical instructions *****/
-
-            PinInstrument *self = (PinInstrument *)void_self;
-
-            UINT32 opcode = (UINT32)(INS_Opcode(ins));
-            BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
-            xed_decoded_inst_t *xedd = INS_XedDec(ins);
-            BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
-            // TODO: fix it later
-            issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
-            // if (issimd) {
-            //     infomsg() << std::hex << INS_Address(ins) << std::dec << " " << OPCODE_StringShort(opcode) << std::endl;
-            // };
-
-            /***** deal with the instruction latency *****/
-            INS_InsertCall(
-                ins,
-                IPOINT_BEFORE,
-                (AFUNPTR)InstructionLatency::InstructionCount,
-                IARG_PTR, &self->_instruction_latency,
-                IARG_ADDRINT, opcode,
-                IARG_BOOL, ismem,
-                IARG_BOOL, issimd,
-                IARG_THREAD_ID,
-                IARG_END);
-
-
-            UINT32 ins_len = xed_decoded_inst_get_length(xedd);
-
-            /***** deal with the memory latency *****/
-            // all instruction fetches access I-cache
-            INS_InsertCall(
-                ins,
-                IPOINT_BEFORE,
-                (AFUNPTR)MemoryLatency::InstrCacheRef,
-                IARG_PTR, &self->_memory_latency,
-                IARG_INST_PTR,
-                IARG_UINT32, ins_len,
-                IARG_BOOL, issimd,
-                IARG_THREAD_ID,
-                IARG_END);
-            if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
-                // only predicated-on memory instructions access D-cache
-                INS_InsertPredicatedCall(
-                    ins,
-                    IPOINT_BEFORE,
-                    (AFUNPTR)MemoryLatency::DataCacheRef,
-                    IARG_PTR, &self->_memory_latency,
-                    IARG_INST_PTR,
-                    IARG_MEMORYREAD_EA,
-                    IARG_MEMORYREAD_SIZE,
-                    IARG_UINT32, ACCESS_TYPE_LOAD,
-                    IARG_BOOL, issimd,
-                    IARG_THREAD_ID,
-                    IARG_END);
-            }
-            if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins)) {
-                // only predicated-on memory instructions access D-cache
-                INS_InsertPredicatedCall(
-                    ins,
-                    IPOINT_BEFORE,
-                    (AFUNPTR)MemoryLatency::DataCacheRef,
-                    IARG_PTR, &self->_memory_latency,
-                    IARG_INST_PTR,
-                    IARG_MEMORYREAD2_EA,
-                    IARG_MEMORYREAD_SIZE,
-                    IARG_UINT32, ACCESS_TYPE_LOAD,
-                    IARG_BOOL, issimd,
-                    IARG_THREAD_ID,
-                    IARG_END);
-            }
-            if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins)) {
-                // only predicated-on memory instructions access D-cache
-                INS_InsertPredicatedCall(
-                    ins,
-                    IPOINT_BEFORE,
-                    (AFUNPTR)MemoryLatency::DataCacheRef,
-                    IARG_PTR, &self->_memory_latency,
-                    IARG_INST_PTR,
-                    IARG_MEMORYWRITE_EA,
-                    IARG_MEMORYWRITE_SIZE,
-                    IARG_UINT32, ACCESS_TYPE_STORE,
-                    IARG_BOOL, issimd,
-                    IARG_THREAD_ID,
-                    IARG_END);
-            }
-        }
+    if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == LEVEL_BASE::REG_RBX && INS_OperandReg(ins, 1) == LEVEL_BASE::REG_RBX) {
+        // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInfo, IARG_PTR, &std::cout, IARG_PTR, new std::string("is xchg"), IARG_END);
+        ins_to_skip = 2;
+        return;
     }
-    
+
+    if (ins_to_skip > 0) {
+        ASSERTX(INS_IsMov(ins));
+        // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInfo, IARG_PTR, &std::cout, IARG_PTR, new std::string("is mov"), IARG_END);
+        ins_to_skip--;
+        return;
+    }
+
+    if (ins_to_skip == 0) {
+        ASSERTX(INS_IsMov(ins));
+        // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInfo, IARG_PTR, &std::cout, IARG_PTR, new std::string("is handlemagic"), IARG_END);
+        // instrument the last mov instruction
+        INS_InsertCall(
+            ins,
+            IPOINT_AFTER,
+            (AFUNPTR)HandleMagic,
+            IARG_PTR, void_self,
+            IARG_REG_VALUE, REG_GAX,
+            IARG_REG_VALUE, REG_GBX,
+            IARG_REG_VALUE, REG_GCX,
+            IARG_THREAD_ID,
+            IARG_END);
+        ins_to_skip = -1;
+        return;
+    }
+/*
+    if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == LEVEL_BASE::REG_RBX && INS_OperandReg(ins, 1) == LEVEL_BASE::REG_RBX) {
+        infomsg() << (ins == BBL_InsTail(bbl)) << " " << INS_Valid(ins) << std::endl;
+        PrintInstruction(infomsg(), ins);
+        for (int i = 0; i < 3; i++) {
+            ins = INS_Next(ins);
+            infomsg() << (ins == BBL_InsTail(bbl)) << " " << INS_Valid(ins) << std::endl;
+            PrintInstruction(infomsg(), ins);
+        }
+        // instrument the last mov instruction
+        INS_InsertCall(
+            ins,
+            IPOINT_AFTER,
+            (AFUNPTR)HandleMagic,
+            IARG_PTR, void_self,
+            IARG_REG_VALUE, REG_GAX,
+            IARG_REG_VALUE, REG_GBX,
+            IARG_REG_VALUE, REG_GCX,
+            IARG_THREAD_ID,
+            IARG_END);
+        return;
+    }
+*/
+    /***** deal with non-magical instructions *****/
+
+    // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_END);
+
+    PinInstrument *self = (PinInstrument *)void_self;
+
+    UINT32 opcode = (UINT32)(INS_Opcode(ins));
+    BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
+    xed_decoded_inst_t *xedd = INS_XedDec(ins);
+    BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
+    // TODO: fix it later
+    issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
+
+    /***** deal with the instruction latency *****/
+    INS_InsertCall(
+        ins,
+        IPOINT_BEFORE,
+        (AFUNPTR)InstructionLatency::InstructionCount,
+        IARG_PTR, &self->_instruction_latency,
+        IARG_ADDRINT, opcode,
+        IARG_BOOL, ismem,
+        IARG_BOOL, issimd,
+        IARG_THREAD_ID,
+        IARG_END);
+
+
+    UINT32 ins_len = xed_decoded_inst_get_length(xedd);
+
+    /***** deal with the memory latency *****/
+    // all instruction fetches access I-cache
+    INS_InsertCall(
+        ins,
+        IPOINT_BEFORE,
+        (AFUNPTR)MemoryLatency::InstrCacheRef,
+        IARG_PTR, &self->_memory_latency,
+        IARG_INST_PTR,
+        IARG_UINT32, ins_len,
+        IARG_BOOL, issimd,
+        IARG_THREAD_ID,
+        IARG_END);
+    if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
+        // only predicated-on memory instructions access D-cache
+        INS_InsertPredicatedCall(
+            ins,
+            IPOINT_BEFORE,
+            (AFUNPTR)MemoryLatency::DataCacheRef,
+            IARG_PTR, &self->_memory_latency,
+            IARG_INST_PTR,
+            IARG_MEMORYREAD_EA,
+            IARG_MEMORYREAD_SIZE,
+            IARG_UINT32, ACCESS_TYPE_LOAD,
+            IARG_BOOL, issimd,
+            IARG_THREAD_ID,
+            IARG_END);
+    }
+    if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins)) {
+        // only predicated-on memory instructions access D-cache
+        INS_InsertPredicatedCall(
+            ins,
+            IPOINT_BEFORE,
+            (AFUNPTR)MemoryLatency::DataCacheRef,
+            IARG_PTR, &self->_memory_latency,
+            IARG_INST_PTR,
+            IARG_MEMORYREAD2_EA,
+            IARG_MEMORYREAD_SIZE,
+            IARG_UINT32, ACCESS_TYPE_LOAD,
+            IARG_BOOL, issimd,
+            IARG_THREAD_ID,
+            IARG_END);
+    }
+    if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins)) {
+        // only predicated-on memory instructions access D-cache
+        INS_InsertPredicatedCall(
+            ins,
+            IPOINT_BEFORE,
+            (AFUNPTR)MemoryLatency::DataCacheRef,
+            IARG_PTR, &self->_memory_latency,
+            IARG_INST_PTR,
+            IARG_MEMORYWRITE_EA,
+            IARG_MEMORYWRITE_SIZE,
+            IARG_UINT32, ACCESS_TYPE_STORE,
+            IARG_BOOL, issimd,
+            IARG_THREAD_ID,
+            IARG_END);
+    }
 }
 
 #include <memory>

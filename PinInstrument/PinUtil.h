@@ -14,6 +14,9 @@
 #include <bitset>
 
 #include "pin.H"
+extern "C" {
+#include "xed-interface.h"
+}
 #include "INIReader.h"
 
 namespace PIMProf {
@@ -168,6 +171,13 @@ class ConfigReader: public INIReader {
     }
 };
 
-} // namespace PIMProf
+/* ===================================================================== */
+/* InstructionPrinter */
+/* ===================================================================== */
+
+VOID PrintInstruction(std::ostream *out, UINT64 insAddr, std::string insDis);
+VOID PrintInfo(std::ostream *out, std::string info);
+
+}// namespace PIMProf
 
 #endif // __PINUTIL_H__

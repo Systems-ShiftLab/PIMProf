@@ -157,14 +157,7 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size
         PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
         return;
     }
-    // pkg->_previous_instr[threadid]++;
-    // (*pkg->_trace_file[threadid])
-    //     << threadid << " "
-    //     << threadid << " " // we assume coreid == threadid
-    //     << "- "
-    //     << "I "
-    //     << addr << " "
-    //     << 64 << std::endl;
+    pkg->_previous_instr[threadid]++;
     if ((pkg->_thread_count == 1 && threadid == 0) ||
     (pkg->_thread_count >= 2 && threadid == 1)) {
         self->_storage->InstrCacheRef(addr, size, bblid, issimd);
@@ -182,17 +175,10 @@ VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, 
         PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
         return;
     }
-    (*pkg->_trace_file[threadid])
-        << "[" << threadid << "] "
-        << (accessType == ACCESS_TYPE_LOAD ? "R, " : "W, ")
-        << std::hex << "0x" << addr << std::dec << " "
-        << size
-        << std::hex << " (0x" << ip << ")" << std::dec
-        << std::endl;
     pkg->_previous_instr[threadid] = 0;
     if ((pkg->_thread_count == 1 && threadid == 0) ||
     (pkg->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRef(addr, size, accessType, bblid, issimd);
+        self->_storage->DataCacheRef(ip, addr, size, accessType, bblid, issimd);
     }
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }

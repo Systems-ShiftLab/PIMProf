@@ -6,18 +6,10 @@
 #include <assert.h>
 #include "Common.h"
 
-#define COMPILER_BARRIER() { __asm__ __volatile__("" ::: "memory");}
-
-static inline void PIMProfMagicOP(uint64_t op) {
-    COMPILER_BARRIER();
-    __asm__ __volatile__("xchg %%rcx, %%rcx;" : : "c"(op));
-    COMPILER_BARRIER();
-}
-
 #define PIMProfMagicOP(op) ({        \
    unsigned long _op = (op); \
    __asm__ __volatile__ (                    \
-   "\txchg %%rbx, %%rbx\n"                     \
+   "\txchg %%rcx, %%rcx\n"                     \
    "\tmov %0, %%rax \n"             \
    "\tmov %1, %%rbx \n"           \
    "\tmov %2, %%rcx \n"           \
@@ -48,7 +40,7 @@ static inline void PIMProfROIDecisionEnd() {
     printf("PIMProf ROI decision end\n");
 }
 
-#ifdef PIMPROF
+#if defined PIMPROF
     #define PIMPROF_BEGIN_PROGRAM PIMProfROIDecisionBegin();
     #define PIMPROF_END_PROGRAM PIMProfROIDecisionEnd();
     #define PIMPROF_BEGIN_REG_PARALLEL PIMProfROIBegin();

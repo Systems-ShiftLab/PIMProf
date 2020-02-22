@@ -548,7 +548,7 @@ class STORAGE
     VOID InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd);
 
     /// Do on data cache reference
-    VOID DataCacheRef(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
+    VOID DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
 
 };
 

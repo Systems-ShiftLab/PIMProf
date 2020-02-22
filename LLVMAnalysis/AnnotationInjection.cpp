@@ -42,7 +42,7 @@ namespace {
         );
         InlineAsm *xchgIA = InlineAsm::get(
             asmty,
-            "\txchg %rbx, %rbx\n"
+            "\txchg %rcx, %rcx\n"
             "\tmov $0, %rax \n"
             "\tmov $1, %rbx \n"
             "\tmov $2, %rcx \n",

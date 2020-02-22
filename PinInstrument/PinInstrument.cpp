@@ -75,7 +75,7 @@ VOID PinInstrument::HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT
       case MAGIC_OP_ROIDECISIONEND:
         DoAtROIDecisionTail(self, threadid); break;
       default:
-        errormsg() << "Invalid Magic OP " << std::hex << control_value << " " << op << " " << isomp << "." << std::endl;
+        errormsg() << "Invalid Control Value " << std::hex << control_value << " " << op << " " << isomp << "." << std::endl;
         ASSERTX(0);
     }
 }
@@ -109,6 +109,8 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
 
     pkg._thread_bbl_scope[threadid].push(it->second);
 
+    (*pkg._trace_file[0]) << "PIMProf BBLStart " << it->second << std::endl;
+
 #ifdef PIMPROFDEBUG
     pkg._bbl_visit_cnt[it->second]++;
 #endif
@@ -127,9 +129,10 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._in_omp_parallel--;
     }
     ASSERTX(pkg._thread_bbl_scope[threadid].top() == pkg._bbl_hash[bblhash]);
+    (*pkg._trace_file[0]) << "PIMProf BBLEnd " << pkg._thread_bbl_scope[0].top() << std::endl;
+    // infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << " " << pkg._in_omp_parallel << std::endl;
     pkg._thread_bbl_scope[threadid].pop();
 
-    // infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << " " << pkg._in_omp_parallel << std::endl;
 
 
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
@@ -256,7 +259,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
     /***
      * Format of magical instructions:
      * 
-     * xchg %rbx, %rbx
+     * xchg %rcx, %rcx
      * mov <higher bits of the UUID>, %rax
      * mov <lower bits of the UUID>, %rbx
      * mov <the control bits>, %rcx
@@ -264,7 +267,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
      * The magical instructions should all be skipped when analyzing performance
     ***/
 
-    if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == LEVEL_BASE::REG_RBX && INS_OperandReg(ins, 1) == LEVEL_BASE::REG_RBX) {
+    if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == LEVEL_BASE::REG_RCX && INS_OperandReg(ins, 1) == LEVEL_BASE::REG_RCX) {
         // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInfo, IARG_PTR, &std::cout, IARG_PTR, new std::string("is xchg"), IARG_END);
         ins_to_skip = 2;
         return;
@@ -319,7 +322,10 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 */
     /***** deal with non-magical instructions *****/
 
-    // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_END);
+    if (RTN_Valid(INS_Rtn(ins)))
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins) + ", " + RTN_Name(INS_Rtn(ins))), IARG_END);
+    else
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_END);
 
     PinInstrument *self = (PinInstrument *)void_self;
 

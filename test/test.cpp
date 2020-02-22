@@ -9,13 +9,6 @@
 #include "PIMProfAnnotation.h"
 #endif
 
-#include <cassert>
-
-using namespace std;
-
-void print4();
-void pthreads_exec();
-
 #ifndef NUM1
 #define NUM1 9
 #endif
@@ -25,6 +18,34 @@ void pthreads_exec();
 #ifndef ITER1
 #define ITER1 3
 #endif
+
+#ifndef RATE
+#define RATE 50
+#endif
+#ifndef RANDOM
+#define RANDOM 100
+#endif
+#ifndef SEQUENTIAL
+#define SEQUENTIAL 1
+#endif
+
+#include <cassert>
+
+using namespace std;
+
+void print4();
+void pthreads_exec();
+
+const int PAGE_SIZE = 0x1000;
+int INTNUM_IN_PAGE;
+int INTNUM_IN_LINE;
+const int LINE_SIZE = 0x40;
+const int PAGE_MAX = 0x10000;
+const unsigned int A = 1103515245;
+const unsigned int C = 12345;
+const unsigned int M = 0x7fffffff;
+unsigned int *arr;
+
 // #ifndef ITER2
 // #define ITER2 1
 // #endif
@@ -206,19 +227,52 @@ int main()
     //     }
     // }
 
+    arr = (unsigned int *)aligned_alloc(LINE_SIZE, PAGE_SIZE * PAGE_MAX);
+    INTNUM_IN_PAGE = PAGE_SIZE / sizeof(int);
+    INTNUM_IN_LINE = LINE_SIZE / sizeof(int);
+    int i, j, k, l, page_number, addr;
+
+    printf("RATE=%d, RANDOM=%d, SEQUENTIAL=%d\n", RATE, RANDOM, SEQUENTIAL);
+    printf("total random accesses=%d\n", RATE * RANDOM);
+    printf("total sequential accesses=%d\n", RATE * RANDOM * (SEQUENTIAL - 1));
+    printf("total multiplications=%d\n", RATE * RANDOM * SEQUENTIAL);
+    unsigned rng = 1;
+
+    int temp = 35;
+
 #if defined ZSIM || defined SNIPER || defined PIMPROF
     PIMPROF_BEGIN_REG_PARALLEL
 #endif
-    #pragma omp parallel for
-    for (int i = 0; i < 5; i++) {
-        std::cout << i << std::endl;
+
+    // __asm__ __volatile__(
+    //     "\tmov %1, %%rax \n"
+    //     "\tmov %2, %%rbx \n"
+    //     "\tadd %%rax, %%rbx \n"
+    //     "\tmovq %%rbx, %0 \n"
+    //     : "=m"(temp) /* output    */
+    //     : "g"(temp),
+    //       "g"(7) /* input */
+    //     : "%rax", "%rbx"); /* clobbered */
+
+    // #pragma omp parallel for collapse(2)
+    for (i = 0; i < RATE; i++) {
+        for (j = 0; j < RANDOM; j++) {
+            rng = (rng * A + C) & M;
+            page_number = rng % PAGE_MAX;
+            for (k = 0; k < SEQUENTIAL; k++) {
+                addr = page_number * INTNUM_IN_PAGE + k % INTNUM_IN_LINE;
+                arr[addr] *= (arr[addr] + 1);
+            }
+        }
     }
+
     // for (i = 0; i < ITER1; i++)
     //     transpose(arr, NUM2);
 
 #if defined ZSIM || defined SNIPER || defined PIMPROF
     PIMPROF_END_REG_PARALLEL
 #endif
+    printf("%d\n", temp);
 
     // pthreads_exec();
 #if defined ZSIM || defined SNIPER || defined PIMPROF

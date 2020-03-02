@@ -109,7 +109,9 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
 
     pkg._thread_bbl_scope[threadid].push(it->second);
 
+#ifdef PIMPROFTRACE
     (*pkg._trace_file[0]) << "PIMProf BBLStart " << it->second << std::endl;
+#endif
 
 #ifdef PIMPROFDEBUG
     pkg._bbl_visit_cnt[it->second]++;
@@ -129,7 +131,9 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
         pkg._in_omp_parallel--;
     }
     ASSERTX(pkg._thread_bbl_scope[threadid].top() == pkg._bbl_hash[bblhash]);
+#ifdef PIMPROFTRACE
     (*pkg._trace_file[0]) << "PIMProf BBLEnd " << pkg._thread_bbl_scope[0].top() << std::endl;
+#endif
     // infomsg() << "AnnotationTail: " << pkg._thread_bbl_scope[threadid].top() << " " << pkg._bbl_hash[bblhash] << " " << isomp << " "<< threadid << " " << pkg._in_omp_parallel << std::endl;
     pkg._thread_bbl_scope[threadid].pop();
 

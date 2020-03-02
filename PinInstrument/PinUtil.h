@@ -125,7 +125,7 @@ class CommandLineParser {
     inline std::string statsfile() { return _statsfile; }
     inline bool enableroi() { return _enableroi; }
     inline bool enableroidecision() { return _enableroidecision; }
-    inline bool enableglobalbbl() { return false; } // whether considering the dependency with the global BBL
+    inline bool enableglobalbbl() { return true; } // whether considering the dependency with the global BBL
 
     inline int Usage(std::ostream &out) {
         out << "Invalid argument."

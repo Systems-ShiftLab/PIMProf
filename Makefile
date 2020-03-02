@@ -5,7 +5,7 @@ ifndef PIMPROF_DIR
 $(error PIMPROF_DIR is not set in Makefile.config)
 endif
 
-all: llvm pin lib
+all: llvm pin_debug lib
 
 debug: llvm pin_debug lib
 

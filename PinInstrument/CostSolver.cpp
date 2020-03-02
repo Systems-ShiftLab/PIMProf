@@ -40,8 +40,6 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
         }
     }
 
-    DECISION decision, result;
-
     std::cout << std::right << std::setw(14) << "PLAN"
               << std::right << std::setw(15) << "INSTRUCTION"
               << std::right << std::setw(15) << "MEMORY"
@@ -59,63 +57,61 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
               << std::right << std::setw(15) << "TOTAL"
               << std::endl;
 
-    //
-    decision.clear();
-
 #ifdef PIMPROFDEBUG
+    DECISION _mpki_decision;
     infomsg() << "bblid\tmiss\tinstr\tmpki\tsimd" << std::endl;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         FLT64 mpki = (FLT64)_cost_package->_cache_miss[i] / _cost_package->_bbl_instr_cnt[i] * 1000;
         infomsg() << i << "\t" << _cost_package->_cache_miss[i] << "\t" << _cost_package->_bbl_instr_cnt[i] << "\t" << mpki << "\t" << _cost_package->_simd_instr_cnt[i] << std::endl;
         if (mpki >= _mpkithreshold) {
-            decision.push_back(PIM);
+            _mpki_decision.push_back(PIM);
         }
         else {
-            decision.push_back(CPU);
+            _mpki_decision.push_back(CPU);
         }
     }
-    PrintDecisionStat(std::cout, decision, "MPKI");
-    PrintDecisionStat(out, decision, "MPKI");
+    PrintDecisionStat(std::cout, _mpki_decision, "MPKI");
+    PrintDecisionStat(out, _mpki_decision, "MPKI");
 #endif
 
     // pure CPU
-    decision.clear();
+    DECISION _pure_cpu_decision;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-        decision.push_back(CPU);
+        _pure_cpu_decision.push_back(CPU);
     }
-    PrintDecisionStat(std::cout, decision, "Pure CPU");
-    PrintDecisionStat(out, decision, "Pure CPU");
+    PrintDecisionStat(std::cout, _pure_cpu_decision, "Pure CPU");
+    PrintDecisionStat(out, _pure_cpu_decision, "Pure CPU");
 
      // pure PIM
-    decision.clear();
+    DECISION _pure_pim_decision;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-        decision.push_back(PIM);
+        _pure_pim_decision.push_back(PIM);
     }
-    PrintDecisionStat(std::cout, decision, "Pure PIM");
-    PrintDecisionStat(out, decision, "Pure PIM");
+    PrintDecisionStat(std::cout, _pure_pim_decision, "Pure PIM");
+    PrintDecisionStat(out, _pure_pim_decision, "Pure PIM");
 
 
     // greedy decision
-    decision.clear();
+    DECISION _greedy_decision;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
         if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
-            decision.push_back(CPU);
+            _greedy_decision.push_back(CPU);
         }
         else {
-            decision.push_back(PIM);
+            _greedy_decision.push_back(PIM);
         }
     }
     // std::ofstream tempofs("greedy_decision.out", std::ofstream::out);
     // PrintDecision(tempofs, decision, false);
-    PrintDecisionStat(std::cout, decision, "Greedy");
-    PrintDecisionStat(out, decision, "Greedy");
+    PrintDecisionStat(std::cout, _greedy_decision, "Greedy");
+    PrintDecisionStat(out, _greedy_decision, "Greedy");
 
     // Optimal
-    result = FindOptimal();
-    PrintDecisionStat(std::cout, result, "PIMProf opt");
-    PrintDecisionStat(out, result, "PIMProf opt");
+    DECISION _opt_decision = FindOptimal();
+    PrintDecisionStat(std::cout, _opt_decision, "PIMProf opt");
+    PrintDecisionStat(out, _opt_decision, "PIMProf opt");
     out << std::endl;
-    PrintDecision(out, result, false);
+    PrintDecision(out, _opt_decision, false);
 
     if (!_cost_package->_roi_decision.empty()) {
         out << std::endl;
@@ -126,7 +122,22 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
         PrintDecision(out, _cost_package->_roi_decision, false);
     }
 
-    return result;
+#ifdef PIMPROFDEBUG
+     out << std::right << std::setw(14) << "PLAN"
+          << std::right << std::setw(15) << "INSTRUCTION"
+          << std::right << std::setw(15) << "L1I"
+          << std::right << std::setw(15) << "L1D"
+          << std::right << std::setw(15) << "L2"
+          << std::right << std::setw(15) << "L3"
+          << std::right << std::setw(15) << "MEMORY"
+          << std::endl;
+     PrintCostBreakdown(out, _pure_cpu_decision, "Pure CPU");
+     PrintCostBreakdown(out, _pure_pim_decision, "Pure PIM");
+     PrintCostBreakdown(out, _greedy_decision, "Greedy");
+     PrintCostBreakdown(out, _opt_decision, "PIMProf opt");
+#endif
+
+    return _opt_decision;
 }
 
 VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
@@ -323,13 +334,13 @@ CostSolver::DECISION CostSolver::FindOptimal()
 VOID CostSolver::ReadConfig(ConfigReader &reader)
 {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        COST ilp = reader.GetInteger("ILP", CostSiteName[i], -1);
+        COST ilp = reader.GetReal("ILP", CostSiteName[i], -1);
         ASSERTX(ilp > 0);
         _cost_package->_ilp[i] = ilp;
     }
 
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        COST mlp = reader.GetInteger("MLP", CostSiteName[i], -1);
+        COST mlp = reader.GetReal("MLP", CostSiteName[i], -1);
         ASSERTX(mlp > 0);
         _cost_package->_mlp[i] = mlp;
     }
@@ -406,8 +417,16 @@ VOID CostSolver::ReadConfig(ConfigReader &reader)
 VOID CostSolver::SetBBLSize(BBLID bbl_size) {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         _BBL_partial_total[i].resize(bbl_size);
-        memset(&_BBL_partial_total[i][0], 0, bbl_size * sizeof _BBL_partial_total[i][0]);
+        memset(&_BBL_partial_total[i][0], 0, bbl_size * sizeof(_BBL_partial_total[i][0]));
     }
+#ifdef PIMPROFDEBUG
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        for (UINT32 j = 0; j < MAX_LEVEL; j++) {
+            _BBL_storage_partial_total[i][j].resize(bbl_size);
+            memset(&_BBL_storage_partial_total[i][j][0], 0, bbl_size * sizeof(_BBL_storage_partial_total[i][j][0]));
+        }
+    }
+#endif
 }
 
 std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
@@ -484,6 +503,37 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
         << std::right << std::setw(15) << (cur_instr_cost + cur_mem_cost) 
         << std::right << std::setw(15) << cur_reuse_cost
         << std::right << std::setw(15) << (cur_instr_cost + cur_mem_cost + cur_reuse_cost)
+        << std::endl;
+    return out;
+}
+
+std::ostream &CostSolver::PrintCostBreakdown(std::ostream &out, const DECISION &decision, const std::string &name)
+{
+    COST cur_instr_cost = 0;
+    COST cur_storage_level_cost[MAX_LEVEL] = {0};
+    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        CostSite site = decision[i];
+        if (site == CPU || site == PIM) {
+            cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
+        }
+    }
+
+    for (UINT32 i = 0; i < MAX_LEVEL; i++) {
+        for (UINT32 j = 0; j < _cost_package->_bbl_size; j++) {
+            CostSite site = decision[j];
+            if (site == CPU || site == PIM) {
+                cur_storage_level_cost[i] += _cost_package->BBLStorageLevelCost(site, (StorageLevel)i, j);
+            }
+        }
+    }
+
+    out << std::right << std::setw(14) << name + ":"
+        << std::right << std::setw(15) << cur_instr_cost 
+        << std::right << std::setw(15) << cur_storage_level_cost[IL1]
+        << std::right << std::setw(15) << cur_storage_level_cost[DL1]
+        << std::right << std::setw(15) << cur_storage_level_cost[UL2]
+        << std::right << std::setw(15) << cur_storage_level_cost[UL3]
+        << std::right << std::setw(15) << cur_storage_level_cost[MEM]
         << std::endl;
     return out;
 }

@@ -48,5 +48,10 @@ void CostPackage::initializeNewBBL(UUID bblhash) {
     _bbl_instr_cnt.push_back(0);
     _simd_instr_cnt.push_back(0);
     _cache_miss.push_back(0);
+    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+        for (UINT32 j = 0; j < MAX_LEVEL; j++) {
+            _bbl_storage_level_cost[i][j].push_back(0);
+        }
+    }
 #endif
 }

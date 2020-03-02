@@ -193,6 +193,9 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
                 cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
+#ifdef PIMPROFDEBUG
+            _storage->_cost_package->_bbl_storage_level_cost[i][_storage_level][bblid] += cost;
+#endif
         }
     }
 }
@@ -338,6 +341,9 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
                 cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
+#ifdef PIMPROFDEBUG
+            _storage->_cost_package->_bbl_storage_level_cost[i][_storage_level][bblid] += cost;
+#endif
         }
     }
 }
@@ -549,12 +555,14 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
                 _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, issimd);
                 _last_icacheline[i] = nextLine;
 
+#ifdef PIMPROFTRACE
                 if (i == 0) {
                     (*_cost_package->_trace_file[0])
                     << std::hex << "[0] I, 0x"
                     << nextLine << " " << std::dec
                     << 64 << std::endl;
                 }
+#endif
             }
             // otherwise do nothing
         }
@@ -563,7 +571,8 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
                 _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, issimd);
                 _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, issimd);
                 _last_icacheline[i] = nextLine;
-                
+
+#ifdef PIMPROFTRACE
                 if (i == 0) {
                     (*_cost_package->_trace_file[0])
                     << std::hex << "[0] I, 0x"
@@ -574,17 +583,20 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
                     << nextLine << " " << std::dec
                     << 64 << std::endl;
                 }
+#endif
             }
             else {
                 _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, issimd);
                 _last_icacheline[i] = curLine;
 
+#ifdef PIMPROFTRACE
                 if (i == 0) {
                     (*_cost_package->_trace_file[0])
                     << std::hex << "[0] I, 0x"
                     << curLine << " " << std::dec
                     << 64 << std::endl;
                 }
+#endif
             }
         }
     }
@@ -600,6 +612,7 @@ VOID STORAGE::DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE ac
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         _storage_top[i][DL1]->Access(addr, size, accessType, bblid, issimd);
     }
+#ifdef PIMPROFTRACE
     (*_cost_package->_trace_file[0])
     << "[0] "
     << (accessType == ACCESS_TYPE_LOAD ? "R, " : "W, ")
@@ -607,5 +620,6 @@ VOID STORAGE::DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE ac
     << size
     << std::hex << " (0x" << ip << ")" << std::dec
     << std::endl;
+#endif
 }
 

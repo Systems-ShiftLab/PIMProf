@@ -321,12 +321,12 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
     }
 */
     /***** deal with non-magical instructions *****/
-
+/*
     if (RTN_Valid(INS_Rtn(ins)))
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins) + ", " + RTN_Name(INS_Rtn(ins))), IARG_END);
     else
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_END);
-
+*/
     PinInstrument *self = (PinInstrument *)void_self;
 
     UINT32 opcode = (UINT32)(INS_Opcode(ins));
@@ -433,12 +433,15 @@ VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, V
     }
 
     pkg._previous_instr.push_back(0);
+
+#ifdef PIMPROFTRACE
     std::ofstream *ofs = new std::ofstream;
     std::stringstream ss;
     ss << pkg._thread_count;
     std::string tracefile = "MemTrace.out." + ss.str();
     ofs->open(tracefile.c_str(), std::ofstream::out);
     pkg._trace_file.push_back(ofs);
+#endif
 
     pkg._thread_count++;
     infomsg() << "ThreadStart:" << threadid << " " << pkg._thread_count << std::endl;
@@ -452,10 +455,12 @@ VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 f
     PinInstrument *self = (PinInstrument *)void_self;
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexWriteLock(&pkg._thread_count_rwmutex);
+#ifdef PIMPROFTRACE
     for (auto i: pkg._trace_file) {
         i->close();
         delete i;
     }
+#endif
     pkg._thread_count--;
     infomsg() << "ThreadEnd:" << threadid << " " << pkg._thread_count << std::endl;
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);

@@ -40,6 +40,9 @@ class CostSolver {
     CostPackage *_cost_package;
 
     std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
+#ifdef PIMPROFDEBUG
+    std::vector<COST> _BBL_storage_partial_total[MAX_COST_SITE][MAX_LEVEL];
+#endif
 
     double _batchthreshold;
     int _batchsize;
@@ -66,6 +69,7 @@ class CostSolver {
 
     std::ostream &PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen);
     std::ostream &PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name);
+    std::ostream &PrintCostBreakdown(std::ostream &out, const DECISION &decision, const std::string &name);
     std::ostream &PrintAnalytics(std::ostream &out);
 };
 

@@ -112,8 +112,10 @@ class CostPackage {
     std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
     std::vector<CostSite> _roi_decision;
 
-    /// debug purpose: the instruction memory cost of each BB
+#ifdef PIMPROFDEBUG
+    std::vector<COST> _bbl_storage_level_cost[MAX_COST_SITE][MAX_LEVEL];
     std::vector<COST> _bbl_instruction_memory_cost[MAX_COST_SITE];
+#endif
 
   public:
     /// keep track of the data reuse cost
@@ -150,6 +152,16 @@ class CostPackage {
             return _bbl_instruction_memory_cost[site][bbl] / _mlp[site];
         }
     }
+#ifdef PIMPROFDEBUG
+    inline COST BBLStorageLevelCost(CostSite site, StorageLevel lvl, BBLID bbl) {
+        if (_bbl_parallelizable[bbl]) {
+            return _bbl_storage_level_cost[site][lvl][bbl] / _mlp[site] / _core_count[site];
+        }
+        else {
+            return _bbl_storage_level_cost[site][lvl][bbl] / _mlp[site];
+        }
+    }
+#endif
 };
 
 } // namespace PIMProf

@@ -178,30 +178,36 @@ CACHE_LEVEL::~CACHE_LEVEL()
     }
 }
 
+int bbl_costcount = 0;
 
-VOID CACHE_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
+
+VOID CACHE_LEVEL::AddMemCost(BBLID bblid, UINT32 simd_len)
 {
     // When this is a CPU cache level, for example,
     // _hitcost[PIM] will be assigned to 0
     if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
-        issimd |= _storage->_cost_package->_inAcceleratorFunction;
+        simd_len |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
-        issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
+        simd_len &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
-            if (issimd) {
-                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
+            if (simd_len) {
+                cost = cost * _storage->_cost_package->_simd_capability[i] / _storage->_cost_package->_core_count[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG
             _storage->_cost_package->_bbl_storage_level_cost[i][_storage_level][bblid] += cost;
+            if (bbl_costcount < 1000000 && i == PIM && _storage_level == MEM && cost != 0 && cost != 80) {
+                std::cout << (simd_len?"T ":"F ") << _storage->_cost_package->_thread_count << " " << i << " " << _storage_level << " " << cost << std::endl;
+                bbl_costcount++;
+            }
 #endif
         }
     }
 }
 
 
-BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
+BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len)
 {
     const ADDRINT highAddr = addr + size;
     BOOL allHit = true;
@@ -210,7 +216,7 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLI
     const ADDRINT notLineMask = ~(lineSize - 1);
     do
     {
-        allHit &= AccessSingleLine(addr, accessType, bblid, issimd);
+        allHit &= AccessSingleLine(addr, accessType, bblid, simd_len);
         addr = (addr & notLineMask) + lineSize; // start of next cache line
 
     } while (addr < highAddr);
@@ -218,16 +224,16 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLI
     return allHit;
 }
 
-VOID CACHE_LEVEL::AddInstructionMemCost(BBLID bblid, BOOL issimd)
+VOID CACHE_LEVEL::AddInstructionMemCost(BBLID bblid, UINT32 simd_len)
 {
     if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
-        issimd |= _storage->_cost_package->_inAcceleratorFunction;
+        simd_len |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
-        issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
+        simd_len &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
-            if (issimd) {
-                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
+            if (simd_len) {
+                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_capability[i];
             }
             _storage->_cost_package->_bbl_instruction_memory_cost[i][bblid] += cost;
         }
@@ -235,7 +241,7 @@ VOID CACHE_LEVEL::AddInstructionMemCost(BBLID bblid, BOOL issimd)
 }
 
 
-BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
+BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len)
 {
     ADDRINT tagaddr;
     UINT32 setIndex;
@@ -250,9 +256,9 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID b
     // Since the cost in config is the total access latency of hitting a cache level
     // we only increase the total cost when there is a hit.
     if (hit) {
-        AddMemCost(bblid, issimd);
+        AddMemCost(bblid, simd_len);
         if (_storage_level == 0) {
-            AddInstructionMemCost(bblid, issimd);
+            AddInstructionMemCost(bblid, simd_len);
         }
     }
     
@@ -274,7 +280,7 @@ BOOL CACHE_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID b
         // _hitcost[CPU] > 0 means that this is a CPU cache level
         if (_next_level->_storage_level == MEM && _hitcost[CPU] > 0)
             SplitOnMiss(tagaddr);
-        _next_level->AccessSingleLine(addr, accessType, bblid, issimd);
+        _next_level->AccessSingleLine(addr, accessType, bblid, simd_len);
     }
     if (hit && _hitcost[CPU] > 0) {
         InsertOnHit(tagaddr, accessType, bblid);
@@ -325,30 +331,34 @@ MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel st
         _hitcost[i] = hitcost[i];
 }
 
-VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, BOOL issimd)
+VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, UINT32 simd_len)
 {
     if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
 #ifdef PIMPROFDEBUG
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
 #endif
-        issimd |= _storage->_cost_package->_inAcceleratorFunction;
+        simd_len |= _storage->_cost_package->_inAcceleratorFunction;
         // theoretical parallelism can only be computed once
-        issimd &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
+        simd_len &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
-            if (issimd) {
-                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_cost_multiplier[i];
+            if (simd_len) {
+                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_capability[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG
             _storage->_cost_package->_bbl_storage_level_cost[i][_storage_level][bblid] += cost;
+            if (bbl_costcount < 1000000 && i == PIM && _storage_level == MEM && cost != 0 && cost != 80) {
+                std::cout << (simd_len?"T ":"F ") << _storage->_cost_package->_thread_count << " " << i << " " << _storage_level << " " << cost << std::endl;
+                bbl_costcount++;
+            }
 #endif
         }
     }
 }
 
-BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
+BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len)
 {
     // TODO: Implement this later
     const ADDRINT highAddr = addr + size;
@@ -358,7 +368,7 @@ BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBL
     const ADDRINT notLineMask = ~(lineSize - 1);
     do
     {
-        allHit &= AccessSingleLine(addr, accessType, bblid, issimd);
+        allHit &= AccessSingleLine(addr, accessType, bblid, simd_len);
         addr = (addr & notLineMask) + lineSize; // start of next cache line
 
     } while (addr < highAddr);
@@ -367,10 +377,10 @@ BOOL MEMORY_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBL
 }
 
 
-BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
+BOOL MEMORY_LEVEL::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len)
 {
     // always hit memory
-    AddMemCost(bblid, issimd);
+    AddMemCost(bblid, simd_len);
     _access[accessType][true]++;
     return true;
 }
@@ -537,7 +547,7 @@ void STORAGE::WriteStats(const std::string filename)
     out.close();
 }
 
-VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
+VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, UINT32 simd_len)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[ITLB]->AccessSingleLine(addr, accessType);
@@ -552,7 +562,7 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
         // if accessing same cache line as the one previously accessed
         if (curLine == _last_icacheline[i]) {
             if (addr + size >= nextLine) {
-                _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, issimd);
+                _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, simd_len);
                 _last_icacheline[i] = nextLine;
 
 #ifdef PIMPROFTRACE
@@ -568,8 +578,8 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
         }
         else {
             if (addr + size >= nextLine) {
-                _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, issimd);
-                _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, issimd);
+                _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, simd_len);
+                _storage_top[i][IL1]->AccessSingleLine(nextLine, ACCESS_TYPE_LOAD, bblid, simd_len);
                 _last_icacheline[i] = nextLine;
 
 #ifdef PIMPROFTRACE
@@ -586,7 +596,7 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
 #endif
             }
             else {
-                _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, issimd);
+                _storage_top[i][IL1]->AccessSingleLine(curLine, ACCESS_TYPE_LOAD, bblid, simd_len);
                 _last_icacheline[i] = curLine;
 
 #ifdef PIMPROFTRACE
@@ -603,14 +613,14 @@ VOID STORAGE::InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd)
 }
 
 
-VOID STORAGE::DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd)
+VOID STORAGE::DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len)
 {
     // TODO: We do not consider TLB cost for now.
     // _storage[DTLB]->AccessSingleLine(addr, ACCESS_TYPE_LOAD);
 
     // first level D-cache
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        _storage_top[i][DL1]->Access(addr, size, accessType, bblid, issimd);
+        _storage_top[i][DL1]->Access(addr, size, accessType, bblid, simd_len);
     }
 #ifdef PIMPROFTRACE
     (*_cost_package->_trace_file[0])

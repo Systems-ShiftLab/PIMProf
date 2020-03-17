@@ -61,7 +61,7 @@ class InstructionLatency {
 
   protected:
   /// Add up the cost of all instructions
-  static VOID InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid);
+  static VOID InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, UINT32 simd_len, THREADID threadid);
 
 };
 
@@ -85,10 +85,10 @@ class MemoryLatency {
   protected:
 
     /// Do on instruction cache reference
-    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, BOOL issimd, THREADID threadid);
+    static VOID InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, UINT32 simd_len, THREADID threadid);
 
     /// Do on data cache reference
-    static VOID DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid);
+    static VOID DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, UINT32 simd_len, THREADID threadid);
 };
 
 } // namespace PIMProf

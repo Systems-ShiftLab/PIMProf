@@ -356,9 +356,9 @@ class STORAGE_LEVEL_BASE
     COST _hitcost[MAX_COST_SITE];
 
   public:
-    virtual VOID AddMemCost(BBLID bblid, BOOL issimd) = 0;
-    virtual BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd) = 0;
-    virtual BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd) = 0;
+    virtual VOID AddMemCost(BBLID bblid, UINT32 simd_len) = 0;
+    virtual BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len) = 0;
+    virtual BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len) = 0;
 
   protected:
     // input params
@@ -471,17 +471,17 @@ class CACHE_LEVEL : public STORAGE_LEVEL_BASE
   
   public:
     // modifiers
-    VOID AddMemCost(BBLID bblid, BOOL issimd);
+    VOID AddMemCost(BBLID bblid, UINT32 simd_len);
 
-    VOID AddInstructionMemCost(BBLID bblid, BOOL issimd);
+    VOID AddInstructionMemCost(BBLID bblid, UINT32 simd_len);
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
-    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
+    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
 
     /// Cache access at addr that does not span cache lines
     /// @return true if accessed cache line hits
-    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
+    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
 
     VOID Flush();
     VOID ResetStats();
@@ -502,15 +502,15 @@ class MEMORY_LEVEL : public STORAGE_LEVEL_BASE
     MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, COST hitcost[MAX_COST_SITE]);
 
     // modifiers
-    VOID AddMemCost(BBLID bblid, BOOL issimd);
+    VOID AddMemCost(BBLID bblid, UINT32 simd_len);
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
-    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
+    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
 
     /// Cache access at addr that does not span cache lines
     /// @return true if accessed cache line hits
-    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
+    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
 };
 
 class STORAGE
@@ -545,10 +545,10 @@ class STORAGE
     VOID WriteStats(const std::string filename);
 
     /// Do on instruction cache reference
-    VOID InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, BOOL issimd);
+    VOID InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, UINT32 simd_len);
 
     /// Do on data cache reference
-    VOID DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, BOOL issimd);
+    VOID DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
 
 };
 

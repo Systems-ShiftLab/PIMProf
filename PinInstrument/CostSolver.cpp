@@ -352,9 +352,9 @@ VOID CostSolver::ReadConfig(ConfigReader &reader)
     }
 
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        UINT32 multiplier = reader.GetInteger("SIMDCostMultiplier", CostSiteName[i], -1);
+        UINT32 multiplier = reader.GetInteger("SIMDCapability", CostSiteName[i], -1);
         ASSERTX(multiplier > 0);
-        _cost_package->_simd_cost_multiplier[i] = multiplier;
+        _cost_package->_simd_capability[i] = multiplier;
     }
 
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {

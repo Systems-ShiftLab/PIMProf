@@ -32,7 +32,7 @@ void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &rea
     ReadConfig(reader);
 }
 
-VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, BOOL issimd, THREADID threadid)
+VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, UINT32 simd_len, THREADID threadid)
 {
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
@@ -46,7 +46,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
     (pkg->_thread_count >= 2 && threadid == 1)) {
 #ifdef PIMPROFDEBUG
         pkg->_total_instr_cnt++;
-        if (issimd) {
+        if (simd_len) {
             pkg->_total_simd_instr_cnt++;
         }
 #endif
@@ -57,12 +57,12 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
         }
 
         // theoretical parallelism can only be computed once
-        issimd |= pkg->_inAcceleratorFunction;
-        issimd &= (!pkg->_bbl_parallelizable[bblid]);
+        simd_len |= pkg->_inAcceleratorFunction;
+        simd_len &= (!pkg->_bbl_parallelizable[bblid]);
 
 #ifdef PIMPROFDEBUG
         pkg->_bbl_instr_cnt[bblid]++;
-        if (issimd) {
+        if (simd_len) {
             pkg->_simd_instr_cnt[bblid]++;
         }
         pkg->_type_instr_cnt[opcode]++;
@@ -75,12 +75,12 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
                 COST cost = pkg->_instruction_latency[i][opcode] * pkg->_thread_count;
                 // if we assume a SIMD instruction can be infinitely parallelized,
                 // then the cost of each instruction will be 1/n if we are having n cores.
-                if (issimd) {
-                    cost = cost / pkg->_core_count[i] * pkg->_simd_cost_multiplier[i];
+                if (simd_len) {
+                    cost = cost * pkg->_simd_capability[i] / pkg->_core_count[i] ;
                 }
                 pkg->_bbl_instruction_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG
-                if (issimd) {
+                if (simd_len) {
                     pkg->_total_simd_cost[i] += cost;
                 }
                 pkg->_type_instr_cost[i][opcode] += cost;
@@ -147,7 +147,7 @@ void MemoryLatency::initialize(STORAGE *storage, CostPackage *cost_package, Conf
     // SetBBLSize(_cost_package->_bbl_size);
 }
 
-VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, BOOL issimd, THREADID threadid)
+VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, UINT32 simd_len, THREADID threadid)
 {
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
@@ -160,12 +160,12 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size
     pkg->_previous_instr[threadid]++;
     if ((pkg->_thread_count == 1 && threadid == 0) ||
     (pkg->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->InstrCacheRef(addr, size, bblid, issimd);
+        self->_storage->InstrCacheRef(addr, size, bblid, simd_len);
     }
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
 
-VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BOOL issimd, THREADID threadid)
+VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, UINT32 simd_len, THREADID threadid)
 {
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
@@ -178,7 +178,7 @@ VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, 
     pkg->_previous_instr[threadid] = 0;
     if ((pkg->_thread_count == 1 && threadid == 0) ||
     (pkg->_thread_count >= 2 && threadid == 1)) {
-        self->_storage->DataCacheRef(ip, addr, size, accessType, bblid, issimd);
+        self->_storage->DataCacheRef(ip, addr, size, accessType, bblid, simd_len);
     }
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }

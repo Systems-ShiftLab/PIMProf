@@ -336,9 +336,20 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
     UINT32 opcode = (UINT32)(INS_Opcode(ins));
     BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
     xed_decoded_inst_t *xedd = INS_XedDec(ins);
-    BOOL issimd = xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR);
-    // TODO: fix it later
-    issimd |= (OPCODE_StringShort(opcode)[0] == 'V');
+
+    UINT32 simd_len;
+    if (!xed_classify_sse(xedd) && !xed_classify_avx(xedd) && !xed_classify_avx512(xedd)) {
+        simd_len = 0;
+    }
+    else if (xed_decoded_inst_get_attribute(xedd, XED_ATTRIBUTE_SIMD_SCALAR)) {
+        simd_len = 0;
+    }
+    else if (xed_classify_sse(xedd)) {
+        simd_len = 2;
+    }
+    else {
+        simd_len = xed_decoded_inst_vector_length_bits(xedd) / 64;
+    }
 
     /***** deal with the instruction latency *****/
     INS_InsertCall(
@@ -348,12 +359,16 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
         IARG_PTR, &self->_instruction_latency,
         IARG_ADDRINT, opcode,
         IARG_BOOL, ismem,
-        IARG_BOOL, issimd,
+        IARG_UINT32, simd_len,
         IARG_THREAD_ID,
         IARG_END);
 
 
     UINT32 ins_len = xed_decoded_inst_get_length(xedd);
+
+    if (simd_len && (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins))) {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_END);
+    }
 
     /***** deal with the memory latency *****/
     // all instruction fetches access I-cache
@@ -364,7 +379,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
         IARG_PTR, &self->_memory_latency,
         IARG_INST_PTR,
         IARG_UINT32, ins_len,
-        IARG_BOOL, issimd,
+        IARG_UINT32, simd_len,
         IARG_THREAD_ID,
         IARG_END);
     if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins)) {
@@ -378,7 +393,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
             IARG_MEMORYREAD_EA,
             IARG_MEMORYREAD_SIZE,
             IARG_UINT32, ACCESS_TYPE_LOAD,
-            IARG_BOOL, issimd,
+            IARG_UINT32, simd_len,
             IARG_THREAD_ID,
             IARG_END);
     }
@@ -393,7 +408,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
             IARG_MEMORYREAD2_EA,
             IARG_MEMORYREAD_SIZE,
             IARG_UINT32, ACCESS_TYPE_LOAD,
-            IARG_BOOL, issimd,
+            IARG_UINT32, simd_len,
             IARG_THREAD_ID,
             IARG_END);
     }
@@ -408,7 +423,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
             IARG_MEMORYWRITE_EA,
             IARG_MEMORYWRITE_SIZE,
             IARG_UINT32, ACCESS_TYPE_STORE,
-            IARG_BOOL, issimd,
+            IARG_UINT32, simd_len,
             IARG_THREAD_ID,
             IARG_END);
     }

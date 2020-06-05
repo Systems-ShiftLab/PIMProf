@@ -235,6 +235,7 @@ VOID PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
 //             IARG_END);
 //         RTN_Close(annotator_tail);
 //     }
+//     // Assume that specific function calls can be accelerated
 //     // TODO: dirty hack, fix later
 //     if (RTN_Valid(encode_frame)) {
 //         RTN_Open(encode_frame);
@@ -337,6 +338,8 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
     BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
     xed_decoded_inst_t *xedd = INS_XedDec(ins);
 
+    // simd_len > 0 means that this instruction is parallelizable
+    // the value of simd_len indicates the number of normal instructions this simd instruction is equivalent to
     UINT32 simd_len;
     if (!xed_classify_sse(xedd) && !xed_classify_avx(xedd) && !xed_classify_avx512(xedd)) {
         simd_len = 0;
@@ -367,7 +370,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
     UINT32 ins_len = xed_decoded_inst_get_length(xedd);
 
     if (simd_len && (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins))) {
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_UINT32, simd_len, IARG_END);
     }
 
     /***** deal with the memory latency *****/

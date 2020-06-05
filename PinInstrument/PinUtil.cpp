@@ -75,8 +75,8 @@ void CommandLineParser::initialize(int argc, char *argv[])
     }
 }
 
-VOID PIMProf::PrintInstruction(std::ostream *out, UINT64 insAddr, std::string insDis) {
-    *out << std::hex << insAddr << std::dec << ", " << insDis << std::endl;
+VOID PIMProf::PrintInstruction(std::ostream *out, UINT64 insAddr, std::string insDis, UINT32 simd_len) {
+    *out << std::hex << insAddr << std::dec << ", " << insDis << " " << simd_len << std::endl;
     // *out << insDis << std::endl;
 }
 

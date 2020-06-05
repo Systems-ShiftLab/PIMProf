@@ -56,9 +56,13 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
             return;
         }
 
-        // theoretical parallelism can only be computed once
-        simd_len |= pkg->_inAcceleratorFunction;
-        simd_len &= (!pkg->_bbl_parallelizable[bblid]);
+        // if this instruction itself is not a simd instruction
+        // but the instruction is in an accelerable function or parallelizable region,
+        // then this instruction is a normal instruction but parallelizable (simd_len = 1)
+        if (simd_len == 0 && (pkg->_inAcceleratorFunction || pkg->_bbl_parallelizable[bblid])) {
+            simd_len = 1;
+        }
+
 
 #ifdef PIMPROFDEBUG
         pkg->_bbl_instr_cnt[bblid]++;
@@ -76,7 +80,8 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
                 // if we assume a SIMD instruction can be infinitely parallelized,
                 // then the cost of each instruction will be 1/n if we are having n cores.
                 if (simd_len) {
-                    cost = cost * pkg->_simd_capability[i] / pkg->_core_count[i] ;
+                    int multiplier = (pkg->_simd_capability[i]<simd_len ? simd_len/pkg->_simd_capability[i] : 1);
+                    cost = cost * multiplier / pkg->_core_count[i];
                 }
                 pkg->_bbl_instruction_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG

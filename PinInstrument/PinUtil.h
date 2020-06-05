@@ -175,7 +175,7 @@ class ConfigReader: public INIReader {
 /* InstructionPrinter */
 /* ===================================================================== */
 
-VOID PrintInstruction(std::ostream *out, UINT64 insAddr, std::string insDis);
+VOID PrintInstruction(std::ostream *out, UINT64 insAddr, std::string insDis, UINT32 simd_len);
 VOID PrintInfo(std::ostream *out, std::string info);
 
 }// namespace PIMProf

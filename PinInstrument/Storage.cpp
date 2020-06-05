@@ -186,13 +186,17 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, UINT32 simd_len)
     // When this is a CPU cache level, for example,
     // _hitcost[PIM] will be assigned to 0
     if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
-        simd_len |= _storage->_cost_package->_inAcceleratorFunction;
-        // theoretical parallelism can only be computed once
-        simd_len &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
+        // if this instruction itself is not a simd instruction
+        // but the instruction is in an accelerable function or parallelizable region,
+        // then this instruction is a normal instruction but parallelizable (simd_len = 1)
+        if (simd_len == 0 && (_storage->_cost_package->_inAcceleratorFunction || _storage->_cost_package->_bbl_parallelizable[bblid])) {
+            simd_len = 1;
+        }
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
             if (simd_len) {
-                cost = cost * _storage->_cost_package->_simd_capability[i] / _storage->_cost_package->_core_count[i];
+                int multiplier = (_storage->_cost_package->_simd_capability[i]<simd_len ? simd_len/_storage->_cost_package->_simd_capability[i] : 1);
+                cost = cost * multiplier / _storage->_cost_package->_core_count[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG
@@ -227,13 +231,17 @@ BOOL CACHE_LEVEL::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLI
 VOID CACHE_LEVEL::AddInstructionMemCost(BBLID bblid, UINT32 simd_len)
 {
     if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
-        simd_len |= _storage->_cost_package->_inAcceleratorFunction;
-        // theoretical parallelism can only be computed once
-        simd_len &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
+        // if this instruction itself is not a simd instruction
+        // but the instruction is in an accelerable function or parallelizable region,
+        // then this instruction is a normal instruction but parallelizable (simd_len = 1)
+        if (simd_len == 0 && (_storage->_cost_package->_inAcceleratorFunction || _storage->_cost_package->_bbl_parallelizable[bblid])) {
+            simd_len = 1;
+        }
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
             if (simd_len) {
-                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_capability[i];
+                int multiplier = (_storage->_cost_package->_simd_capability[i]<simd_len ? simd_len/_storage->_cost_package->_simd_capability[i] : 1);
+                cost = cost * multiplier / _storage->_cost_package->_core_count[i];
             }
             _storage->_cost_package->_bbl_instruction_memory_cost[i][bblid] += cost;
         }
@@ -338,13 +346,17 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, UINT32 simd_len)
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
 #endif
-        simd_len |= _storage->_cost_package->_inAcceleratorFunction;
-        // theoretical parallelism can only be computed once
-        simd_len &= (!_storage->_cost_package->_bbl_parallelizable[bblid]);
+        // if this instruction itself is not a simd instruction
+        // but the instruction is in an accelerable function or parallelizable region,
+        // then this instruction is a normal instruction but parallelizable (simd_len = 1)
+        if (simd_len == 0 && (_storage->_cost_package->_inAcceleratorFunction || _storage->_cost_package->_bbl_parallelizable[bblid])) {
+            simd_len = 1;
+        }
         for (int i = 0; i < MAX_COST_SITE; i++) {
             COST cost = _hitcost[i] * _storage->_cost_package->_thread_count;
             if (simd_len) {
-                cost = cost / _storage->_cost_package->_core_count[i] * _storage->_cost_package->_simd_capability[i];
+                int multiplier = (_storage->_cost_package->_simd_capability[i]<simd_len ? simd_len/_storage->_cost_package->_simd_capability[i] : 1);
+                cost = cost * multiplier / _storage->_cost_package->_core_count[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
 #ifdef PIMPROFDEBUG

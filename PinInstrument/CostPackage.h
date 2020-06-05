@@ -128,38 +128,19 @@ class CostPackage {
     void initializeNewBBL(UUID bblhash);
 
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
-        if (_bbl_parallelizable[bbl]) {
-            return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site] / _core_count[site];
-        }
-        else {
-            return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site];
-        }
+
+        return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site];
 
     }
     inline COST BBLMemoryCost(CostSite site, BBLID bbl) {
-        if (_bbl_parallelizable[bbl]) {
-            return _bbl_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
-        }
-        else {
-            return _bbl_memory_cost[site][bbl] / _mlp[site];
-        }
+        return _bbl_memory_cost[site][bbl] / _mlp[site];
     }
     inline COST BBLInstructionMemoryCost(CostSite site, BBLID bbl) {
-        if (_bbl_parallelizable[bbl]) {
-            return _bbl_instruction_memory_cost[site][bbl] / _mlp[site] / _core_count[site];
-        }
-        else {
-            return _bbl_instruction_memory_cost[site][bbl] / _mlp[site];
-        }
+        return _bbl_instruction_memory_cost[site][bbl] / _mlp[site];
     }
 #ifdef PIMPROFDEBUG
     inline COST BBLStorageLevelCost(CostSite site, StorageLevel lvl, BBLID bbl) {
-        if (_bbl_parallelizable[bbl]) {
-            return _bbl_storage_level_cost[site][lvl][bbl] / _mlp[site] / _core_count[site];
-        }
-        else {
-            return _bbl_storage_level_cost[site][lvl][bbl] / _mlp[site];
-        }
+        return _bbl_storage_level_cost[site][lvl][bbl] / _mlp[site];
     }
 #endif
 };

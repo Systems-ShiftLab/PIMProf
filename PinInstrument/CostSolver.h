@@ -40,7 +40,7 @@ class CostSolver {
     CostPackage *_cost_package;
 
     std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     std::vector<COST> _BBL_storage_partial_total[MAX_COST_SITE][MAX_LEVEL];
 #endif
 

@@ -73,8 +73,8 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 
-ifdef PIMPROFDEBUG
-TOOL_CXXFLAGS += -DPIMPROFDEBUG -g
+ifdef PIMPROF_MPKI
+TOOL_CXXFLAGS += -DPIMPROF_MPKI -g
 endif
 
 $(OBJDIR)PinInstrument$(PINTOOL_SUFFIX): $(OBJDIR)main$(OBJ_SUFFIX) $(OBJDIR)PinInstrument$(OBJ_SUFFIX) $(OBJDIR)PinUtil$(OBJ_SUFFIX) $(OBJDIR)CostPackage$(OBJ_SUFFIX) $(OBJDIR)DataReuse$(OBJ_SUFFIX) $(OBJDIR)Storage$(OBJ_SUFFIX) $(OBJDIR)Simulation$(OBJ_SUFFIX) $(OBJDIR)CostSolver$(OBJ_SUFFIX)

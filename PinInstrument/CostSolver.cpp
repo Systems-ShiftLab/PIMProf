@@ -57,7 +57,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
               << std::right << std::setw(15) << "TOTAL"
               << std::endl;
 
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     DECISION _mpki_decision;
     infomsg() << "bblid\tmiss\tinstr\tmpki\tsimd" << std::endl;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
@@ -111,18 +111,8 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     PrintDecisionStat(std::cout, _opt_decision, "PIMProf opt");
     PrintDecisionStat(out, _opt_decision, "PIMProf opt");
     out << std::endl;
-    PrintDecision(out, _opt_decision, false);
 
-    if (!_cost_package->_roi_decision.empty()) {
-        out << std::endl;
-        // decision based on ROI
-        PrintDecisionStat(std::cout, _cost_package->_roi_decision, "ROIDecision");
-        PrintDecisionStat(out, _cost_package->_roi_decision, "ROI decision");
-        out << std::endl;
-        PrintDecision(out, _cost_package->_roi_decision, false);
-    }
-
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
      out << std::right << std::setw(14) << "PLAN"
           << std::right << std::setw(15) << "INSTRUCTION"
           << std::right << std::setw(15) << "L1I"
@@ -135,7 +125,19 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
      PrintCostBreakdown(out, _pure_pim_decision, "Pure PIM");
      PrintCostBreakdown(out, _greedy_decision, "Greedy");
      PrintCostBreakdown(out, _opt_decision, "PIMProf opt");
+     out << std::endl;
 #endif
+
+    PrintDecision(out, _opt_decision, false);
+
+    if (!_cost_package->_roi_decision.empty()) {
+        out << std::endl;
+        // decision based on ROI
+        PrintDecisionStat(std::cout, _cost_package->_roi_decision, "ROIDecision");
+        PrintDecisionStat(out, _cost_package->_roi_decision, "ROI decision");
+        out << std::endl;
+        PrintDecision(out, _cost_package->_roi_decision, false);
+    }
 
     return _opt_decision;
 }
@@ -419,7 +421,7 @@ VOID CostSolver::SetBBLSize(BBLID bbl_size) {
         _BBL_partial_total[i].resize(bbl_size);
         memset(&_BBL_partial_total[i][0], 0, bbl_size * sizeof(_BBL_partial_total[i][0]));
     }
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         for (UINT32 j = 0; j < MAX_LEVEL; j++) {
             _BBL_storage_partial_total[i][j].resize(bbl_size);
@@ -431,6 +433,7 @@ VOID CostSolver::SetBBLSize(BBLID bbl_size) {
 
 std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
 {
+    out << "========================================================" << std::endl;
     if (toscreen == true) {
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
             out << i << ":"
@@ -540,7 +543,7 @@ std::ostream &CostSolver::PrintCostBreakdown(std::ostream &out, const DECISION &
 
 std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
 {
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     UINT64 total = 0;
     UINT64 total_visit = 0;
     for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {

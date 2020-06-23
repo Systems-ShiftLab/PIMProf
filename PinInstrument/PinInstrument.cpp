@@ -113,7 +113,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
     (*pkg._trace_file[0]) << "PIMProf BBLStart " << it->second << std::endl;
 #endif
 
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     pkg._bbl_visit_cnt[it->second]++;
 #endif
     // infomsg() << "AnnotationHead: " << pkg._thread_bbl_scope[threadid].top() << " " << it->second << " " << isomp << " " << threadid << " " << pkg._in_omp_parallel << std::endl;
@@ -369,9 +369,9 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 
     UINT32 ins_len = xed_decoded_inst_get_length(xedd);
 
-    if (simd_len && (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins))) {
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_UINT32, simd_len, IARG_END);
-    }
+    // if (simd_len && (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins))) {
+    //     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_UINT32, simd_len, IARG_END);
+    // }
 
     /***** deal with the memory latency *****/
     // all instruction fetches access I-cache

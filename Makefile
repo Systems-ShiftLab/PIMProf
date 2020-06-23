@@ -5,9 +5,7 @@ ifndef PIMPROF_DIR
 $(error PIMPROF_DIR is not set in Makefile.config)
 endif
 
-all: llvm pin_debug lib
-
-debug: llvm pin_debug lib
+all: llvm pin lib
 
 llvm: build
 	cd $(BUILD_DIR) && LLVM_HOME=$(LLVM_HOME) cmake ..
@@ -15,11 +13,7 @@ llvm: build
 
 pin: build
 	mkdir -p $(PIN_BUILD_DIR)
-	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR)
-
-pin_debug: build
-	mkdir -p $(PIN_BUILD_DIR)
-	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR) PIMPROFDEBUG=1
+	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR) PIMPROF_MPKI=1
 
 lib: $(ANNOTATION_SO)
 
@@ -29,10 +23,10 @@ $(ANNOTATION_SO): $(ANNOTATION_BC)
 $(ANNOTATION_BC): llvm
 	$(LLVM_BUILD_DIR)/AnnotationGeneration.exe -o $(ANNOTATION_BC)
 
-test: debug
+test: all
 	make -C $(TEST_DIR)
 
-testzsim: debug
+testzsim: all
 	make test.zsim -C $(TEST_DIR)
 
 build:

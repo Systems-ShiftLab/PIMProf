@@ -43,7 +43,7 @@ void CostPackage::initializeNewBBL(UUID bblhash) {
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
         _bbl_instruction_memory_cost[i].push_back(0);
     }
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     _bbl_visit_cnt.push_back(0);
     _bbl_instr_cnt.push_back(0);
     _simd_instr_cnt.push_back(0);

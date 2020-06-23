@@ -71,7 +71,7 @@ class CostPackage {
     std::vector<INT32> _previous_instr;
     std::vector<std::ofstream *> _trace_file;
 
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
   public:
     UINT64 _total_instr_cnt = 0;
     UINT64 _total_simd_instr_cnt = 0;
@@ -112,7 +112,7 @@ class CostPackage {
     std::vector<COST> _bbl_memory_cost[MAX_COST_SITE];
     std::vector<CostSite> _roi_decision;
 
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     std::vector<COST> _bbl_storage_level_cost[MAX_COST_SITE][MAX_LEVEL];
     std::vector<COST> _bbl_instruction_memory_cost[MAX_COST_SITE];
 #endif
@@ -138,7 +138,7 @@ class CostPackage {
     inline COST BBLInstructionMemoryCost(CostSite site, BBLID bbl) {
         return _bbl_instruction_memory_cost[site][bbl] / _mlp[site];
     }
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
     inline COST BBLStorageLevelCost(CostSite site, StorageLevel lvl, BBLID bbl) {
         return _bbl_storage_level_cost[site][lvl][bbl] / _mlp[site];
     }

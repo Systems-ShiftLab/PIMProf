@@ -61,7 +61,7 @@ namespace {
 
         MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
 
-        // errs() << "Before injection: " << BB.getName() << "\n";
+        // errs() << "Before annotator injection: " << BB.getName() << "\n";
         // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
         //     (*i).print(errs());
         //     errs() << "\n";
@@ -104,7 +104,7 @@ namespace {
 
         
 
-        // errs() << "After injection: " << BB.getName() << "\n";
+        // errs() << "After annotator injection: " << BB.getName() << "\n";
         // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
         //     (*i).print(errs());
         //     errs() << "\n";

@@ -44,7 +44,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
     }
     if ((pkg->_thread_count == 1 && threadid == 0) ||
     (pkg->_thread_count >= 2 && threadid == 1)) {
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
         pkg->_total_instr_cnt++;
         if (simd_len) {
             pkg->_total_simd_instr_cnt++;
@@ -64,7 +64,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
         }
 
 
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
         pkg->_bbl_instr_cnt[bblid]++;
         if (simd_len) {
             pkg->_simd_instr_cnt[bblid]++;
@@ -84,7 +84,7 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
                     cost = cost * multiplier / pkg->_core_count[i];
                 }
                 pkg->_bbl_instruction_cost[i][bblid] += cost;
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
                 if (simd_len) {
                     pkg->_total_simd_cost[i] += cost;
                 }

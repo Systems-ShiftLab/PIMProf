@@ -16,7 +16,7 @@ TEST_PY             := test.py
 TEST_OBJ_2          := test.o.2 print4.o.2 pthreads.o.2
 TEST_EXE_2          := test.exe.2
 
-CXXFLAGS := -fPIC -std=c++11 -g -I$(PIMPROF_DIR)/LLVMAnalysis/ -fopenmp -O3 -mno-sse4 -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -mno-avx2
+CXXFLAGS := -fPIC -std=c++11 -g -I$(PIMPROF_DIR)/LLVMAnalysis/ -fopenmp -O3 -mno-sse4 -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -mno-avx2 -DPIMPROF_DEBUG
 INJCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(INJECTION_SO)
 OFFCXXFLAGS := $(CXXFLAGS) -Xclang -load -Xclang $(OFFLOADING_SO)
 LDFLAGS  := -pthread
@@ -27,7 +27,7 @@ offload: $(TEST_EXE_2)
 	./$(TEST_EXE_2)
 
 $(DECISION): $(TEST_EXE) $(TEST_SO)
-	export OMP_NUM_THREADS=1 && $(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -roi -o $@ -- ./$(TEST_EXE)
+	export OMP_NUM_THREADS=1 && $(PIN_ROOT)/pin -t $(PININSTRUMENT_SO) -c $(DEFAULT_CONFIG) -o $@ -- ./$(TEST_EXE)
 
 $(TEST_EXE_2): $(TEST_OBJ_2) $(PIMPROFOFFLOADER_SO)
 	$(CLANGXX) $(OFFCXXFLAGS) -o $@ $^ -L$(LLVM_BUILD_DIR) -Wl,-rpath=$(LLVM_BUILD_DIR) $(LDFLAGS)
@@ -39,7 +39,7 @@ $(TEST_SO): $(TEST_OBJ) $(ANNOTATION_SO)
 	$(CLANGXX) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
 %.o.2: %.cpp $(DECISION)
-	export PIMPROFDECISION=$(TEST_DIR)/$(DECISION) && $(CLANGXX) $(OFFCXXFLAGS) -c -o $@ $< > test.dump 2>&1
+	export PIMPROFDECISION=$(TEST_DIR)/$(DECISION) && export PIMPROFROI=CPUONLY && $(CLANGXX) $(OFFCXXFLAGS) -DPIMPROF -c -o $@ $< > test.dump 2>&1
 
 %.o: %.cpp
 	$(CLANGXX) $(INJCXXFLAGS) -DPIMPROF -S -emit-llvm $<

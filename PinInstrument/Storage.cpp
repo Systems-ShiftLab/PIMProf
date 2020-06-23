@@ -199,7 +199,7 @@ VOID CACHE_LEVEL::AddMemCost(BBLID bblid, UINT32 simd_len)
                 cost = cost * multiplier / _storage->_cost_package->_core_count[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
             _storage->_cost_package->_bbl_storage_level_cost[i][_storage_level][bblid] += cost;
             if (bbl_costcount < 1000000 && i == PIM && _storage_level == MEM && cost != 0 && cost != 80) {
                 std::cout << (simd_len?"T ":"F ") << _storage->_cost_package->_thread_count << " " << i << " " << _storage_level << " " << cost << std::endl;
@@ -342,7 +342,7 @@ MEMORY_LEVEL::MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel st
 VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, UINT32 simd_len)
 {
     if (bblid != GLOBALBBLID || _storage->_cost_package->_command_line_parser.enableglobalbbl()) {
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
         // increase counter of cache miss
         _storage->_cost_package->_cache_miss[bblid]++;
 #endif
@@ -359,12 +359,12 @@ VOID MEMORY_LEVEL::AddMemCost(BBLID bblid, UINT32 simd_len)
                 cost = cost * multiplier / _storage->_cost_package->_core_count[i];
             }
             _storage->_cost_package->_bbl_memory_cost[i][bblid] += cost;
-#ifdef PIMPROFDEBUG
+#ifdef PIMPROF_MPKI
             _storage->_cost_package->_bbl_storage_level_cost[i][_storage_level][bblid] += cost;
-            if (bbl_costcount < 1000000 && i == PIM && _storage_level == MEM && cost != 0 && cost != 80) {
-                std::cout << (simd_len?"T ":"F ") << _storage->_cost_package->_thread_count << " " << i << " " << _storage_level << " " << cost << std::endl;
-                bbl_costcount++;
-            }
+            // if (bbl_costcount < 1000000 && i == PIM && _storage_level == MEM && cost != 0 && cost != 80) {
+            //     std::cout << (simd_len?"T ":"F ") << _storage->_cost_package->_thread_count << " " << i << " " << _storage_level << " " << cost << std::endl;
+            //     bbl_costcount++;
+            // }
 #endif
         }
     }

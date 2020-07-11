@@ -29,107 +29,105 @@
 
 using namespace llvm;
 
-namespace {
-    void InjectAnnotationCall(Module &M, BasicBlock &BB) {
-        LLVMContext &ctx = M.getContext();
-
-        /***** create InlineAsm template ******/
-        std::vector<Type *> argtype {
-            Type::getInt64Ty(ctx), Type::getInt64Ty(ctx), Type::getInt64Ty(ctx)
-        };
-        FunctionType *asmty = FunctionType::get(
-            Type::getVoidTy(ctx), argtype, false
-        );
-        InlineAsm *xchgIA = InlineAsm::get(
-            asmty,
-            "\txchg %rcx, %rcx\n"
-            "\tmov $0, %rax \n"
-            "\tmov $1, %rbx \n"
-            "\tmov $2, %rcx \n",
-            "imr,imr,imr,~{rax},~{rbx},~{rcx},~{dirflag},~{fpsr},~{flags}",
-            true
-        );
-
-        /***** generate arguments for the InlineAsm ******/
-
-        // use the content of BB itself as the hash key
-        std::string BB_content;
-        raw_string_ostream rso(BB_content);
-        rso << BB;
-        uint64_t bblhash[2];
-
-
-        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
-
-        // errs() << "Before annotator injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
-        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
-
-        // divide all parameters into uint64_t, because this is what pin supports
-        Value *hi = ConstantInt::get(
-            IntegerType::get(M.getContext(), 64), bblhash[1]);
-        Value *lo = ConstantInt::get(
-            IntegerType::get(M.getContext(), 64), bblhash[0]);
-
-
-        std::string funcname = BB.getParent()->getName();
-        uint64_t isomp = (funcname.find(OpenMPIdentifier) != std::string::npos);
-        // std::cout << isomp << " " << ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONHEAD, isomp) << std::endl;
-        Value *control_head = ConstantInt::get(
-            IntegerType::get(M.getContext(), 64), 
-            ControlValue::GetControlValue(
-                MAGIC_OP_ANNOTATIONHEAD, isomp)
-        );
-        Value *control_tail = ConstantInt::get(
-            IntegerType::get(M.getContext(), 64), 
-            ControlValue::GetControlValue(
-                MAGIC_OP_ANNOTATIONTAIL, isomp)
-        );
-
-        std::vector<Value *> arglist_head {hi, lo, control_head};
-        std::vector<Value *> arglist_tail {hi, lo, control_tail};
-
-        // need to skip all PHIs and LandingPad instructions
-        // check the declaration of getFirstInsertionPt()
-        Instruction *beginning = &(*BB.getFirstInsertionPt());
-
-        CallInst::Create(
-            xchgIA, arglist_head, "", beginning);
-        CallInst::Create(
-            xchgIA, arglist_tail, "", BB.getTerminator());
-
-        
-
-        // errs() << "After annotator injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
-        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
-    }
-
-    struct AnnotationInjection : public ModulePass {
-        static char ID;
-        AnnotationInjection() : ModulePass(ID) {}
-
-        virtual bool runOnModule(Module &M) {
-            // inject annotator function to each basic block
-            // attach basic block id to terminator
-            for (auto &func : M) {
-                for (auto &bb: func) {
-                    InjectAnnotationCall(M, bb);
-                }
-            }
-            // M.print(errs(), nullptr);
-            return true;
-        }
+namespace { // Anonymous namespace
+/***
+ * Format of magical instructions:
+ * 
+ * xchg %rcx, %rcx
+ * mov <higher bits of the UUID>, %rax
+ * mov <lower bits of the UUID>, %rbx
+ * mov <the control bits>, %rcx
+ * 
+ * The magical instructions should all be skipped when analyzing performance
+***/
+void InsertPIMProfMagic(Module &M, uint64_t arg0, uint64_t arg1, uint64_t arg2, Instruction *insertPt)
+{
+    LLVMContext &ctx = M.getContext();
+    std::vector<Type *> argtype {
+        Type::getInt64Ty(ctx), Type::getInt64Ty(ctx), Type::getInt64Ty(ctx)
     };
+    FunctionType *ty = FunctionType::get(
+        Type::getVoidTy(ctx), argtype, false
+    );
+    // template of Sniper's SimMagic0
+    InlineAsm *ia = InlineAsm::get(
+        ty,
+        "\txchg %rcx, %rcx\n"
+        "\tmov $0, %rax \n"
+        "\tmov $1, %rbx \n"
+        "\tmov $2, %rcx \n",
+        "imr,imr,imr,~{rax},~{rbx},~{rcx},~{dirflag},~{fpsr},~{flags}",
+        true
+    );
+    Value *val0 = ConstantInt::get(IntegerType::get(ctx, 64), arg0);
+    Value *val1 = ConstantInt::get(IntegerType::get(ctx, 64), arg1);
+    Value *val2 = ConstantInt::get(IntegerType::get(ctx, 64), arg2);
+    std::vector<Value *> arglist {val0, val1, val2};
+    CallInst::Create(
+            ia, arglist, "", insertPt);
 }
+
+void InjectAnnotationCall(Module &M, BasicBlock &BB) {
+
+    /***** generate arguments for the InlineAsm ******/
+
+    // use the content of BB itself as the hash key
+    std::string BB_content;
+    raw_string_ostream rso(BB_content);
+    rso << BB;
+    uint64_t bblhash[2];
+
+
+    MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+
+    // errs() << "Before annotator injection: " << BB.getName() << "\n";
+    // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+    //     (*i).print(errs());
+    //     errs() << "\n";
+    // }
+    // errs() << "\n";
+    // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+
+    std::string funcname = BB.getParent()->getName();
+    uint64_t isomp = (funcname.find(OpenMPIdentifier) != std::string::npos);
+
+    uint64_t control_head = ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONHEAD, isomp);
+    uint64_t control_tail = ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONTAIL, isomp);
+
+    // need to skip all PHIs and LandingPad instructions
+    // check the declaration of getFirstInsertionPt()
+    Instruction *beginning = &(*BB.getFirstInsertionPt());
+
+    InsertPIMProfMagic(M, bblhash[1], bblhash[0], control_head, beginning);
+    InsertPIMProfMagic(M, bblhash[1], bblhash[0], control_tail, BB.getTerminator());
+
+    // errs() << "After annotator injection: " << BB.getName() << "\n";
+    // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
+    //     (*i).print(errs());
+    //     errs() << "\n";
+    // }
+    // errs() << "\n";
+    // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+}
+
+struct AnnotationInjection : public ModulePass {
+    static char ID;
+    AnnotationInjection() : ModulePass(ID) {}
+
+    virtual bool runOnModule(Module &M) {
+        // inject annotator function to each basic block
+        // attach basic block id to terminator
+        for (auto &func : M) {
+            for (auto &bb: func) {
+                InjectAnnotationCall(M, bb);
+            }
+        }
+        // M.print(errs(), nullptr);
+        return true;
+    }
+};
+
+} // Anonymous namespace
 
 char AnnotationInjection::ID = 0;
 static RegisterPass<AnnotationInjection> RegisterMyPass(

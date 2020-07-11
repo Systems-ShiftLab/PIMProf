@@ -37,11 +37,18 @@
     #warning SNIPER == 4
 #elif defined SNIPER && SNIPER == 5
     #include "PIMProfAnnotation.h"
+    #define PIMPROF_BEGIN_PROGRAM SimRoiStart(); SimPimOffloadStart();
+    #define PIMPROF_END_PROGRAM SimPimOffloadEnd(); SimRoiEnd();
+    #define PIMPROF_BEGIN_REG_PARALLEL SimPimOffloadEnd();
+    #define PIMPROF_END_REG_PARALLEL SimPimOffloadStart();
+    #warning SNIPER == 5
+#elif defined SNIPER && SNIPER == 6
+    #include "PIMProfAnnotation.h"
     #define PIMPROF_BEGIN_PROGRAM SimRoiStart();
     #define PIMPROF_END_PROGRAM SimRoiEnd();
     #define PIMPROF_BEGIN_REG_PARALLEL SimPimOffloadStart();
     #define PIMPROF_END_REG_PARALLEL SimPimOffloadEnd();
-    #warning SNIPER == 5
+    #warning SNIPER == 6
 #elif defined SNIPERTEST && SNIPERTEST == 0
     #define PIMPROF_BEGIN_PROGRAM SimRoiStart();
     #define PIMPROF_END_PROGRAM SimRoiEnd();
@@ -66,7 +73,16 @@
     #define PIMPROF_BEGIN_REG_PARALLEL SimPimOffloadStart();
     #define PIMPROF_END_REG_PARALLEL SimPimOffloadEnd();
     #warning SNIPERTEST == 3
-#else
+#elif defined VTUNE
+    #include <ittnotify.h>
+    __itt_domain *vtune_domain = __itt_domain_create("pimprof.vtune_analysis");
+    // vtune_domain->flags = 1;
+    #define PIMPROF_BEGIN_PROGRAM __itt_resume();
+    #define PIMPROF_END_PROGRAM __itt_detach();
+    #define PIMPROF_BEGIN_REG_PARALLEL __itt_frame_begin_v3(vtune_domain, NULL);
+    #define PIMPROF_END_REG_PARALLEL __itt_frame_end_v3(vtune_domain, NULL);
+    #warning VTUNE
+#elif
 #endif
 
 #endif // __PIMPROF_SNIPERHOOKS__

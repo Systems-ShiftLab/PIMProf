@@ -39,7 +39,7 @@ $(TEST_SO): $(TEST_OBJ) $(ANNOTATION_SO)
 	$(CLANGXX) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
 %.o.2: %.cpp $(DECISION)
-	export PIMPROFDECISION=$(TEST_DIR)/$(DECISION) && export PIMPROFROI=CPUONLY && $(CLANGXX) $(OFFCXXFLAGS) -DPIMPROF -c -o $@ $< > test.dump 2>&1
+	export PIMPROFDECISION=$(TEST_DIR)/$(DECISION) && export PIMPROFROI=NOTPIM && $(CLANGXX) $(OFFCXXFLAGS) -DPIMPROF -c -o $@ $< > test.dump 2>&1
 
 %.o: %.cpp
 	$(CLANGXX) $(INJCXXFLAGS) -DPIMPROF -S -emit-llvm $<

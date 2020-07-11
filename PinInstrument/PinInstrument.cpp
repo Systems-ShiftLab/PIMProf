@@ -260,7 +260,7 @@ int ins_to_skip = -1;
 VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 {
 
-    /***** deal with magical instructions *****/
+    /***** deal with PIMProf magic *****/
     /***
      * Format of magical instructions:
      * 

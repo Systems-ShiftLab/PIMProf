@@ -20,6 +20,7 @@ static const std::string PIMProfOffloaderNullName = "_Z20PIMProfOffloaderNulliii
 
 static const std::string PIMProfDecisionEnv = "PIMPROFDECISION";
 static const std::string PIMProfROIEnv = "PIMPROFROI";
+static const std::string PIMProfInjectModeEnv = "PIMPROFINJECTMODE";
 
 static const std::string PIMProfBBLIDMetadata = "basicblock.id";
 

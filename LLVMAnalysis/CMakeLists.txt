@@ -36,6 +36,7 @@ foreach(SRCFILE ${LIB_SRC})
         cxx_range_for cxx_auto_type)
     set_target_properties(${SRCNAME} PROPERTIES
         COMPILE_FLAGS "-fno-rtti")
+    include_directories("~/intel/vtune_profiler/include")
 endforeach(SRCFILE ${LIB_SRC})
 
 

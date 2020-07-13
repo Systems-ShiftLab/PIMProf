@@ -250,6 +250,21 @@ void InjectSimMagic2(Module &M, uint64_t arg0, uint64_t arg1, uint64_t arg2, Ins
             ia, arglist, "", insertPt);
 }
 
+void InjectVTuneITT(Module &M, VTUNE_MODE mode, Instruction *insertPt) {
+    LLVMContext &ctx = M.getContext();
+    Function *offloader = dyn_cast<Function>(
+        M.getOrInsertFunction(
+            VTuneOffloaderName, 
+            FunctionType::getInt32Ty(ctx),
+            Type::getInt32Ty(ctx)
+        )
+    );
+    Value *val0 = ConstantInt::get(IntegerType::get(M.getContext(), 32), mode);
+    std::vector<Value *> arglist {val0};
+    CallInst::Create(
+        offloader, arglist, "", insertPt);
+}
+
 void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     Decision decision = decision_map.getBasicBlockDecision(M, BB);
 
@@ -325,27 +340,45 @@ void InjectVTuneOffloaderCall(Module &M, BasicBlock &BB) {
     Instruction *beginning = &(*BB.getFirstInsertionPt());
     if (decision.decision == CallSite::CPU) {
         if (ROI == CallSite::CPU || ROI == CallSite::ALL) {
-            // InjectSimMagic2(M, SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            // InjectSimMagic2(M, SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+            InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
+            InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
             cpu_inject_cnt++;
         }
     }
     if (decision.decision == CallSite::PIM) {
         if (ROI == CallSite::NOTPIM) {
-            // InjectSimMagic2(M, SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            // InjectSimMagic2(M, SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+            InjectVTuneITT(M, VTUNE_MODE_FRAME_END, beginning);
+            InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, BB.getTerminator());
             pim_inject_cnt++;
         }
         if (ROI == CallSite::PIM || ROI == CallSite::ALL) {
-            // InjectSimMagic2(M, SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, beginning);
-            // InjectSimMagic2(M, SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
+            InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
+            InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
             pim_inject_cnt++;
         }
     }
 }
 
 void InjectVTuneOffloaderCall(Module &M, Function &F) {
+    // need to skip all PHIs and LandingPad instructions
+    // check the declaration of getFirstInsertionPt()
+    Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
+    InjectVTuneITT(M, VTUNE_MODE_RESUME, beginning);
+    if (ROI == CallSite::NOTPIM) {
+        InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
+    }
 
+    // inject an end call before every return instruction
+    for (auto &BB : F) {
+        for (auto &I : BB) {
+            if (isa<ReturnInst>(I)) {
+                if (ROI == CallSite::NOTPIM) {
+                    InjectVTuneITT(M, VTUNE_MODE_FRAME_END, &I);
+                }
+                InjectVTuneITT(M, VTUNE_MODE_DETACH, &I);
+            }
+        }
+    }
 }
 
 class PIMProfAAW : public AssemblyAnnotationWriter {

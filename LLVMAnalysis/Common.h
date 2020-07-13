@@ -18,6 +18,8 @@ static const std::string PIMProfOffloaderName = "_Z16PIMProfOffloaderiiii";
 static const std::string PIMProfOffloader2Name = "_Z17PIMProfOffloader2i";
 static const std::string PIMProfOffloaderNullName = "_Z20PIMProfOffloaderNulliiii";
 
+static const std::string VTuneOffloaderName = "_Z14VTuneOffloaderi";
+
 static const std::string PIMProfDecisionEnv = "PIMPROFDECISION";
 static const std::string PIMProfROIEnv = "PIMPROFROI";
 static const std::string PIMProfInjectModeEnv = "PIMPROFINJECTMODE";
@@ -39,6 +41,15 @@ enum MAGIC_OP {
     MAGIC_OP_ROIEND,
     MAGIC_OP_ROIDECISIONBEGIN,
     MAGIC_OP_ROIDECISIONEND
+};
+
+enum VTUNE_MODE {
+    VTUNE_MODE_CREATE,
+    VTUNE_MODE_RESUME,
+    VTUNE_MODE_PAUSE,
+    VTUNE_MODE_DETACH,
+    VTUNE_MODE_FRAME_BEGIN,
+    VTUNE_MODE_FRAME_END
 };
 
 // We use the last i64 to encode control bits, layout:

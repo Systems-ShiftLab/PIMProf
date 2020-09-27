@@ -128,7 +128,6 @@ class CostPackage {
     void initializeNewBBL(UUID bblhash);
 
     inline COST BBLInstructionCost(CostSite site, BBLID bbl) {
-
         return _bbl_instruction_cost[site][bbl] * _instruction_multiplier[site] / _ilp[site];
 
     }

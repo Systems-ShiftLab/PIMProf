@@ -30,6 +30,23 @@ void CostSolver::initialize(CostPackage *cost_package, ConfigReader &reader)
 
 CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 {
+    if (_cost_package->_command_line_parser.enableexternfunc()) {
+        COST cpu_cost = _cost_package->_config_reader.GetInteger("ExternalFunctionCycle", "CPU", -1);
+        COST pim_cost = _cost_package->_config_reader.GetInteger("ExternalFunctionCycle", "PIM", -1);
+        if (cpu_cost == -1 || pim_cost == -1) {
+            ASSERTX(0);
+        }
+        cpu_cost *= _cost_package->_ilp[CPU];
+        pim_cost *= _cost_package->_ilp[PIM];
+
+        printf("%f %f\n", cpu_cost, pim_cost);
+
+        _cost_package->_bbl_instruction_cost[CPU][0] = cpu_cost;
+        _cost_package->_bbl_instruction_cost[PIM][0] = pim_cost;
+        _cost_package->_bbl_memory_cost[CPU][0] = 0;
+        _cost_package->_bbl_memory_cost[PIM][0] = 0;
+    }
+
     SetBBLSize(_cost_package->_bbl_size);
     // set partial total
     for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
@@ -459,12 +476,16 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
             << std::right << std::setw(18) << "Hash(lo)"
             << std::endl;
         for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-            ASSERTX(sorted_hash[i].second == i);
+            if (sorted_hash[i].second != i) {
+                std::cout << "wowow:" << sorted_hash[i].second << " " << i << std::endl;
+                ASSERTX(0);
+            }
+            
             out << std::right << std::setw(7) << i
                 << std::right << std::setw(10) << (decision[i] == PIM ? "P" : "C")
                 << std::right << std::setw(7) << (_cost_package->_bbl_parallelizable[i] ? "O" : "X")
                 << std::right << std::setw(15) << _cost_package->BBLInstructionCost(CPU, i)
-                << std::right << std::setw(15) << _cost_package->BBLInstructionCost(PIM, i)
+                << std::right << std::setw(15) << _cost_package->BBLInstructionCost(PIM, i) 
                 << std::right << std::setw(15) << _cost_package->BBLMemoryCost(CPU, i)
                 << std::right << std::setw(15) << _cost_package->BBLMemoryCost(PIM, i)
                 << std::right << std::setw(15) << _BBL_partial_total[CPU][i] - _BBL_partial_total[PIM][i]

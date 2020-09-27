@@ -115,6 +115,7 @@ class CommandLineParser {
     std::string _statsfile;
     bool _enableroi;
     bool _enableroidecision;
+    bool _enableexternfunc;
     
   public:
     void initialize(int argc, char *argv[]);
@@ -125,7 +126,8 @@ class CommandLineParser {
     inline std::string statsfile() { return _statsfile; }
     inline bool enableroi() { return _enableroi; }
     inline bool enableroidecision() { return _enableroidecision; }
-    inline bool enableglobalbbl() { return true; } // whether considering the dependency with the global BBL
+    inline bool enableexternfunc() { return false; } // whether the execution cycles of external function should be given in the config file, for debug use
+    inline bool enableglobalbbl() { return true; } // whether considering the dependency with the global BBL, for debug use
 
     inline int Usage(std::ostream &out) {
         out << "Invalid argument."

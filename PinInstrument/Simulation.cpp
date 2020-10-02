@@ -19,8 +19,8 @@ void InstructionLatency::initialize(CostPackage *cost_package)
 {
     _cost_package = cost_package;
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < MAX_INDEX; j++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        for (uint32_t j = 0; j < MAX_INDEX; j++) {
             _cost_package->_instruction_latency[i][j] = 1;
         }
     }
@@ -32,7 +32,7 @@ void InstructionLatency::initialize(CostPackage *cost_package, ConfigReader &rea
     ReadConfig(reader);
 }
 
-VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcode, BOOL ismem, UINT32 simd_len, THREADID threadid)
+void InstructionLatency::InstructionCount(InstructionLatency *self, uint32_t opcode, bool ismem, uint32_t simd_len, THREADID threadid)
 {
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
@@ -99,8 +99,8 @@ VOID InstructionLatency::InstructionCount(InstructionLatency *self, UINT32 opcod
 
 void InstructionLatency::ReadConfig(ConfigReader &reader)
 {
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < MAX_INDEX; j++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        for (uint32_t j = 0; j < MAX_INDEX; j++) {
             std::string opcodestr = OPCODE_StringShort(j);
             if (opcodestr != "LAST") {
                 COST latency = reader.GetReal(CostSiteName[i] + "/InstructionLatency", opcodestr, -1);
@@ -117,10 +117,10 @@ void InstructionLatency::ReadConfig(ConfigReader &reader)
 
 std::ostream& InstructionLatency::WriteConfig(std::ostream& out)
 {
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         out << ("[" + CostSiteName[i] + "/InstructionLatency]") << std::endl
             << "; <Instuction Name> = <Instruction Latency>" << std::endl;
-        for (UINT32 j = 0; j < MAX_INDEX; j++)
+        for (uint32_t j = 0; j < MAX_INDEX; j++)
         {
             std::string opcodestr = OPCODE_StringShort(j);
             if (opcodestr != "LAST") {
@@ -152,7 +152,7 @@ void MemoryLatency::initialize(STORAGE *storage, CostPackage *cost_package, Conf
     // SetBBLSize(_cost_package->_bbl_size);
 }
 
-VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size, UINT32 simd_len, THREADID threadid)
+void MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, uint32_t size, uint32_t simd_len, THREADID threadid)
 {
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);
@@ -170,7 +170,7 @@ VOID MemoryLatency::InstrCacheRef(MemoryLatency *self, ADDRINT addr, UINT32 size
     PIN_RWMutexUnlock(&pkg->_thread_count_rwmutex);
 }
 
-VOID MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, UINT32 simd_len, THREADID threadid)
+void MemoryLatency::DataCacheRef(MemoryLatency *self, ADDRINT ip, ADDRINT addr, uint32_t size, ACCESS_TYPE accessType, uint32_t simd_len, THREADID threadid)
 {
     CostPackage *pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg->_thread_count_rwmutex);

@@ -19,7 +19,6 @@
 #include <list>
 #include <set>
 #include <algorithm>
-#include "pin.H"
 
 #include "PinUtil.h"
 #include "CostPackage.h"
@@ -57,15 +56,15 @@ class CostSolver {
 
     DECISION PrintSolution(std::ostream &out);
 
-    VOID TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
+    void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
 
     COST Cost(const DECISION &decision, TrieNode *reusetree);
 
     DECISION FindOptimal();
 
-    VOID ReadConfig(ConfigReader &reader);
+    void ReadConfig(ConfigReader &reader);
 
-    VOID SetBBLSize(BBLID bbl_size);
+    void SetBBLSize(BBLID bbl_size);
 
     std::ostream &PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen);
     std::ostream &PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name);

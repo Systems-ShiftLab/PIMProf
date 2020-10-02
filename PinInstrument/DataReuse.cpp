@@ -58,7 +58,7 @@ void DataReuse::UpdateTrie(TrieNode *root, DataReuseSegment &seg)
 
 void DataReuse::ExportSegment(DataReuseSegment &seg, TrieNode *leaf)
 {
-    ASSERTX(leaf->_isLeaf);
+    assert(leaf->_isLeaf);
     seg.setHead(leaf->_curID);
     seg.setCount(leaf->_count);
 

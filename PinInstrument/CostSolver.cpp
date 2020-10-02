@@ -17,10 +17,6 @@ using namespace PIMProf;
 void CostSolver::initialize(CostPackage *cost_package, ConfigReader &reader)
 {
     _cost_package = cost_package;
-    memset(_cost_package->_control_latency, 0, sizeof(_cost_package->_control_latency));
-
-    _cost_package->_instruction_multiplier[PIM] = 1;
-    _cost_package->_instruction_multiplier[CPU] = 1;
     _batchthreshold = 0;
     _batchsize = 0;
 
@@ -30,27 +26,10 @@ void CostSolver::initialize(CostPackage *cost_package, ConfigReader &reader)
 
 CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 {
-    if (_cost_package->_command_line_parser.enableexternfunc()) {
-        COST cpu_cost = _cost_package->_config_reader.GetInteger("ExternalFunctionCycle", "CPU", -1);
-        COST pim_cost = _cost_package->_config_reader.GetInteger("ExternalFunctionCycle", "PIM", -1);
-        if (cpu_cost == -1 || pim_cost == -1) {
-            ASSERTX(0);
-        }
-        cpu_cost *= _cost_package->_ilp[CPU];
-        pim_cost *= _cost_package->_ilp[PIM];
-
-        printf("%f %f\n", cpu_cost, pim_cost);
-
-        _cost_package->_bbl_instruction_cost[CPU][0] = cpu_cost;
-        _cost_package->_bbl_instruction_cost[PIM][0] = pim_cost;
-        _cost_package->_bbl_memory_cost[CPU][0] = 0;
-        _cost_package->_bbl_memory_cost[PIM][0] = 0;
-    }
-
     SetBBLSize(_cost_package->_bbl_size);
     // set partial total
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < _cost_package->_bbl_size; j++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        for (uint32_t j = 0; j < _cost_package->_bbl_size; j++) {
             _BBL_partial_total[i][j]
                 = _cost_package->BBLInstructionCost((CostSite)i, j)
                 + _cost_package->BBLMemoryCost((CostSite)i, j);
@@ -77,7 +56,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 #ifdef PIMPROF_MPKI
     DECISION _mpki_decision;
     infomsg() << "bblid\tmiss\tinstr\tmpki\tsimd" << std::endl;
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         FLT64 mpki = (FLT64)_cost_package->_cache_miss[i] / _cost_package->_bbl_instr_cnt[i] * 1000;
         infomsg() << i << "\t" << _cost_package->_cache_miss[i] << "\t" << _cost_package->_bbl_instr_cnt[i] << "\t" << mpki << "\t" << _cost_package->_simd_instr_cnt[i] << std::endl;
         if (mpki >= _mpkithreshold) {
@@ -93,7 +72,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
     // pure CPU
     DECISION _pure_cpu_decision;
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         _pure_cpu_decision.push_back(CPU);
     }
     PrintDecisionStat(std::cout, _pure_cpu_decision, "Pure CPU");
@@ -101,7 +80,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
      // pure PIM
     DECISION _pure_pim_decision;
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         _pure_pim_decision.push_back(PIM);
     }
     PrintDecisionStat(std::cout, _pure_pim_decision, "Pure PIM");
@@ -110,7 +89,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 
     // greedy decision
     DECISION _greedy_decision;
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
             _greedy_decision.push_back(CPU);
         }
@@ -159,7 +138,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     return _opt_decision;
 }
 
-VOID CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
+void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
 {
     if (root->_isLeaf) {
         if (isDifferent) {
@@ -211,7 +190,7 @@ COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
     for (; it != eit; it++) {
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         CostSite site = decision[i];
         if (site == CPU || site == PIM) {
             cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
@@ -231,7 +210,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
     std::sort(_cost_package->_data_reuse.getLeaves().begin(), _cost_package->_data_reuse.getLeaves().end(), CostSolverComparator);
 
     COST reuse_max = 0;
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         reuse_max = std::max(reuse_max, _flush_cost[i]);
         reuse_max = std::max(reuse_max, _fetch_cost[i]);
     }
@@ -241,7 +220,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
     DECISION decision;
 
     //initialize all decision to INVALID
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         decision.push_back(INVALID);
     }
 
@@ -274,14 +253,14 @@ CostSolver::DECISION CostSolver::FindOptimal()
         std::cout << std::endl;
 
         // find optimal in this batch
-        ASSERTX(idvecsize <= _batchsize);
-        UINT64 permute = (1 << idvecsize) - 1;
+        assert(idvecsize <= _batchsize);
+        uint64_t permute = (1 << idvecsize) - 1;
 
         // should not compare the cost between batches, so reset cur_total
         cur_total = FLT_MAX;
 
         DECISION temp_decision = decision;
-        for (; permute != (UINT64)(-1); permute--) {
+        for (; permute != (uint64_t)(-1); permute--) {
             for (int j = 0; j < idvecsize; j++) {
                 if ((permute >> j) & 1)
                     temp_decision[idvec[j]] = PIM;
@@ -305,7 +284,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
 
     _cost_package->_data_reuse.DeleteTrie(partial_root);
 
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         if (decision[i] == INVALID) {
             if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
                 decision[i] = CPU;
@@ -315,7 +294,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
             }
         }
     }
-    // for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    // for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
     //     if (decision[i] == INVALID)
     //         decision[i] = PIM;
     // }
@@ -323,7 +302,7 @@ CostSolver::DECISION CostSolver::FindOptimal()
     cur_total = Cost(decision, _cost_package->_data_reuse.getRoot());
     // iterate over the remaining BBs 2 times until convergence
     for (int j = 0; j < 2; j++) {
-        for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
             BBLID id = i;
 
             if (decision[id] == CPU) {
@@ -350,34 +329,34 @@ CostSolver::DECISION CostSolver::FindOptimal()
     return decision;
 }
 
-VOID CostSolver::ReadConfig(ConfigReader &reader)
+void CostSolver::ReadConfig(ConfigReader &reader)
 {
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         COST ilp = reader.GetReal("ILP", CostSiteName[i], -1);
-        ASSERTX(ilp > 0);
+        assert(ilp > 0);
         _cost_package->_ilp[i] = ilp;
     }
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         COST mlp = reader.GetReal("MLP", CostSiteName[i], -1);
-        ASSERTX(mlp > 0);
+        assert(mlp > 0);
         _cost_package->_mlp[i] = mlp;
     }
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        UINT32 core = reader.GetInteger("Core", CostSiteName[i], -1);
-        ASSERTX(core > 0);
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        uint32_t core = reader.GetInteger("Core", CostSiteName[i], -1);
+        assert(core > 0);
         _cost_package->_core_count[i] = core;
     }
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        UINT32 multiplier = reader.GetInteger("SIMDCapability", CostSiteName[i], -1);
-        ASSERTX(multiplier > 0);
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        uint32_t multiplier = reader.GetInteger("SIMDCapability", CostSiteName[i], -1);
+        assert(multiplier > 0);
         _cost_package->_simd_capability[i] = multiplier;
     }
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < MAX_COST_SITE; j++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        for (uint32_t j = 0; j < MAX_COST_SITE; j++) {
             std::string coststr = CostSiteName[i] + "to" + CostSiteName[j];
             COST cost = reader.GetReal("UnitControlCost", coststr, -1);
             if (cost >= 0) {
@@ -386,15 +365,15 @@ VOID CostSolver::ReadConfig(ConfigReader &reader)
         }
     }
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         COST cost = reader.GetReal("CacheFlushCost", CostSiteName[i], -1);
-        ASSERTX(cost >= 0);
+        assert(cost >= 0);
         _flush_cost[i] = cost;
     }
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         _fetch_cost[i] = 0;
-        for (UINT32 j = 0; j < MAX_LEVEL - 1; j++) {
+        for (uint32_t j = 0; j < MAX_LEVEL - 1; j++) {
             std::string name = CostSiteName[i] + "/" + StorageLevelName[j];
             auto sections = reader.Sections();
             if (sections.find(name) == sections.end()) {
@@ -404,43 +383,43 @@ VOID CostSolver::ReadConfig(ConfigReader &reader)
             if (j == 1) continue;
 
             COST cost = reader.GetReal(name, "hitcost", -1);
-            ASSERTX(cost >= 0);
+            assert(cost >= 0);
             _fetch_cost[i] += cost;
         }
         // memory
         std::string name = CostSiteName[i] + "/" + StorageLevelName[MEM];
         COST cost = reader.GetReal(name, "hitcost", -1);
-        ASSERTX(cost >= 0);
+        assert(cost >= 0);
         _fetch_cost[i] += cost;
     }
 
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         COST cost = reader.GetReal("UnitInstructionCost", CostSiteName[i], -1);
-        ASSERTX(cost >= 0);
+        assert(cost >= 0);
         _cost_package->_instruction_multiplier[i] = cost;
     }
 
     double threshold = reader.GetReal("DataReuse", "BatchThreshold", -1);
-    ASSERTX(threshold >= 0);
+    assert(threshold >= 0);
     _batchthreshold = threshold;
 
     int size = reader.GetInteger("DataReuse", "BatchSize", -1);
-    ASSERTX(size > 0);
+    assert(size > 0);
     _batchsize = size;
 
     int mpki = reader.GetInteger("Other", "MPKIThreshold", -1);
-    ASSERTX(mpki > 0);
+    assert(mpki > 0);
     _mpkithreshold = mpki;
 }
 
-VOID CostSolver::SetBBLSize(BBLID bbl_size) {
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
+void CostSolver::SetBBLSize(BBLID bbl_size) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
         _BBL_partial_total[i].resize(bbl_size);
         memset(&_BBL_partial_total[i][0], 0, bbl_size * sizeof(_BBL_partial_total[i][0]));
     }
 #ifdef PIMPROF_MPKI
-    for (UINT32 i = 0; i < MAX_COST_SITE; i++) {
-        for (UINT32 j = 0; j < MAX_LEVEL; j++) {
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        for (uint32_t j = 0; j < MAX_LEVEL; j++) {
             _BBL_storage_partial_total[i][j].resize(bbl_size);
             memset(&_BBL_storage_partial_total[i][j][0], 0, bbl_size * sizeof(_BBL_storage_partial_total[i][j][0]));
         }
@@ -452,7 +431,7 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
 {
     out << "========================================================" << std::endl;
     if (toscreen == true) {
-        for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
             out << i << ":"
                 << (decision[i] == CPU ? "C" : "")
                 << (decision[i] == PIM ? "P" : "")
@@ -461,7 +440,7 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
         out << std::endl;
     }
     else {
-        std::vector<std::pair<UUID, UINT32>> sorted_hash(_cost_package->_bbl_hash.begin(), _cost_package->_bbl_hash.end());
+        std::vector<std::pair<UUID, uint32_t>> sorted_hash(_cost_package->_bbl_hash.begin(), _cost_package->_bbl_hash.end());
         std::sort(sorted_hash.begin(), sorted_hash.end(),
             [](auto &a, auto &b) { return a.second < b.second; });
         out << std::right << std::setw(7) << "BBLID" 
@@ -475,10 +454,10 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, const DECISION &decis
             << std::right << std::setw(18) << "Hash(hi)" 
             << std::right << std::setw(18) << "Hash(lo)"
             << std::endl;
-        for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+        for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
             if (sorted_hash[i].second != i) {
                 std::cout << "wowow:" << sorted_hash[i].second << " " << i << std::endl;
-                ASSERTX(0);
+                assert(0);
             }
             
             out << std::right << std::setw(7) << i
@@ -511,7 +490,7 @@ std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &d
     for (; it != eit; it++) {
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         CostSite site = decision[i];
         if (site == CPU || site == PIM) {
             cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
@@ -535,15 +514,15 @@ std::ostream &CostSolver::PrintCostBreakdown(std::ostream &out, const DECISION &
 {
     COST cur_instr_cost = 0;
     COST cur_storage_level_cost[MAX_LEVEL] = {0};
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         CostSite site = decision[i];
         if (site == CPU || site == PIM) {
             cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
         }
     }
 
-    for (UINT32 i = 0; i < MAX_LEVEL; i++) {
-        for (UINT32 j = 0; j < _cost_package->_bbl_size; j++) {
+    for (uint32_t i = 0; i < MAX_LEVEL; i++) {
+        for (uint32_t j = 0; j < _cost_package->_bbl_size; j++) {
             CostSite site = decision[j];
             if (site == CPU || site == PIM) {
                 cur_storage_level_cost[i] += _cost_package->BBLStorageLevelCost(site, (StorageLevel)i, j);
@@ -565,9 +544,9 @@ std::ostream &CostSolver::PrintCostBreakdown(std::ostream &out, const DECISION &
 std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
 {
 #ifdef PIMPROF_MPKI
-    UINT64 total = 0;
-    UINT64 total_visit = 0;
-    for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
+    uint64_t total = 0;
+    uint64_t total_visit = 0;
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
         total += _cost_package->_bbl_instr_cnt[i];
         total_visit += _cost_package->_bbl_visit_cnt[i];
     }
@@ -581,7 +560,7 @@ std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
               << std::right << std::setw(15) << "CPUCost"
               << std::right << std::setw(15) << "PIMCost"
               << std::endl;
-    for (UINT32 i = 0; i < MAX_INDEX; i++) {
+    for (uint32_t i = 0; i < MAX_INDEX; i++) {
         if (_cost_package->_type_instr_cnt[i] > 0) {
             out << std::right << std::setw(8) << i
                   << std::right << std::setw(15) << OPCODE_StringShort(i)
@@ -599,38 +578,38 @@ std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
     out << "CPU simd cost: " << _cost_package->_total_simd_cost[CPU] << std::endl;
     out << "PIM simd cost: " << _cost_package->_total_simd_cost[PIM] << std::endl;
 #endif
-    // std::vector<std::vector<UINT32>> cdftemp;
-    // std::vector<UINT32> cdf; 
-    // for (UINT32 i = 0; i < _cost_package->_bbl_size; i++) {
-    //     UINT32 per = _cost_package->_bbl_instr_cnt[i] / _cost_package->_bbl_visit_cnt[i];
-    //     // ASSERTX(_cost_package->_bbl_instr_cnt[i] % _cost_package->_bbl_visit_cnt[i] == 0);
+    // std::vector<std::vector<uint32_t>> cdftemp;
+    // std::vector<uint32_t> cdf; 
+    // for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
+    //     uint32_t per = _cost_package->_bbl_instr_cnt[i] / _cost_package->_bbl_visit_cnt[i];
+    //     // assert(_cost_package->_bbl_instr_cnt[i] % _cost_package->_bbl_visit_cnt[i] == 0);
     //     for (; cdf.size() <= per; cdf.push_back(0));
     //     cdf[per] += _cost_package->_bbl_visit_cnt[i];
 
-    //     for (; cdftemp.size() <= per; cdftemp.push_back(std::vector<UINT32>()));
+    //     for (; cdftemp.size() <= per; cdftemp.push_back(std::vector<uint32_t>()));
     //     cdftemp[per].push_back(i);
     // }
-    // for (UINT32 i = 0; i < cdf.size(); i++) {
+    // for (uint32_t i = 0; i < cdf.size(); i++) {
     //     if (cdf[i] > 0) {
     //         out << i << " ";
-    //         for (UINT32 j = 0; j < cdftemp[i].size(); j++)
+    //         for (uint32_t j = 0; j < cdftemp[i].size(); j++)
     //             out << cdftemp[i][j] << " ";
     //         out << std::endl;
     //     }
     // }
     // out << std::endl;
-    // for (UINT32 i = 0; i < cdf.size(); i++) {
+    // for (uint32_t i = 0; i < cdf.size(); i++) {
     //     if (cdf[i] > 0)
     //     out << i << " " << cdf[i] << std::endl;
     // }
     // out << std::endl;
-    // for (UINT32 i = 0; i < cdftemp[cdf.size() - 1].size(); i++) {
+    // for (uint32_t i = 0; i < cdftemp[cdf.size() - 1].size(); i++) {
     //     BBLID bblid = cdftemp[cdf.size() - 1][i];
     //     infomsg() << cdf.size() << " " << bblid << std::endl;
     //     auto &map = _cost_package->_bbl_hash;
     //     for (auto it = map.begin(); it != map.end(); ++it) {
     //         if (it->second == bblid) {
-    //             out << (INT64)it->first.first << " " << (INT64)it->first.second << std::endl;
+    //             out << (int64_t)it->first.first << " " << (int64_t)it->first.second << std::endl;
     //             break;
     //         }
     //     } 

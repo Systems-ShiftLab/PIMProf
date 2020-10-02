@@ -12,8 +12,12 @@ llvm: build
 	make -C $(BUILD_DIR) VERBOSE=1
 
 pin: build
-	mkdir -p $(PIN_BUILD_DIR)
-	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR) PIMPROF_MPKI=1
+	cd $(BUILD_DIR) && LLVM_HOME=$(LLVM_HOME) cmake ..
+	make -C $(BUILD_DIR) VERBOSE=1
+
+# pin: build
+# 	mkdir -p $(PIN_BUILD_DIR)
+# 	make -C $(PIN_SRC_DIR) PIN_ROOT=$(PIN_ROOT) OBJDIR=$(PIN_BUILD_DIR) PIMPROF_MPKI=1
 
 lib: $(ANNOTATION_SO)
 

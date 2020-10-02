@@ -12,21 +12,18 @@
 #include <algorithm>
 #include <iostream>
 #include <bitset>
+#include <cassert>
 
-#include "pin.H"
-extern "C" {
-#include "xed-interface.h"
-}
 #include "INIReader.h"
 
 namespace PIMProf {
 /* ===================================================================== */
 /* Typedefs and constants */
 /* ===================================================================== */
-typedef UINT32 CACHE_STATS;
-typedef FLT64 COST;
-typedef UINT32 BBLID;
-typedef std::pair<UINT64, UINT64> UUID;
+typedef uint32_t CACHE_STATS;
+typedef double COST;
+typedef uint32_t BBLID;
+typedef std::pair<uint64_t, uint64_t> UUID;
 
 
 enum CostSite {
@@ -129,15 +126,6 @@ class CommandLineParser {
     inline bool enableexternfunc() { return false; } // whether the execution cycles of external function should be given in the config file, for debug use
     inline bool enableglobalbbl() { return true; } // whether considering the dependency with the global BBL, for debug use
 
-    inline int Usage(std::ostream &out) {
-        out << "Invalid argument."
-            << std::endl
-            << KNOB_BASE::StringKnobSummary()
-            << std::endl;
-        ASSERTX(0);
-        return -1;
-    }
-
 };
 
 /* ===================================================================== */
@@ -153,7 +141,7 @@ class ConfigReader: public INIReader {
     inline ConfigReader(std::string f)
         : INIReader(f), filename(f)
     {
-        INT32 error = ParseError();
+        int32_t error = ParseError();
         if (error == -1) {
             errormsg() << ".ini file: Open error." << std::endl;
         }
@@ -168,7 +156,7 @@ class ConfigReader: public INIReader {
         }
         if (error) {
             errormsg() << "Filename: " << filename << std::endl;
-            ASSERTX(0);
+            assert(0);
         }
     }
 };
@@ -177,8 +165,8 @@ class ConfigReader: public INIReader {
 /* InstructionPrinter */
 /* ===================================================================== */
 
-VOID PrintInstruction(std::ostream *out, UINT64 insAddr, std::string insDis, UINT32 simd_len);
-VOID PrintInfo(std::ostream *out, std::string info);
+void PrintInstruction(std::ostream *out, uint64_t insAddr, std::string insDis, uint32_t simd_len);
+void PrintInfo(std::ostream *out, std::string info);
 
 }// namespace PIMProf
 

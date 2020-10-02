@@ -25,7 +25,7 @@
 
 /// @brief Checks if n is a power of 2.
 /// @returns true if n is power of 2
-static inline bool IsPower2(UINT32 n)
+static inline bool IsPower2(uint32_t n)
 {
     return ((n & (n - 1)) == 0);
 }
@@ -33,9 +33,9 @@ static inline bool IsPower2(UINT32 n)
 /// @brief Computes floor(log2(n))
 /// Works by finding position of MSB set.
 /// @returns -1 if n == 0.
-static inline INT32 FloorLog2(UINT32 n)
+static inline int32_t FloorLog2(uint32_t n)
 {
-    INT32 p = 0;
+    int32_t p = 0;
 
     if (n == 0)
         return -1;
@@ -71,7 +71,7 @@ static inline INT32 FloorLog2(UINT32 n)
 /// @brief Computes ceil(log2(n))
 /// Works by finding position of MSB set.
 /// @returns -1 if n == 0.
-static inline INT32 CeilLog2(UINT32 n)
+static inline int32_t CeilLog2(uint32_t n)
 {
     return FloorLog2(n - 1) + 1;
 }
@@ -100,7 +100,7 @@ class CACHE_TAG
 
     inline bool operator == (const ADDRINT &rhs) const { return _tag == rhs; }
 
-    inline VOID SetTag(ADDRINT tagaddr) {
+    inline void SetTag(ADDRINT tagaddr) {
        _tag = tagaddr;
     }
     inline ADDRINT GetTag() const { return _tag; }
@@ -112,15 +112,15 @@ class CACHE_TAG
 class CACHE_SET
 {
   protected:
-    static const UINT32 MAX_ASSOCIATIVITY = 32;
+    static const uint32_t MAX_ASSOCIATIVITY = 32;
     STORAGE *_storage;
   public:
     virtual ~CACHE_SET() {};
-    virtual VOID SetAssociativity(UINT32 associativity) = 0;
-    virtual UINT32 GetAssociativity(UINT32 associativity) = 0;
+    virtual void SetAssociativity(uint32_t associativity) = 0;
+    virtual uint32_t GetAssociativity(uint32_t associativity) = 0;
     virtual CACHE_TAG *Find(ADDRINT tagaddr) = 0;
     virtual CACHE_TAG *Replace(ADDRINT tagaddr) = 0;
-    virtual VOID Flush() = 0;
+    virtual void Flush() = 0;
 };
 
 
@@ -130,9 +130,9 @@ class DIRECT_MAPPED : public CACHE_SET
     CACHE_TAG *_tag;
 
   public:
-    inline DIRECT_MAPPED(STORAGE *storage, UINT32 associativity = 1) 
+    inline DIRECT_MAPPED(STORAGE *storage, uint32_t associativity = 1) 
     {
-        ASSERTX(associativity == 1);
+        assert(associativity == 1);
         _tag = new CACHE_TAG(storage, 0);
         _storage = storage;
     }
@@ -142,8 +142,8 @@ class DIRECT_MAPPED : public CACHE_SET
         delete _tag;
     }
 
-    inline VOID SetAssociativity(UINT32 associativity) { ASSERTX(associativity == 1); }
-    inline UINT32 GetAssociativity(UINT32 associativity) { return 1; }
+    inline void SetAssociativity(uint32_t associativity) { assert(associativity == 1); }
+    inline uint32_t GetAssociativity(uint32_t associativity) { return 1; }
 
     inline CACHE_TAG *Find(ADDRINT tagaddr) 
     {
@@ -157,7 +157,7 @@ class DIRECT_MAPPED : public CACHE_SET
         _tag->SetTag(tagaddr);
         return _tag;
     }
-    inline VOID Flush() { _tag->SetTag(0); }
+    inline void Flush() { _tag->SetTag(0); }
 };
 
 /// @brief Cache set with round robin replacement
@@ -165,18 +165,18 @@ class ROUND_ROBIN : public CACHE_SET
 {
   private:
     CACHE_TAG *_tags[MAX_ASSOCIATIVITY];
-    UINT32 _tagsLastIndex;
-    UINT32 _nextReplaceIndex;
+    uint32_t _tagsLastIndex;
+    uint32_t _nextReplaceIndex;
 
   public:
     
-    inline ROUND_ROBIN(STORAGE *storage, UINT32 associativity)
+    inline ROUND_ROBIN(STORAGE *storage, uint32_t associativity)
         : _tagsLastIndex(associativity - 1)
     {
-        ASSERTX(associativity <= MAX_ASSOCIATIVITY);
+        assert(associativity <= MAX_ASSOCIATIVITY);
         _nextReplaceIndex = _tagsLastIndex;
 
-        for (INT32 index = _tagsLastIndex; index >= 0; index--)
+        for (int32_t index = _tagsLastIndex; index >= 0; index--)
         {
             _tags[index] = new CACHE_TAG(storage, 0);
         }
@@ -185,24 +185,24 @@ class ROUND_ROBIN : public CACHE_SET
 
     inline ~ROUND_ROBIN()
     {
-        for (INT32 index = _tagsLastIndex; index >= 0; index--)
+        for (int32_t index = _tagsLastIndex; index >= 0; index--)
         {
             delete _tags[index];
         }
     }
 
-    inline VOID SetAssociativity(UINT32 associativity)
+    inline void SetAssociativity(uint32_t associativity)
     {
-        ASSERTX(associativity <= MAX_ASSOCIATIVITY);
+        assert(associativity <= MAX_ASSOCIATIVITY);
         _tagsLastIndex = associativity - 1;
         _nextReplaceIndex = _tagsLastIndex;
     }
 
-    inline UINT32 GetAssociativity(UINT32 associativity) { return _tagsLastIndex + 1; }
+    inline uint32_t GetAssociativity(uint32_t associativity) { return _tagsLastIndex + 1; }
 
     inline CACHE_TAG *Find(ADDRINT tagaddr)
     {
-        for (INT32 index = _tagsLastIndex; index >= 0; index--)
+        for (int32_t index = _tagsLastIndex; index >= 0; index--)
         {
             if (*_tags[index] == tagaddr)
                 return _tags[index];
@@ -213,7 +213,7 @@ class ROUND_ROBIN : public CACHE_SET
     inline CACHE_TAG *Replace(ADDRINT tagaddr)
     {
         // g++ -O3 too dumb to do CSE on following lines?!
-        const UINT32 index = _nextReplaceIndex;
+        const uint32_t index = _nextReplaceIndex;
 
         _tags[index]->SetTag(tagaddr);
         // condition typically faster than modulo
@@ -221,9 +221,9 @@ class ROUND_ROBIN : public CACHE_SET
         return _tags[index];
     }
 
-    inline VOID Flush()
+    inline void Flush()
     {
-        for (INT32 index = _tagsLastIndex; index >= 0; index--)
+        for (int32_t index = _tagsLastIndex; index >= 0; index--)
         {
             _tags[index]->SetTag(0);
         }
@@ -242,10 +242,10 @@ class LRU : public CACHE_SET
     CacheTagList _tags;
 
   public:
-    inline LRU(STORAGE *storage, UINT32 associativity = MAX_ASSOCIATIVITY)
+    inline LRU(STORAGE *storage, uint32_t associativity = MAX_ASSOCIATIVITY)
     {
-        ASSERTX(associativity <= MAX_ASSOCIATIVITY);
-        for (UINT32 i = 0; i < associativity; i++)
+        assert(associativity <= MAX_ASSOCIATIVITY);
+        for (uint32_t i = 0; i < associativity; i++)
         {
             CACHE_TAG *tag = new CACHE_TAG(storage, 0);
             tag->SetTag(0);
@@ -264,23 +264,23 @@ class LRU : public CACHE_SET
         }
     }
 
-    inline VOID SetAssociativity(UINT32 associativity)
+    inline void SetAssociativity(uint32_t associativity)
     {
-        ASSERTX(associativity <= MAX_ASSOCIATIVITY);
+        assert(associativity <= MAX_ASSOCIATIVITY);
         while (!_tags.empty())
         {
             CACHE_TAG *tag = _tags.back();
             delete tag;
             _tags.pop_back();
         }
-        for (UINT32 i = 0; i < associativity; i++)
+        for (uint32_t i = 0; i < associativity; i++)
         {
             CACHE_TAG *tag = new CACHE_TAG(_storage, 0);
             _tags.push_back(tag);
         }
     }
 
-    inline UINT32 GetAssociativity(UINT32 associativity)
+    inline uint32_t GetAssociativity(uint32_t associativity)
     {
         return _tags.size();
     }
@@ -312,16 +312,16 @@ class LRU : public CACHE_SET
         return tag;
     }
 
-    inline VOID Flush()
+    inline void Flush()
     {
-        UINT32 associativity = _tags.size();
+        uint32_t associativity = _tags.size();
         while (!_tags.empty())
         {
             CACHE_TAG *tag = _tags.back();
             delete tag;
             _tags.pop_back();
         }
-        for (UINT32 i = 0; i < associativity; i++)
+        for (uint32_t i = 0; i < associativity; i++)
         {
             CACHE_TAG *tag = new CACHE_TAG(_storage, 0);
             _tags.push_back(tag);
@@ -346,7 +346,7 @@ class STORAGE_LEVEL_BASE
     friend class CACHE_LEVEL;
     friend class MEMORY_LEVEL;
   protected:
-    static const UINT32 HIT_MISS_NUM = 2;
+    static const uint32_t HIT_MISS_NUM = 2;
     CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
 
   protected:
@@ -356,9 +356,9 @@ class STORAGE_LEVEL_BASE
     COST _hitcost[MAX_COST_SITE];
 
   public:
-    virtual VOID AddMemCost(BBLID bblid, UINT32 simd_len) = 0;
-    virtual BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len) = 0;
-    virtual BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len) = 0;
+    virtual void AddMemCost(BBLID bblid, uint32_t simd_len) = 0;
+    virtual bool Access(ADDRINT addr, uint32_t size, ACCESS_TYPE accessType, BBLID bblid, uint32_t simd_len) = 0;
+    virtual bool AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, uint32_t simd_len) = 0;
 
   protected:
     // input params
@@ -369,7 +369,7 @@ class STORAGE_LEVEL_BASE
     {
         CACHE_STATS sum = 0;
 
-        for (UINT32 accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
+        for (uint32_t accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
         {
             sum += _access[accessType][hit];
         }
@@ -389,9 +389,9 @@ class STORAGE_LEVEL_BASE
     CACHE_STATS Misses() const { return SumAccess(false); }
     CACHE_STATS Accesses() const { return Hits() + Misses(); }
 
-    inline VOID InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID bblid);
+    inline void InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID bblid);
 
-    inline VOID SplitOnMiss(ADDRINT tag);
+    inline void SplitOnMiss(ADDRINT tag);
 
     inline std::string Name() const
     {
@@ -400,7 +400,7 @@ class STORAGE_LEVEL_BASE
 
     /// @brief Stats output method
     virtual std::ostream &StatsLong(std::ostream &out) const;
-    VOID CountMemoryCost(std::vector<COST> (&_BBL_cost)[MAX_COST_SITE], int cache_level) const;
+    void CountMemoryCost(std::vector<COST> (&_BBL_cost)[MAX_COST_SITE], int cache_level) const;
 };
 
 
@@ -413,78 +413,78 @@ class CACHE_LEVEL : public STORAGE_LEVEL_BASE
     std::vector<CACHE_SET *> _sets;
 
   protected:
-    const UINT32 _cacheSize;
-    const UINT32 _lineSize;
-    const UINT32 _associativity;
+    const uint32_t _cacheSize;
+    const uint32_t _lineSize;
+    const uint32_t _associativity;
     std::string _replacement_policy;
-    UINT32 STORE_ALLOCATION;
-    UINT32 _numberOfFlushes;
-    UINT32 _numberOfResets;
+    uint32_t STORE_ALLOCATION;
+    uint32_t _numberOfFlushes;
+    uint32_t _numberOfResets;
 
     // computed params
-    const UINT32 _lineShift;
-    const UINT32 _setIndexMask;
+    const uint32_t _lineShift;
+    const uint32_t _setIndexMask;
   
   // forbid copy constructor
   private:
     CACHE_LEVEL(const CACHE_LEVEL &);
 
   protected:
-    UINT32 NumSets() const { return _setIndexMask + 1; }
+    uint32_t NumSets() const { return _setIndexMask + 1; }
 
   public:
     // constructors/destructors
-    CACHE_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, std::string policy, UINT32 cacheSize, UINT32 lineSize, UINT32 associativity, UINT32 allocation, COST hitcost[MAX_COST_SITE]);
+    CACHE_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, std::string policy, uint32_t cacheSize, uint32_t lineSize, uint32_t associativity, uint32_t allocation, COST hitcost[MAX_COST_SITE]);
     ~CACHE_LEVEL();
 
   public:
     // accessors
-    inline UINT32 CacheSize() const { return _cacheSize; }
-    inline UINT32 LineSize() const { return _lineSize; }
-    inline UINT32 Associativity() const { return _associativity; }
+    inline uint32_t CacheSize() const { return _cacheSize; }
+    inline uint32_t LineSize() const { return _lineSize; }
+    inline uint32_t Associativity() const { return _associativity; }
 
     inline CACHE_STATS Flushes() const { return _numberOfFlushes; }
     inline CACHE_STATS Resets() const { return _numberOfResets; }
 
-    inline VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex) const
+    inline void SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, uint32_t &setIndex) const
     {
         tagaddr = addr >> _lineShift;
         setIndex = tagaddr & _setIndexMask;
     }
 
-    inline VOID SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, UINT32 &setIndex, UINT32 &lineIndex) const
+    inline void SplitAddress(const ADDRINT addr, ADDRINT &tagaddr, uint32_t &setIndex, uint32_t &lineIndex) const
     {
-        const UINT32 lineMask = _lineSize - 1;
+        const uint32_t lineMask = _lineSize - 1;
         lineIndex = addr & lineMask;
         SplitAddress(addr, tagaddr, setIndex);
     }
 
-    inline VOID IncFlushCounter()
+    inline void IncFlushCounter()
     {
         _numberOfFlushes += 1;
     }
 
-    inline VOID IncResetCounter()
+    inline void IncResetCounter()
     {
         _numberOfResets += 1;
     }
   
   public:
     // modifiers
-    VOID AddMemCost(BBLID bblid, UINT32 simd_len);
+    void AddMemCost(BBLID bblid, uint32_t simd_len);
 
-    VOID AddInstructionMemCost(BBLID bblid, UINT32 simd_len);
+    void AddInstructionMemCost(BBLID bblid, uint32_t simd_len);
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
-    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
+    bool Access(ADDRINT addr, uint32_t size, ACCESS_TYPE accessType, BBLID bblid, uint32_t simd_len);
 
     /// Cache access at addr that does not span cache lines
     /// @return true if accessed cache line hits
-    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
+    bool AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, uint32_t simd_len);
 
-    VOID Flush();
-    VOID ResetStats();
+    void Flush();
+    void ResetStats();
     inline std::string getReplacementPolicy() {
         return _replacement_policy;
     }
@@ -502,15 +502,15 @@ class MEMORY_LEVEL : public STORAGE_LEVEL_BASE
     MEMORY_LEVEL(STORAGE *storage, CostSite cost_site, StorageLevel storage_level, COST hitcost[MAX_COST_SITE]);
 
     // modifiers
-    VOID AddMemCost(BBLID bblid, UINT32 simd_len);
+    void AddMemCost(BBLID bblid, uint32_t simd_len);
 
     /// Cache access from addr to addr+size-1/*!
     /// @return true if all accessed cache lines hit
-    BOOL Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
+    bool Access(ADDRINT addr, uint32_t size, ACCESS_TYPE accessType, BBLID bblid, uint32_t simd_len);
 
     /// Cache access at addr that does not span cache lines
     /// @return true if accessed cache line hits
-    BOOL AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
+    bool AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType, BBLID bblid, uint32_t simd_len);
 };
 
 class STORAGE
@@ -539,16 +539,16 @@ class STORAGE
     /// If no modification is made, then this will output the 
     /// default cache config PIMProf will use.
     std::ostream& WriteConfig(std::ostream& out);
-    VOID WriteConfig(const std::string filename);
+    void WriteConfig(const std::string filename);
 
     std::ostream& WriteStats(std::ostream& out);
-    VOID WriteStats(const std::string filename);
+    void WriteStats(const std::string filename);
 
     /// Do on instruction cache reference
-    VOID InstrCacheRef(ADDRINT addr, UINT32 size, BBLID bblid, UINT32 simd_len);
+    void InstrCacheRef(ADDRINT addr, uint32_t size, BBLID bblid, uint32_t simd_len);
 
     /// Do on data cache reference
-    VOID DataCacheRef(ADDRINT ip, ADDRINT addr, UINT32 size, ACCESS_TYPE accessType, BBLID bblid, UINT32 simd_len);
+    void DataCacheRef(ADDRINT ip, ADDRINT addr, uint32_t size, ACCESS_TYPE accessType, BBLID bblid, uint32_t simd_len);
 
 };
 

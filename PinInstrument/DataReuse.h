@@ -11,7 +11,6 @@
 #include <stack>
 #include <list>
 #include <set>
-#include "pin.H"
 
 #include "PinUtil.h"
 
@@ -39,13 +38,13 @@ class DataReuseSegment {
         return _set.size();
     }
 
-    inline VOID insert(BBLID bblid) {
+    inline void insert(BBLID bblid) {
         if (_set.empty())
             _headID = bblid;
         _set.insert(bblid);
     }
 
-    inline VOID insert(DataReuseSegment &seg) {
+    inline void insert(DataReuseSegment &seg) {
         _set.insert(seg._set.begin(), seg._set.end());
     }
 
@@ -59,7 +58,7 @@ class DataReuseSegment {
         return result;
     }
 
-    inline VOID clear() {
+    inline void clear() {
         _headID = -1;
         _set.clear();
         _count = 1;
@@ -73,7 +72,7 @@ class DataReuseSegment {
         return _set.end();
     }
 
-    inline VOID setHead(BBLID head) {
+    inline void setHead(BBLID head) {
         _headID = head;
     }
 
@@ -81,7 +80,7 @@ class DataReuseSegment {
         return _headID;
     }
 
-    inline VOID setCount(int count) {
+    inline void setCount(int count) {
         _count = count;
     }
 
@@ -89,7 +88,7 @@ class DataReuseSegment {
         return _count;
     }
 
-    inline BOOL operator == (DataReuseSegment &rhs) {
+    inline bool operator == (DataReuseSegment &rhs) {
         return (_headID == rhs._headID && _set == rhs._set);
     }
 
@@ -117,7 +116,7 @@ class TrieNode {
     std::map<BBLID, TrieNode *> _children;
     BBLID _curID;
     TrieNode *_parent;
-    INT64 _count;
+    int64_t _count;
   public:
     inline TrieNode() {
         _isLeaf = false;

@@ -21,7 +21,7 @@ void PinInstrument::initialize(int argc, char *argv[])
 // because we assume sizeof(ADDRINT) = 8
 # if !(__GNUC__) || !(__x86_64__)
     errormsg() << "Incompatible system" << std::endl;
-    ASSERTX(0);
+    assert(0);
 #endif
     PIN_InitSymbols();
 
@@ -29,7 +29,7 @@ void PinInstrument::initialize(int argc, char *argv[])
     _storage.initialize(&_cost_package, _cost_package._config_reader);
     _instruction_latency.initialize(&_cost_package, _cost_package._config_reader);
     _memory_latency.initialize(&_storage, &_cost_package, _cost_package._config_reader);
-    _cost_solver.initialize(&_cost_package, _cost_package._config_reader);
+    .initialize(&_cost_package, _cost_solver_cost_package._config_reader);
 
 }
 
@@ -48,19 +48,19 @@ void PinInstrument::initialize(int argc, char *argv[])
 
 void PinInstrument::simulate()
 {
-    INS_AddInstrumentFunction(InstructionInstrument, (VOID *)this);
-    PIN_AddThreadStartFunction(ThreadStart, (VOID *)this);
-    PIN_AddThreadFiniFunction(ThreadFinish, (VOID *)this);
-    PIN_AddFiniFunction(FinishInstrument, (VOID *)this);
+    INS_AddInstrumentFunction(InstructionInstrument, (void *)this);
+    PIN_AddThreadStartFunction(ThreadStart, (void *)this);
+    PIN_AddThreadFiniFunction(ThreadFinish, (void *)this);
+    PIN_AddFiniFunction(FinishInstrument, (void *)this);
 
     // Never returns
     PIN_StartProgram();
 }
 
-VOID PinInstrument::HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT control_value, THREADID threadid)
+void PinInstrument::HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT control_value, THREADID threadid)
 {
-    UINT64 op = ControlValue::GetOpType(control_value);
-    UINT64 isomp = ControlValue::GetIsOpenMP(control_value);
+    uint64_t op = ControlValue::GetOpType(control_value);
+    uint64_t isomp = ControlValue::GetIsOpenMP(control_value);
     switch(op) {
       case MAGIC_OP_ANNOTATIONHEAD:
         DoAtAnnotationHead(self, bblhash_hi, bblhash_lo, isomp, threadid); break;
@@ -76,11 +76,11 @@ VOID PinInstrument::HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT
         DoAtROIDecisionTail(self, threadid); break;
       default:
         errormsg() << "Invalid Control Value " << std::hex << control_value << " " << op << " " << isomp << "." << std::endl;
-        ASSERTX(0);
+        assert(0);
     }
 }
 
-VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
+void PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -121,7 +121,7 @@ VOID PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
+void PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -130,7 +130,7 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
     if (isomp) {
         pkg._in_omp_parallel--;
     }
-    ASSERTX(pkg._thread_bbl_scope[threadid].top() == pkg._bbl_hash[bblhash]);
+    assert(pkg._thread_bbl_scope[threadid].top() == pkg._bbl_hash[bblhash]);
 #ifdef PIMPROFTRACE
     (*pkg._trace_file[0]) << "PIMProf BBLEnd " << pkg._thread_bbl_scope[0].top() << std::endl;
 #endif
@@ -142,7 +142,7 @@ VOID PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::DoAtROIHead(PinInstrument *self, THREADID threadid)
+void PinInstrument::DoAtROIHead(PinInstrument *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -152,7 +152,7 @@ VOID PinInstrument::DoAtROIHead(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::DoAtROITail(PinInstrument *self, THREADID threadid)
+void PinInstrument::DoAtROITail(PinInstrument *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -162,7 +162,7 @@ VOID PinInstrument::DoAtROITail(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::DoAtROIDecisionHead(PinInstrument *self, THREADID threadid)
+void PinInstrument::DoAtROIDecisionHead(PinInstrument *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -174,7 +174,7 @@ VOID PinInstrument::DoAtROIDecisionHead(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::DoAtROIDecisionTail(PinInstrument *self, THREADID threadid)
+void PinInstrument::DoAtROIDecisionTail(PinInstrument *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -186,20 +186,20 @@ VOID PinInstrument::DoAtROIDecisionTail(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::DoAtAcceleratorHead(PinInstrument *self)
+void PinInstrument::DoAtAcceleratorHead(PinInstrument *self)
 {
     CostPackage &pkg = self->_cost_package;
     pkg._inAcceleratorFunction = true;
     infomsg() << "see EncodeFrame" << std::endl;
 }
 
-VOID PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
+void PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
 {
     CostPackage &pkg = self->_cost_package;
     pkg._inAcceleratorFunction = false;
 }
 
-// VOID PinInstrument::ImageInstrument(IMG img, VOID *void_self)
+// void PinInstrument::ImageInstrument(IMG img, void *void_self)
 // {
 //     // find annotator head and tail by their names
 //     RTN annotator_head = RTN_FindByName(img, PIMProfAnnotationHead.c_str());
@@ -257,7 +257,7 @@ VOID PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
 
 int ins_to_skip = -1;
 
-VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
+void PinInstrument::InstructionInstrument(INS ins, void *void_self)
 {
 
     /***** deal with PIMProf magic *****/
@@ -279,14 +279,14 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
     }
 
     if (ins_to_skip > 0) {
-        ASSERTX(INS_IsMov(ins));
+        assert(INS_IsMov(ins));
         // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInfo, IARG_PTR, &std::cout, IARG_PTR, new std::string("is mov"), IARG_END);
         ins_to_skip--;
         return;
     }
 
     if (ins_to_skip == 0) {
-        ASSERTX(INS_IsMov(ins));
+        assert(INS_IsMov(ins));
         // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInfo, IARG_PTR, &std::cout, IARG_PTR, new std::string("is handlemagic"), IARG_END);
         // instrument the last mov instruction
         INS_InsertCall(
@@ -334,13 +334,13 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 */
     PinInstrument *self = (PinInstrument *)void_self;
 
-    UINT32 opcode = (UINT32)(INS_Opcode(ins));
-    BOOL ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
+    uint32_t opcode = (uint32_t)(INS_Opcode(ins));
+    bool ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
     xed_decoded_inst_t *xedd = INS_XedDec(ins);
 
     // simd_len > 0 means that this instruction is parallelizable
     // the value of simd_len indicates the number of normal instructions this simd instruction is equivalent to
-    UINT32 simd_len;
+    uint32_t simd_len;
     if (!xed_classify_sse(xedd) && !xed_classify_avx(xedd) && !xed_classify_avx512(xedd)) {
         simd_len = 0;
     }
@@ -367,7 +367,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
         IARG_END);
 
 
-    UINT32 ins_len = xed_decoded_inst_get_length(xedd);
+    uint32_t ins_len = xed_decoded_inst_get_length(xedd);
 
     // if (simd_len && (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins))) {
     //     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_UINT32, simd_len, IARG_END);
@@ -434,7 +434,7 @@ VOID PinInstrument::InstructionInstrument(INS ins, VOID *void_self)
 
 #include <memory>
 
-VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, VOID *void_self)
+void PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, int32_t flags, void *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
     CostPackage &pkg = self->_cost_package;
@@ -472,7 +472,7 @@ VOID PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, INT32 flags, V
     // PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 flags, VOID *void_self)
+void PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, int32_t flags, void *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
     CostPackage &pkg = self->_cost_package;
@@ -488,7 +488,7 @@ VOID PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, INT32 f
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-VOID PinInstrument::FinishInstrument(INT32 code, VOID *void_self)
+void PinInstrument::FinishInstrument(int32_t code, void *void_self)
 {
     PinInstrument *self = (PinInstrument *)void_self;
     CostPackage &pkg = self->_cost_package;

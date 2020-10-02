@@ -1,4 +1,4 @@
-//===- AnnotationInjection.cpp - Pass that injects BB annotator --*- C++ -*-===//
+//===- OffloaderInjection.cpp - Pass that injects calls for PIM offloading --*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -38,48 +38,11 @@
 
 #include "MurmurHash3.h"
 #include "Common.h"
-
-// #include <iostream>
-
-#define SIM_CMD_ROI_START       1
-#define SIM_CMD_ROI_END         2
-
-#define SIM_PIM_OFFLOAD_START  15
-#define SIM_PIM_OFFLOAD_END    16
+#include "InjectMagic.h"
 
 using namespace llvm;
 
-namespace { // Anonymous namespace
-
-/*
-    Meaning of different mode:
-    "CPU" or "CPUONLY" - Put start and end annotations around CPU-friendly BBLs
-    "PIM" or "PIMONLY" - Put start and end annotations around PIM-friendly BBLs
-    "NOTPIM" - Put end annotations at the start of PIM-friendly BBLs, and put start annotations at the end of PIM-friendly BBLs
-    "ALL" - Put start and end annotations at all BBLs, in this case the second argument can be used to differentiate whether it is CPU or PIM friendly
-*/
-enum class CallSite {
-    CPU, PIM, MAX_COST_SITE,
-    NOTPIM, ALL,
-    DEFAULT = 0x0fffffff,
-    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
-};
-
-enum class InjectMode {
-    SNIPER, VTUNE, PIMPROF,
-    DEFAULT = 0x0fffffff,
-    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
-};
-
-typedef std::pair<uint64_t, uint64_t> UUID;
-
-struct Decision {
-    CallSite decision;
-    int bblid;
-    double difference;
-    int parallel;
-};
-
+namespace PIMProf { // Anonymous namespace
 class HashFunc
 {
   public:
@@ -194,76 +157,9 @@ InjectMode Mode = InjectMode::INVALID;
 
 DecisionMap decision_map;
 
-
 /********************************************************
-* Injection function for Sniper (inject asm)
+* Sniper
 ********************************************************/
-
-// Inject Sniper's SimMagic0 before the LLVM::Instruction pointed by injectPt
-void InjectSimMagic0(Module &M, uint64_t arg0, Instruction *insertPt)
-{
-    LLVMContext &ctx = M.getContext();
-    std::vector<Type *> argtype {
-        Type::getInt64Ty(ctx), Type::getInt64Ty(ctx), Type::getInt64Ty(ctx)
-    };
-    FunctionType *ty = FunctionType::get(
-        Type::getVoidTy(ctx), argtype, false
-    );
-    // template of Sniper's SimMagic0
-    InlineAsm *ia = InlineAsm::get(
-        ty,
-        "\tmov $0, %rax \n"
-        "\txchg %bx, %bx\n",
-        "imr,~{rax},~{dirflag},~{fpsr},~{flags}",
-        true
-    );
-    Value *val0 = ConstantInt::get(IntegerType::get(M.getContext(), 64), arg0);
-    std::vector<Value *> arglist {val0};
-    CallInst::Create(
-            ia, arglist, "", insertPt);
-}
-
-void InjectSimMagic2(Module &M, uint64_t arg0, uint64_t arg1, uint64_t arg2, Instruction *insertPt)
-{
-    LLVMContext &ctx = M.getContext();
-    std::vector<Type *> argtype {
-        Type::getInt64Ty(ctx), Type::getInt64Ty(ctx), Type::getInt64Ty(ctx)
-    };
-    FunctionType *ty = FunctionType::get(
-        Type::getVoidTy(ctx), argtype, false
-    );
-    // template of Sniper's SimMagic0
-    InlineAsm *ia = InlineAsm::get(
-        ty,
-        "\tmov $0, %rax \n"
-        "\tmov $1, %rbx \n"
-        "\tmov $2, %rcx \n"
-        "\txchg %bx, %bx\n",
-        "imr,imr,imr,~{rax},~{rbx},~{rcx},~{dirflag},~{fpsr},~{flags}",
-        true
-    );
-    Value *val0 = ConstantInt::get(IntegerType::get(ctx, 64), arg0);
-    Value *val1 = ConstantInt::get(IntegerType::get(ctx, 64), arg1);
-    Value *val2 = ConstantInt::get(IntegerType::get(ctx, 64), arg2);
-    std::vector<Value *> arglist {val0, val1, val2};
-    CallInst::Create(
-            ia, arglist, "", insertPt);
-}
-
-void InjectVTuneITT(Module &M, VTUNE_MODE mode, Instruction *insertPt) {
-    LLVMContext &ctx = M.getContext();
-    Function *offloader = dyn_cast<Function>(
-        M.getOrInsertFunction(
-            VTuneOffloaderName, 
-            FunctionType::getInt32Ty(ctx),
-            Type::getInt32Ty(ctx)
-        )
-    );
-    Value *val0 = ConstantInt::get(IntegerType::get(M.getContext(), 32), mode);
-    std::vector<Value *> arglist {val0};
-    CallInst::Create(
-        offloader, arglist, "", insertPt);
-}
 
 void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     Decision decision = decision_map.getBasicBlockDecision(M, BB);
@@ -280,20 +176,20 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     Instruction *beginning = &(*BB.getFirstInsertionPt());
     if (decision.decision == CallSite::CPU) {
         if (ROI == CallSite::CPU || ROI == CallSite::ALL) {
-            InjectSimMagic2(M, SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            InjectSimMagic2(M, SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, beginning);
+            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
             cpu_inject_cnt++;
         }
     }
     if (decision.decision == CallSite::PIM) {
         if (ROI == CallSite::NOTPIM) {
-            InjectSimMagic2(M, SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            InjectSimMagic2(M, SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, beginning);
+            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
             pim_inject_cnt++;
         }
         if (ROI == CallSite::PIM || ROI == CallSite::ALL) {
-            InjectSimMagic2(M, SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, beginning);
-            InjectSimMagic2(M, SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
+            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, beginning);
+            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
             pim_inject_cnt++;
         }
     }
@@ -303,9 +199,9 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
-    InjectSimMagic0(M, SIM_CMD_ROI_START, beginning);
+    InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_START, beginning);
     if (ROI == CallSite::NOTPIM) {
-        InjectSimMagic2(M, SIM_PIM_OFFLOAD_START, -1, (uint64_t) CallSite::CPU, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, -1, (uint64_t) CallSite::CPU, beginning);
     }
 
     // inject an end call before every return instruction
@@ -313,16 +209,16 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
         for (auto &I : BB) {
             if (isa<ReturnInst>(I)) {
                 if (ROI == CallSite::NOTPIM) {
-                    InjectSimMagic2(M, SIM_PIM_OFFLOAD_END, -1, (uint64_t) CallSite::CPU, &I);
+                    InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, -1, (uint64_t) CallSite::CPU, &I);
                 }
-                InjectSimMagic0(M, SIM_CMD_ROI_END, &I);
+                InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
             }
         }
     }
 }
 
 /********************************************************
-* Injection function for VTune (inject function call)
+* VTune
 ********************************************************/
 
 void InjectVTuneOffloaderCall(Module &M, BasicBlock &BB) {
@@ -483,15 +379,15 @@ struct OffloaderInjection : public ModulePass {
     }
 };
 
-} // Anonymous namespace
+} // namespace PIMProf
 
-char OffloaderInjection::ID = 0;
-static RegisterPass<OffloaderInjection> RegisterMyPass(
+char PIMProf::OffloaderInjection::ID = 0;
+static RegisterPass<PIMProf::OffloaderInjection> RegisterMyPass(
     "OffloaderInjection", "Inject offloader when switching between CPU and PIM is required.");
 
 static void loadPass(const PassManagerBuilder &,
                            legacy::PassManagerBase &PM) {
-    PM.add(new OffloaderInjection());
+    PM.add(new PIMProf::OffloaderInjection());
 }
 static RegisterStandardPasses clangtoolLoader_Ox(PassManagerBuilder::EP_OptimizerLast, loadPass);
 static RegisterStandardPasses clangtoolLoader_O0(PassManagerBuilder::EP_EnabledOnOptLevel0, loadPass);

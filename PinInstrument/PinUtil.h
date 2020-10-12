@@ -13,6 +13,7 @@
 #include <iostream>
 #include <bitset>
 #include <cassert>
+#include <cstdarg>
 
 #include "INIReader.h"
 
@@ -82,23 +83,20 @@ const std::string GREENCOLOR = "\033[0;32m";
 const std::string YELLOWCOLOR = "\033[0;33m";
 const std::string NOCOLOR = "\033[0m";
 
-inline std::ostream &errormsg()
-{
-    std::cerr << REDCOLOR << "## PIMProf ERROR: " << NOCOLOR;
-    return std::cerr;
+#define PRETTY_PRINT_FUNC_HELPER(TYPE, COLOR) \
+inline int TYPE##msg(const char *format, ...) \
+{ \
+    va_list args; \
+    va_start(args, format); \
+    std::string output = COLOR + "## PIMProf " + #TYPE + ": " + NOCOLOR + std::string(format) + "\n"; \
+    int result = vprintf(output.c_str(), args); \
+    va_end(args); \
+    return result; \
 }
 
-inline std::ostream &warningmsg()
-{
-    std::cerr << YELLOWCOLOR << "## PIMProf WARNING: " << NOCOLOR;
-    return std::cerr;
-}
-
-inline std::ostream &infomsg()
-{
-    std::cout << GREENCOLOR << "## PIMProf INFO: " << NOCOLOR;
-    return std::cout;
-}
+PRETTY_PRINT_FUNC_HELPER(info, GREENCOLOR)
+PRETTY_PRINT_FUNC_HELPER(error, REDCOLOR)
+PRETTY_PRINT_FUNC_HELPER(warning, YELLOWCOLOR)
 
 /* ===================================================================== */
 /* CommandLineParser */
@@ -106,24 +104,17 @@ inline std::ostream &infomsg()
 
 class CommandLineParser {
   private:
-    std::string _rootdir;
-    std::string _configfile;
+    std::string _cpustatsfile, _pimstatsfile;
     std::string _outputfile;
-    std::string _statsfile;
-    bool _enableroi;
-    bool _enableroidecision;
-    bool _enableexternfunc;
-    
+    std::string _mode;
+
   public:
     void initialize(int argc, char *argv[]);
 
-    inline std::string rootdir() { return _rootdir; }
-    inline std::string configfile() { return _configfile; }
+    inline std::string cpustatsfile() { return _cpustatsfile; }
+    inline std::string pimstatsfile() { return _pimstatsfile; }
     inline std::string outputfile() { return _outputfile; }
-    inline std::string statsfile() { return _statsfile; }
-    inline bool enableroi() { return _enableroi; }
-    inline bool enableroidecision() { return _enableroidecision; }
-    inline bool enableexternfunc() { return false; } // whether the execution cycles of external function should be given in the config file, for debug use
+    inline std::string mode() { return _mode; }
     inline bool enableglobalbbl() { return true; } // whether considering the dependency with the global BBL, for debug use
 
 };
@@ -141,23 +132,23 @@ class ConfigReader: public INIReader {
     inline ConfigReader(std::string f)
         : INIReader(f), filename(f)
     {
-        int32_t error = ParseError();
-        if (error == -1) {
-            errormsg() << ".ini file: Open error." << std::endl;
-        }
-        else if (error == -2) {
-            errormsg() << ".ini file: Memory allocation error." << std::endl;
-        } 
+        // int32_t error = ParseError();
+        // if (error == -1) {
+        //     errormsg() << ".ini file: Open error." << std::endl;
+        // }
+        // else if (error == -2) {
+        //     errormsg() << ".ini file: Memory allocation error." << std::endl;
+        // } 
         
-        else if (error > 0) {
-            errormsg() << ".ini file: Parsing failure on line "
-                << error 
-                << "." << std::endl;
-        }
-        if (error) {
-            errormsg() << "Filename: " << filename << std::endl;
-            assert(0);
-        }
+        // else if (error > 0) {
+        //     errormsg() << ".ini file: Parsing failure on line "
+        //         << error 
+        //         << "." << std::endl;
+        // }
+        // if (error) {
+        //     errormsg() << "Filename: " << filename << std::endl;
+        //     assert(0);
+        // }
     }
 };
 

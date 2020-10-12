@@ -18,31 +18,26 @@ const std::string PIMProf::StorageLevelName[MAX_LEVEL] = {
     "IL1", "DL1", "UL2", "UL3", "MEM"
 };
 
+void Usage()
+{
+    errormsg("Usage: ./Solver.exe <cpu_stats_file> <pim_stats_file> <output_file> <mode>");
+    errormsg("Select mode from: mpki, para, dep");
+}
+
 void CommandLineParser::initialize(int argc, char *argv[])
 {
-    // if(PIN_Init(argc, argv))
-    // {
-    //     Usage(errormsg());
-    // }
-
-    // _configfile = KnobConfig.Value();
-    // _outputfile = KnobOutput.Value();
-    // _statsfile = KnobStats.Value();
-    // _enableroi = KnobEnableROI;
-    // _enableroidecision = KnobEnableROIDecision;
-
-    // if (_configfile == "") {
-    //     errormsg() << "No config file provided." << std::endl;
-    //     assert(0);
-    // }
-    // if (_outputfile == "") {
-    //     _outputfile = "decision.out";
-    //     warningmsg() << "No output file name specified. Printing output to " + _outputfile + "." << std::endl;
-    // }
-    // if (_statsfile == "") {
-    //     _statsfile = "CacheStats.out";
-    //     warningmsg() << "No statistic file name specified. Printing output to " + _statsfile + "." << std::endl;
-    // }
+    if (argc != 5) {
+        Usage();
+        assert(0);
+    }
+    _cpustatsfile = argv[1];
+    _pimstatsfile = argv[2];
+    _outputfile = argv[3];
+    _mode = argv[4];
+    if (_mode != "mpki" && _mode != "para" && _mode != "dep") {
+        Usage();
+        assert(0);
+    }
 }
 
 void PIMProf::PrintInstruction(std::ostream *out, uint64_t insAddr, std::string insDis, uint32_t simd_len) {

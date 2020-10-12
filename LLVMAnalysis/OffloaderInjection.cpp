@@ -98,6 +98,10 @@ class DecisionMap {
         // // std::cout << isomp << " " << ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONHEAD, isomp) << std::endl;
     }
 
+    Decision getGlobalDecision() {
+        return decision_map[UUID(0, 0)];
+    }
+
     void initDecisionMap(const char *in)
     {
         std::ifstream ifs(in, std::ifstream::in);
@@ -123,17 +127,13 @@ class DecisionMap {
                     ss >> token;
                     decision.decision = (token == "P" ? CallSite::PIM : CallSite::CPU);
                 }
-                else if (i == 2) {
-                    ss >> token;
-                    decision.parallel = (token == "O" ? true : false);
-                }
-                else if (i == 7) {
+                else if (i == 4) {
                     ss >> decision.difference;
                 }
-                else if (i == 8) {
+                else if (i == 5) {
                     ss >> std::hex >> hi;
                 }
-                else if (i == 9) {
+                else if (i == 6) {
                     ss >> std::hex >> lo;
                 }
                 else {
@@ -154,6 +154,7 @@ int cpu_inject_cnt = 0, pim_inject_cnt = 0;
 
 CallSite ROI = CallSite::INVALID;
 InjectMode Mode = InjectMode::INVALID;
+CallSite GlobalDecision = CallSite::INVALID;
 
 DecisionMap decision_map;
 
@@ -171,26 +172,47 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     }
     found_cnt++;
 
+    // TODO: For testing purpose
+    std::string BB_content;
+    raw_string_ostream rso(BB_content);
+    rso << BB;
+    uint64_t bblhash[2];
+    MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*BB.getFirstInsertionPt());
-    if (decision.decision == CallSite::CPU) {
-        if (ROI == CallSite::CPU || ROI == CallSite::ALL) {
-            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
-            cpu_inject_cnt++;
+    
+    if (GlobalDecision == CallSite::CPU && decision.decision == CallSite::PIM) {
+        if (ROI == CallSite::CPU) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 0, beginning);
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 1, BB.getTerminator());
+            pim_inject_cnt++;
+        }
+        if (ROI == CallSite::PIM) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 0, beginning);
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 1, BB.getTerminator());
+            pim_inject_cnt++;
         }
     }
-    if (decision.decision == CallSite::PIM) {
-        if (ROI == CallSite::NOTPIM) {
-            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
-            pim_inject_cnt++;
+    if (GlobalDecision == CallSite::PIM && decision.decision == CallSite::CPU) {
+        if (ROI == CallSite::CPU) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 0, beginning);
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 1, BB.getTerminator());
+            cpu_inject_cnt++;
         }
-        if (ROI == CallSite::PIM || ROI == CallSite::ALL) {
-            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, beginning);
-            InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
-            pim_inject_cnt++;
+        if (ROI == CallSite::PIM) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 0, beginning);
+            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 1, BB.getTerminator());
+            cpu_inject_cnt++;
         }
     }
 }
@@ -200,16 +222,18 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
     InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_START, beginning);
-    if (ROI == CallSite::NOTPIM) {
-        InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, -1, (uint64_t) CallSite::CPU, beginning);
+    if (ROI == GlobalDecision) {
+        // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, -1, (uint64_t) ROI, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, 0, 0, beginning);
     }
 
     // inject an end call before every return instruction
     for (auto &BB : F) {
         for (auto &I : BB) {
             if (isa<ReturnInst>(I)) {
-                if (ROI == CallSite::NOTPIM) {
-                    InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, -1, (uint64_t) CallSite::CPU, &I);
+                if (ROI == GlobalDecision) {
+                    // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, -1, (uint64_t) ROI, &I);
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, 0, 1, &I);
                 }
                 InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
             }
@@ -313,7 +337,6 @@ struct OffloaderInjection : public ModulePass {
         std::cout << "inject mode:" << injectmodeenv << std::endl;
 
         if (strcmp(roienv, "ALL") == 0) ROI = CallSite::ALL;
-        else if (strcmp(roienv, "NOTPIM") == 0) ROI = CallSite::NOTPIM;
         else if (strcmp(roienv, "CPUONLY") == 0) ROI = CallSite::CPU;
         else if (strcmp(roienv, "PIMONLY") == 0) ROI = CallSite::PIM;
         else {
@@ -321,13 +344,15 @@ struct OffloaderInjection : public ModulePass {
         }
 
         if (strcmp(injectmodeenv, "SNIPER") == 0) Mode = InjectMode::SNIPER;
-        else if (strcmp(injectmodeenv, "VTUNE") == 0) Mode = InjectMode::VTUNE;
+        // else if (strcmp(injectmodeenv, "VTUNE") == 0) Mode = InjectMode::VTUNE;
         else if (strcmp(injectmodeenv, "PIMPROF") == 0) Mode = InjectMode::PIMPROF;
         else {
             assert(0 && "Invalid environment variable PIMPROFINJECTMODE");
         }
 
         decision_map.initDecisionMap(decisionfileenv);
+
+        GlobalDecision = decision_map.getGlobalDecision().decision;
 
         /********************************************************
          * Inject offloader function to each basic block according to

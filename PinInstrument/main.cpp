@@ -20,16 +20,30 @@ using namespace PIMProf;
 /* main */
 /* ===================================================================== */
 
-CostPackage _cost_package;
 CostSolver _cost_solver;
+CommandLineParser _command_line_parser;
 
 int main(int argc, char *argv[])
 {
-    _cost_solver.initialize(&_cost_package, _cost_package._config_reader);
+    _command_line_parser.initialize(argc, argv);
+    std::string mode = _command_line_parser.mode();
+    if (mode == "mpki") {
+    }
+    if (mode == "para") {
+        assert(0);
+    }
+    if (mode == "dep") {
+        assert(0);
+    }
 
-    std::ofstream ofs("decision.out");
-    CostSolver::DECISION decision = _cost_solver.PrintSolution(ofs);
-    ofs.close();
+
+    _cost_solver.initialize(&_command_line_parser);
+    std::ofstream ofs(_command_line_parser.outputfile());
+    _cost_solver.PrintSolution(ofs);
+
+    // std::ofstream ofs("decision.out");
+    // CostSolver::DECISION decision = _cost_solver.PrintSolution(ofs);
+    // ofs.close();
 
     // ofs.open("BBLReuseCost.dot", std::ofstream::out);
     // pkg._data_reuse.print(

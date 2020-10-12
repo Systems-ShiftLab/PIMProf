@@ -41,7 +41,6 @@ class HashFunc
 
 class CostPackage {
   public:
-    CommandLineParser _command_line_parser;
     ConfigReader _config_reader;
 
 //   public:

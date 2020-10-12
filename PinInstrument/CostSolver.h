@@ -19,15 +19,54 @@
 #include <list>
 #include <set>
 #include <algorithm>
+#include <unordered_map>
 
 #include "PinUtil.h"
-#include "CostPackage.h"
+#include "DataReuse.h"
 
 namespace PIMProf
 {
+class BBLStats {
+  public:
+    uint64_t elapsed_time; // in nanoseconds
+    uint64_t instruction_count;
+    uint64_t memory_access;
+    BBLStats() : elapsed_time(0), instruction_count(0), memory_access(0) {}
+    BBLStats& operator += (const BBLStats& rhs) {
+
+        this->elapsed_time += rhs.elapsed_time;
+        this->instruction_count += rhs.instruction_count;
+        this->memory_access += rhs.memory_access;
+        return *this;
+    }
+};
+
+class BBLStatsPair
+{
+  public:
+    BBLID bblid;
+    BBLStats bblstats[MAX_COST_SITE];
+
+    BBLStatsPair() {
+        bblid = 0;
+        for (int i = 0; i < MAX_COST_SITE; i++) {
+            bblstats[i] = BBLStats();
+        }
+    }
+};
+
+class HashFunc
+{
+  public:
+    // assuming UUID is already murmurhash-ed.
+    std::size_t operator()(const UUID &key) const
+    {
+        size_t result = key.first ^ key.second;
+        return result;
+    }
+};
 
 class CostSolver {
-    friend class PinInstrument;
   public:
     /// A DECISION is a vector that represents a certain offloading decision, for example:
     /// A DECISION vector (PIM, CPU, CPU, PIM) means:
@@ -36,23 +75,26 @@ class CostSolver {
     typedef std::vector<CostSite> DECISION;
 
   private:
-    CostPackage *_cost_package;
+    CommandLineParser *_command_line_parser;
+    std::unordered_map<UUID, BBLStatsPair, HashFunc> _bblhash_map;
 
     std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
-#ifdef PIMPROF_MPKI
-    std::vector<COST> _BBL_storage_partial_total[MAX_COST_SITE][MAX_LEVEL];
-#endif
+// #ifdef PIMPROF_MPKI
+//     std::vector<COST> _BBL_storage_partial_total[MAX_COST_SITE][MAX_LEVEL];
+// #endif
 
     double _batchthreshold;
     int _batchsize;
     int _mpkithreshold;
   
-    /// the cache flush/fetch cost of each site
-    COST _flush_cost[MAX_COST_SITE];
-    COST _fetch_cost[MAX_COST_SITE];
+//     /// the cache flush/fetch cost of each site
+//     COST _flush_cost[MAX_COST_SITE];
+//     COST _fetch_cost[MAX_COST_SITE];
 
   public:
-    void initialize(CostPackage *cost_package, ConfigReader &reader);
+    void initialize(CommandLineParser *parser);
+
+    void InsertBBLHash(UUID bblhash, BBLStats bblstats, CostSite site);
 
     DECISION PrintSolution(std::ostream &out);
 
@@ -66,10 +108,13 @@ class CostSolver {
 
     void SetBBLSize(BBLID bbl_size);
 
-    std::ostream &PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen);
-    std::ostream &PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name);
-    std::ostream &PrintCostBreakdown(std::ostream &out, const DECISION &decision, const std::string &name);
-    std::ostream &PrintAnalytics(std::ostream &out);
+    std::ostream &PrintDecision(std::ostream &out, std::vector<std::pair<UUID, BBLStatsPair>> sorted_hash, const DECISION &decision, bool toscreen);
+    // std::ostream &PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name);
+    // std::ostream &PrintCostBreakdown(std::ostream &out, const DECISION &decision, const std::string &name);
+    // std::ostream &PrintAnalytics(std::ostream &out);
+
+  private:
+    DECISION PrintMPKISolution(std::ostream &out);
 };
 
 } // namespace PIMProf

@@ -69,8 +69,8 @@ void InjectSniperAnnotationCall(Module &M, BasicBlock &BB) {
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*BB.getFirstInsertionPt());
 
-    InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_START, bblhash[1], bblhash[0], beginning);
-    InjectSimMagic2(M, SNIPER_SIM_PIM_OFFLOAD_END, bblhash[1], bblhash[0], BB.getTerminator());
+    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, bblhash[1], bblhash[0], beginning);
+    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, bblhash[1], bblhash[0], BB.getTerminator());
 
     // errs() << "After annotator injection: " << BB.getName() << "\n";
     // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {

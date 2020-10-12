@@ -55,8 +55,10 @@ enum VTUNE_MODE {
 #define SNIPER_SIM_CMD_ROI_START       1
 #define SNIPER_SIM_CMD_ROI_END         2
 
-#define SNIPER_SIM_PIM_OFFLOAD_START  15
-#define SNIPER_SIM_PIM_OFFLOAD_END    16
+#define SNIPER_SIM_PIMPROF_BBL_START  1024
+#define SNIPER_SIM_PIMPROF_BBL_END    1025
+#define SNIPER_SIM_PIMPROF_OFFLOAD_START  1026
+#define SNIPER_SIM_PIMPROF_OFFLOAD_END    1027
 
 
 // We use the last i64 to encode control bits, layout:

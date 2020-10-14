@@ -199,7 +199,7 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
             pim_inject_cnt++;
         }
     }
-    if (GlobalDecision == CallSite::PIM && decision.decision == CallSite::CPU) {
+    else if (GlobalDecision == CallSite::PIM && decision.decision == CallSite::CPU) {
         if (ROI == CallSite::CPU) {
             // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, beginning);
             // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
@@ -215,6 +215,11 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
             cpu_inject_cnt++;
         }
     }
+    else {
+        // For testing purpose
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, bblhash[1], bblhash[0], beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, bblhash[1], bblhash[0], BB.getTerminator());
+    }
 }
 
 void InjectSniperOffloaderCall(Module &M, Function &F) {
@@ -226,6 +231,10 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
         // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, -1, (uint64_t) ROI, beginning);
         InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, 0, 0, beginning);
     }
+    else {
+        // For testing purpose
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, 0, 0, beginning);
+    }
 
     // inject an end call before every return instruction
     for (auto &BB : F) {
@@ -234,6 +243,10 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
                 if (ROI == GlobalDecision) {
                     // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, -1, (uint64_t) ROI, &I);
                     InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, 0, 1, &I);
+                }
+                else {
+                    // For testing purpose
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, 0, 0, &I);
                 }
                 InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
             }

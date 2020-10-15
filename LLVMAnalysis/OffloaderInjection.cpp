@@ -219,6 +219,7 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
         // For testing purpose
         InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, bblhash[1], bblhash[0], beginning);
         InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, bblhash[1], bblhash[0], BB.getTerminator());
+        assert(bblhash[1] != 0);
     }
 }
 

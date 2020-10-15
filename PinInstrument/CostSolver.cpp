@@ -86,6 +86,15 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
         cpu_only_time += cpustats.elapsed_time;
         pim_only_time += pimstats.elapsed_time;
 
+        // deal with the part that is not inside any BBL
+        uint64_t global_val = -1;
+        if (it->first.first == global_val && it->first.second == global_val) {
+            mpki_time += cpustats.elapsed_time;
+            mpki_cpu_time += cpustats.elapsed_time;
+            decision.push_back(CostSite::CPU);
+            continue;
+        }
+
         if (mpki > mpki_threshold && instr > instr_threshold) {
             mpki_time += pimstats.elapsed_time;
             mpki_pim_time += pimstats.elapsed_time;

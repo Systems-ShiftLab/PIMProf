@@ -28,7 +28,7 @@ namespace PIMProf
 {
 class BBLStats {
   public:
-    uint64_t elapsed_time; // in nanoseconds
+    COST elapsed_time; // in nanoseconds
     uint64_t instruction_count;
     uint64_t memory_access;
     BBLStats() : elapsed_time(0), instruction_count(0), memory_access(0) {}
@@ -78,18 +78,20 @@ class CostSolver {
     CommandLineParser *_command_line_parser;
     std::unordered_map<UUID, BBLStatsPair, HashFunc> _bblhash_map;
 
-    std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
+    // std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
+    DataReuse _data_reuse;
 // #ifdef PIMPROF_MPKI
 //     std::vector<COST> _BBL_storage_partial_total[MAX_COST_SITE][MAX_LEVEL];
 // #endif
 
+    /// the cache flush/fetch cost of each site, in nanoseconds
+    COST _flush_cost[MAX_COST_SITE];
+    COST _fetch_cost[MAX_COST_SITE];
+
     double _batchthreshold;
     int _batchsize;
     int _mpkithreshold;
-  
-//     /// the cache flush/fetch cost of each site
-//     COST _flush_cost[MAX_COST_SITE];
-//     COST _fetch_cost[MAX_COST_SITE];
+ 
 
   public:
     void initialize(CommandLineParser *parser);
@@ -97,12 +99,12 @@ class CostSolver {
     void InsertBBLHash(UUID bblhash, BBLStats bblstats, CostSite site);
 
     DECISION PrintSolution(std::ostream &out);
+    DECISION PrintMPKISolution(std::ostream &out);
+    DECISION PrintPIMProfSolution(std::ostream &out);
 
     void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
 
     COST Cost(const DECISION &decision, TrieNode *reusetree);
-
-    DECISION FindOptimal();
 
     void ReadConfig(ConfigReader &reader);
 

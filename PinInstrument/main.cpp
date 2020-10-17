@@ -29,10 +29,13 @@ int main(int argc, char *argv[])
     std::string mode = _command_line_parser.mode();
     if (mode == "mpki") {
     }
-    if (mode == "para") {
+    else if (mode == "para") {
         assert(0);
     }
-    if (mode == "dep") {
+    else if (mode == "dep") {
+        assert(0);
+    }
+    else {
         assert(0);
     }
 

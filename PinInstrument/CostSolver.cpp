@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <climits>
 
 #include "CostSolver.h"
 
@@ -46,6 +47,12 @@ void CostSolver::initialize(CommandLineParser *parser)
         if (tid == 0)
             InsertBBLHash(UUID(hi, lo), bblstats, CostSite::PIM);
     }
+
+    // temporarily define flush and fetch cost here
+    _flush_cost[CostSite::CPU] = 60;
+    _flush_cost[CostSite::PIM] = 30;
+    _fetch_cost[CostSite::CPU] = 60;
+    _fetch_cost[CostSite::PIM] = 30;
 }
 
 void CostSolver::InsertBBLHash(UUID bblhash, BBLStats bblstats, CostSite site)
@@ -57,6 +64,66 @@ void CostSolver::InsertBBLHash(UUID bblhash, BBLStats bblstats, CostSite site)
         it->second.bblid = _bblhash_map.size() - 1;
     }
     it->second.bblstats[site] += bblstats;
+}
+
+
+CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
+{
+    DECISION decision;
+    
+    if (_command_line_parser->mode() == "mpki") {
+        decision = PrintMPKISolution(out);
+    }
+    if (_command_line_parser->mode() == "dep") {
+        decision = PrintPIMProfSolution(out);
+    }
+
+    return decision;
+}
+
+std::ostream &CostSolver::PrintDecision(std::ostream &out, std::vector<std::pair<UUID, BBLStatsPair>> sorted_hash, const DECISION &decision, bool toscreen)
+{
+    out << "========================================================" << std::endl;
+    if (toscreen == true) {
+        for (uint32_t i = 0; i < _bblhash_map.size(); i++) {
+            out << i << ":"
+                << (decision[i] == CPU ? "C" : "")
+                << (decision[i] == PIM ? "P" : "")
+                << " ";
+        }
+        out << std::endl;
+    }
+    else {
+        out << std::right << std::setw(7) << "BBLID"
+            << std::right << std::setw(10) << "Decision"
+            << std::right << std::setw(15) << "CPU"
+            << std::right << std::setw(15) << "PIM"
+            << std::right << std::setw(15) << "difference"
+            << std::right << std::setw(18) << "Hash(hi)"
+            << std::right << std::setw(18) << "Hash(lo)"
+            << std::endl;
+        for (uint32_t i = 0; i < sorted_hash.size(); i++) {
+            if (sorted_hash[i].second.bblid != i) {
+                std::cout << "Incorrect bblid: " << sorted_hash[i].second.bblid << " " << i << std::endl;
+                assert(0);
+            }
+            BBLStats &cpustats = sorted_hash[i].second.bblstats[CostSite::CPU];
+            BBLStats &pimstats = sorted_hash[i].second.bblstats[CostSite::PIM];
+            int64_t diff = (int64_t)cpustats.elapsed_time - (int64_t)pimstats.elapsed_time;
+            out << std::right << std::setw(7) << i
+                << std::right << std::setw(10) << (decision[i] == PIM ? "P" : "C")
+                << std::right << std::setw(15) << cpustats.elapsed_time
+                << std::right << std::setw(15) << pimstats.elapsed_time
+                << std::right << std::setw(15) << diff
+                << "  "
+                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.first
+                << "  "
+                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.second
+                << std::setfill(' ') << std::dec
+                << std::endl;
+        }
+    }
+    return out;
 }
 
 CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
@@ -115,60 +182,129 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
     return decision;
 }
 
-CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
 {
+    std::sort(_data_reuse.getLeaves().begin(), _data_reuse.getLeaves().end(),
+        [] (const TrieNode *l, const TrieNode *r) { return l->_count > r->_count; } );
+
+    COST reuse_max = 0;
+    for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
+        reuse_max = std::max(reuse_max, _flush_cost[i]);
+        reuse_max = std::max(reuse_max, _fetch_cost[i]);
+    }
+
+    COST cur_total = FLT_MAX;
+    int seg_count = INT_MAX;
     DECISION decision;
-    
-    if (_command_line_parser->mode() == "mpki") {
-        decision = PrintMPKISolution(out);
+
+    //initialize all decision to INVALID
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
+        decision.push_back(INVALID);
+    }
+
+    TrieNode *partial_root = new TrieNode();
+    DataReuseSegment allidset;
+    int currentnode = 0;
+    int leavessize = _data_reuse.getLeaves().size();
+
+    for (int i = 0; currentnode < leavessize; i++) {
+        std::cout << "batch " << i << std::endl;
+        std::vector<BBLID> idvec;
+        // insert segments until the number of different BBLs hit _batchsize
+        while (currentnode < leavessize) {
+            DataReuseSegment seg;
+            _data_reuse.ExportSegment(seg, _cost_package->_data_reuse.getLeaves()[currentnode]);
+            std::vector<BBLID> diff = seg.diff(allidset);
+            // std::cout << idvec.size() << " " << diff.size() << std::endl;
+            if (idvec.size() + diff.size() > (unsigned)_batchsize) break;
+            allidset.insert(seg);
+            idvec.insert(idvec.end(), diff.begin(), diff.end());
+            _cost_package->_data_reuse.UpdateTrie(partial_root, seg);
+            currentnode++;
+            seg_count = seg.getCount();
+        }
+
+        int idvecsize = idvec.size();
+        for (int j = 0; j < idvecsize; j++) {
+            std::cout << idvec[j] << " "; 
+        }
+        std::cout << std::endl;
+
+        // find optimal in this batch
+        assert(idvecsize <= _batchsize);
+        uint64_t permute = (1 << idvecsize) - 1;
+
+        // should not compare the cost between batches, so reset cur_total
+        cur_total = FLT_MAX;
+
+        DECISION temp_decision = decision;
+        for (; permute != (uint64_t)(-1); permute--) {
+            for (int j = 0; j < idvecsize; j++) {
+                if ((permute >> j) & 1)
+                    temp_decision[idvec[j]] = PIM;
+                else
+                    temp_decision[idvec[j]] = CPU;
+            }
+            COST temp_total = Cost(temp_decision, partial_root);
+            if (temp_total < cur_total) {
+                cur_total = temp_total;
+                decision = temp_decision;
+            }
+            // PrintDecision(std::cout, decision, true);
+        }
+        std::cout << "cur_total = " << cur_total << std::endl;
+        std::cout << seg_count << " " << reuse_max << " " << cur_total << std::endl;
+        if (seg_count * reuse_max < _batchthreshold * cur_total) break;
+    }
+    // std::ofstream ofs("temp.dot", std::ofstream::out);
+    // _cost_package->_data_reuse.print(ofs, partial_root);
+    // ofs.close();
+
+    _data_reuse.DeleteTrie(partial_root);
+
+    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
+        if (decision[i] == INVALID) {
+            if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
+                decision[i] = CPU;
+            }
+            else {
+                decision[i] = PIM;
+            }
+        }
+    }
+    // for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
+    //     if (decision[i] == INVALID)
+    //         decision[i] = PIM;
+    // }
+
+    cur_total = Cost(decision, _data_reuse.getRoot());
+    // iterate over the remaining BBs 2 times until convergence
+    for (int j = 0; j < 2; j++) {
+        for (uint32_t i = 0; i < _bbl_size; i++) {
+            BBLID id = i;
+
+            if (decision[id] == CPU) {
+                decision[id] = PIM;
+                COST temp_total = Cost(decision, _data_reuse.getRoot());
+                if (temp_total > cur_total)
+                    decision[id] = CPU;
+                else
+                    cur_total = temp_total;
+            }
+            else {
+                decision[id] = CPU;
+                COST temp_total = Cost(decision, _data_reuse.getRoot());
+                if (temp_total > cur_total)
+                    decision[id] = PIM;
+                else {
+                    cur_total = temp_total;
+                }
+            }
+        }
+        std::cout << "cur_total = " << cur_total << std::endl;
     }
 
     return decision;
-}
-
-std::ostream &CostSolver::PrintDecision(std::ostream &out, std::vector<std::pair<UUID, BBLStatsPair>> sorted_hash, const DECISION &decision, bool toscreen)
-{
-    out << "========================================================" << std::endl;
-    if (toscreen == true) {
-        for (uint32_t i = 0; i < _bblhash_map.size(); i++) {
-            out << i << ":"
-                << (decision[i] == CPU ? "C" : "")
-                << (decision[i] == PIM ? "P" : "")
-                << " ";
-        }
-        out << std::endl;
-    }
-    else {
-        out << std::right << std::setw(7) << "BBLID"
-            << std::right << std::setw(10) << "Decision"
-            << std::right << std::setw(15) << "CPU"
-            << std::right << std::setw(15) << "PIM"
-            << std::right << std::setw(15) << "difference"
-            << std::right << std::setw(18) << "Hash(hi)"
-            << std::right << std::setw(18) << "Hash(lo)"
-            << std::endl;
-        for (uint32_t i = 0; i < sorted_hash.size(); i++) {
-            if (sorted_hash[i].second.bblid != i) {
-                std::cout << "Incorrect bblid: " << sorted_hash[i].second.bblid << " " << i << std::endl;
-                assert(0);
-            }
-            BBLStats &cpustats = sorted_hash[i].second.bblstats[CostSite::CPU];
-            BBLStats &pimstats = sorted_hash[i].second.bblstats[CostSite::PIM];
-            int64_t diff = (int64_t)cpustats.elapsed_time - (int64_t)pimstats.elapsed_time;
-            out << std::right << std::setw(7) << i
-                << std::right << std::setw(10) << (decision[i] == PIM ? "P" : "C")
-                << std::right << std::setw(15) << cpustats.elapsed_time
-                << std::right << std::setw(15) << pimstats.elapsed_time
-                << std::right << std::setw(15) << diff
-                << "  "
-                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.first
-                << "  "
-                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.second
-                << std::setfill(' ') << std::dec
-                << std::endl;
-        }
-    }
-    return out;
 }
 
 
@@ -348,134 +484,6 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, std::vector<std::pair
 //     return (cur_reuse_cost + cur_instr_cost + cur_mem_cost);
 // }
 
-// bool CostSolverComparator(const TrieNode *l, const TrieNode *r)
-// {
-//     return l->_count > r->_count;
-// }
-
-// CostSolver::DECISION CostSolver::FindOptimal()
-// {
-//     std::sort(_cost_package->_data_reuse.getLeaves().begin(), _cost_package->_data_reuse.getLeaves().end(), CostSolverComparator);
-
-//     COST reuse_max = 0;
-//     for (uint32_t i = 0; i < MAX_COST_SITE; i++) {
-//         reuse_max = std::max(reuse_max, _flush_cost[i]);
-//         reuse_max = std::max(reuse_max, _fetch_cost[i]);
-//     }
-
-//     COST cur_total = FLT_MAX;
-//     int seg_count = INT_MAX;
-//     DECISION decision;
-
-//     //initialize all decision to INVALID
-//     for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
-//         decision.push_back(INVALID);
-//     }
-
-//     TrieNode *partial_root = new TrieNode();
-//     DataReuseSegment allidset;
-//     int currentnode = 0;
-//     int leavessize = _cost_package->_data_reuse.getLeaves().size();
-
-//     for (int i = 0; currentnode < leavessize; i++) {
-//         std::cout << "batch " << i << std::endl;
-//         std::vector<BBLID> idvec;
-//         // insert segments until the number of different BBLs hit _batchsize
-//         while (currentnode < leavessize) {
-//             DataReuseSegment seg;
-//             _cost_package->_data_reuse.ExportSegment(seg, _cost_package->_data_reuse.getLeaves()[currentnode]);
-//             std::vector<BBLID> diff = seg.diff(allidset);
-//             // std::cout << idvec.size() << " " << diff.size() << std::endl;
-//             if (idvec.size() + diff.size() > (unsigned)_batchsize) break;
-//             allidset.insert(seg);
-//             idvec.insert(idvec.end(), diff.begin(), diff.end());
-//             _cost_package->_data_reuse.UpdateTrie(partial_root, seg);
-//             currentnode++;
-//             seg_count = seg.getCount();
-//         }
-
-//         int idvecsize = idvec.size();
-//         for (int j = 0; j < idvecsize; j++) {
-//             std::cout << idvec[j] << " "; 
-//         }
-//         std::cout << std::endl;
-
-//         // find optimal in this batch
-//         assert(idvecsize <= _batchsize);
-//         uint64_t permute = (1 << idvecsize) - 1;
-
-//         // should not compare the cost between batches, so reset cur_total
-//         cur_total = FLT_MAX;
-
-//         DECISION temp_decision = decision;
-//         for (; permute != (uint64_t)(-1); permute--) {
-//             for (int j = 0; j < idvecsize; j++) {
-//                 if ((permute >> j) & 1)
-//                     temp_decision[idvec[j]] = PIM;
-//                 else
-//                     temp_decision[idvec[j]] = CPU;
-//             }
-//             COST temp_total = Cost(temp_decision, partial_root);
-//             if (temp_total < cur_total) {
-//                 cur_total = temp_total;
-//                 decision = temp_decision;
-//             }
-//             // PrintDecision(std::cout, decision, true);
-//         }
-//         std::cout << "cur_total = " << cur_total << std::endl;
-//         std::cout << seg_count << " " << reuse_max << " " << cur_total << std::endl;
-//         if (seg_count * reuse_max < _batchthreshold * cur_total) break;
-//     }
-//     // std::ofstream ofs("temp.dot", std::ofstream::out);
-//     // _cost_package->_data_reuse.print(ofs, partial_root);
-//     // ofs.close();
-
-//     _cost_package->_data_reuse.DeleteTrie(partial_root);
-
-//     for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
-//         if (decision[i] == INVALID) {
-//             if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
-//                 decision[i] = CPU;
-//             }
-//             else {
-//                 decision[i] = PIM;
-//             }
-//         }
-//     }
-//     // for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
-//     //     if (decision[i] == INVALID)
-//     //         decision[i] = PIM;
-//     // }
-
-//     cur_total = Cost(decision, _cost_package->_data_reuse.getRoot());
-//     // iterate over the remaining BBs 2 times until convergence
-//     for (int j = 0; j < 2; j++) {
-//         for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
-//             BBLID id = i;
-
-//             if (decision[id] == CPU) {
-//                 decision[id] = PIM;
-//                 COST temp_total = Cost(decision, _cost_package->_data_reuse.getRoot());
-//                 if (temp_total > cur_total)
-//                     decision[id] = CPU;
-//                 else
-//                     cur_total = temp_total;
-//             }
-//             else {
-//                 decision[id] = CPU;
-//                 COST temp_total = Cost(decision, _cost_package->_data_reuse.getRoot());
-//                 if (temp_total > cur_total)
-//                     decision[id] = PIM;
-//                 else {
-//                     cur_total = temp_total;
-//                 }
-//             }
-//         }
-//         std::cout << "cur_total = " << cur_total << std::endl;
-//     }
-
-//     return decision;
-// }
 
 // void CostSolver::ReadConfig(ConfigReader &reader)
 // {

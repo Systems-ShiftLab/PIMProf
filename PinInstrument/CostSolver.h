@@ -26,6 +26,17 @@
 
 namespace PIMProf
 {
+class HashFunc
+{
+  public:
+    // assuming UUID is already murmurhash-ed.
+    std::size_t operator()(const UUID &key) const
+    {
+        size_t result = key.first ^ key.second;
+        return result;
+    }
+};
+
 class BBLStats {
   public:
     COST elapsed_time; // in nanoseconds
@@ -41,29 +52,63 @@ class BBLStats {
     }
 };
 
-class BBLStatsPair
+class BBLStatsMap
 {
   public:
-    BBLID bblid;
-    BBLStats bblstats[MAX_COST_SITE];
-
-    BBLStatsPair() {
-        bblid = 0;
-        for (int i = 0; i < MAX_COST_SITE; i++) {
-            bblstats[i] = BBLStats();
-        }
-    }
-};
-
-class HashFunc
-{
-  public:
-    // assuming UUID is already murmurhash-ed.
-    std::size_t operator()(const UUID &key) const
+    class BBLStatsPair
     {
-        size_t result = key.first ^ key.second;
-        return result;
+      public:
+        BBLID bblid;
+        BBLStats bblstats[MAX_COST_SITE];
+        BBLStatsPair() {
+            bblid = 0;
+            for (int i = 0; i < MAX_COST_SITE; i++) {
+                bblstats[i] = BBLStats();
+            }
+        }
+    };
+
+    std::unordered_map<UUID, BBLStatsPair, HashFunc> _bblstats_map;
+    std::vector<std::pair<UUID, BBLStatsPair>> _bblstats_sorted;
+    bool _bblstats_dirty = true; // dirty flag for _bblstats_sorted
+
+    BBLStatsMap() {
+        // set global BBL with UUID(0, 0) as basic block 0
+        BBLStats _bblstats[2];
+        _bblstats_map[UUID(0, 0)] = BBLStatsPair();
     }
+
+    inline void insert(UUID bblhash, BBLStats bblstats, CostSite site) {
+        // iterator points to a BBLStatsPair
+        auto it = _bblstats_map.find(bblhash);
+        if (it == _bblstats_map.end()) {
+            it = _bblstats_map.insert(std::make_pair(bblhash, BBLStatsPair())).first;
+            it->second.bblid = _bblstats_map.size() - 1;
+        }
+        it->second.bblstats[site] += bblstats;
+        _bblstats_dirty = true;
+    }
+
+    inline const std::unordered_map<UUID, BBLStatsPair, HashFunc> &getMap() {
+        return _bblstats_map;
+    }
+
+    inline const std::vector<std::pair<UUID, BBLStatsPair>> &getSorted() {
+        if (!_bblstats_dirty) {
+            return _bblstats_sorted;
+        }
+        _bblstats_sorted.clear();
+        for (auto it = _bblstats_map.begin(); it != _bblstats_map.end(); ++it) {
+            _bblstats_sorted.push_back(*it);
+        }
+        std::sort(_bblstats_sorted.begin(), _bblstats_sorted.end(),
+        [](auto &a, auto &b) { return a.second.bblid < b.second.bblid; });
+
+        _bblstats_dirty = false;
+        return _bblstats_sorted;
+    }
+
+    inline size_t size() { return _bblstats_map.size(); }
 };
 
 class CostSolver {
@@ -76,7 +121,7 @@ class CostSolver {
 
   private:
     CommandLineParser *_command_line_parser;
-    std::unordered_map<UUID, BBLStatsPair, HashFunc> _bblhash_map;
+    BBLStatsMap _bblstats_map;
 
     // std::vector<COST> _BBL_partial_total[MAX_COST_SITE];
     DataReuse _data_reuse;
@@ -96,11 +141,7 @@ class CostSolver {
   public:
     void initialize(CommandLineParser *parser);
 
-    void InsertBBLHash(UUID bblhash, BBLStats bblstats, CostSite site);
-
     DECISION PrintSolution(std::ostream &out);
-    DECISION PrintMPKISolution(std::ostream &out);
-    DECISION PrintPIMProfSolution(std::ostream &out);
 
     void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent);
 
@@ -108,15 +149,14 @@ class CostSolver {
 
     void ReadConfig(ConfigReader &reader);
 
-    void SetBBLSize(BBLID bbl_size);
-
-    std::ostream &PrintDecision(std::ostream &out, std::vector<std::pair<UUID, BBLStatsPair>> sorted_hash, const DECISION &decision, bool toscreen);
+    std::ostream &PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen);
     // std::ostream &PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name);
     // std::ostream &PrintCostBreakdown(std::ostream &out, const DECISION &decision, const std::string &name);
     // std::ostream &PrintAnalytics(std::ostream &out);
 
   private:
     DECISION PrintMPKISolution(std::ostream &out);
+    DECISION PrintPIMProfSolution(std::ostream &out);
 };
 
 } // namespace PIMProf

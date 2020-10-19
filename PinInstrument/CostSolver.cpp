@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cfloat>
 #include <climits>
 
 #include "CostSolver.h"
@@ -15,7 +16,8 @@ using namespace PIMProf;
 /* ===================================================================== */
 /* CostSolver */
 /* ===================================================================== */
-void CostSolver::initialize(CommandLineParser *parser)
+void
+CostSolver::initialize(CommandLineParser *parser)
 {
     _command_line_parser = parser;
     _batchthreshold = 0;
@@ -27,8 +29,6 @@ void CostSolver::initialize(CommandLineParser *parser)
     std::ifstream cpustats(_command_line_parser->cpustatsfile());
     std::ifstream pimstats(_command_line_parser->pimstatsfile());
 
-    // set global BBL with UUID(0, 0) as basic block 0
-    _bblhash_map[UUID(0, 0)] = BBLStatsPair();
 
     while(std::getline(cpustats, line)) {
         std::stringstream ss(line);
@@ -36,7 +36,7 @@ void CostSolver::initialize(CommandLineParser *parser)
         >> std::dec >> bblstats.elapsed_time
         >> bblstats.instruction_count >> bblstats.memory_access;
 
-        InsertBBLHash(UUID(hi, lo), bblstats, CostSite::CPU);
+        _bblstats_map.insert(UUID(hi, lo), bblstats, CostSite::CPU);
     }
     while(std::getline(pimstats, line)) {
         std::stringstream ss(line);
@@ -45,7 +45,7 @@ void CostSolver::initialize(CommandLineParser *parser)
         >> bblstats.instruction_count >> bblstats.memory_access;
 
         if (tid == 0)
-            InsertBBLHash(UUID(hi, lo), bblstats, CostSite::PIM);
+            _bblstats_map.insert(UUID(hi, lo), bblstats, CostSite::PIM);
     }
 
     // temporarily define flush and fetch cost here
@@ -55,19 +55,9 @@ void CostSolver::initialize(CommandLineParser *parser)
     _fetch_cost[CostSite::PIM] = 30;
 }
 
-void CostSolver::InsertBBLHash(UUID bblhash, BBLStats bblstats, CostSite site)
-{
-    // iterator points to a BBLStatsPair
-    auto it = _bblhash_map.find(bblhash);
-    if (it == _bblhash_map.end()) {
-        it = _bblhash_map.insert(std::make_pair(bblhash, BBLStatsPair())).first;
-        it->second.bblid = _bblhash_map.size() - 1;
-    }
-    it->second.bblstats[site] += bblstats;
-}
 
-
-CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
+CostSolver::DECISION
+CostSolver::PrintSolution(std::ostream &out)
 {
     DECISION decision;
     
@@ -81,11 +71,13 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
     return decision;
 }
 
-std::ostream &CostSolver::PrintDecision(std::ostream &out, std::vector<std::pair<UUID, BBLStatsPair>> sorted_hash, const DECISION &decision, bool toscreen)
+std::ostream &
+CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
 {
+    auto bblstats = _bblstats_map.getSorted();
     out << "========================================================" << std::endl;
     if (toscreen == true) {
-        for (uint32_t i = 0; i < _bblhash_map.size(); i++) {
+        for (uint32_t i = 0; i < _bblstats_map.size(); i++) {
             out << i << ":"
                 << (decision[i] == CPU ? "C" : "")
                 << (decision[i] == PIM ? "P" : "")
@@ -102,13 +94,13 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, std::vector<std::pair
             << std::right << std::setw(18) << "Hash(hi)"
             << std::right << std::setw(18) << "Hash(lo)"
             << std::endl;
-        for (uint32_t i = 0; i < sorted_hash.size(); i++) {
-            if (sorted_hash[i].second.bblid != i) {
-                std::cout << "Incorrect bblid: " << sorted_hash[i].second.bblid << " " << i << std::endl;
+        for (uint32_t i = 0; i < bblstats.size(); i++) {
+            if (bblstats[i].second.bblid != i) {
+                std::cout << "Incorrect bblid: " << bblstats[i].second.bblid << " " << i << std::endl;
                 assert(0);
             }
-            BBLStats &cpustats = sorted_hash[i].second.bblstats[CostSite::CPU];
-            BBLStats &pimstats = sorted_hash[i].second.bblstats[CostSite::PIM];
+            const BBLStats &cpustats = bblstats[i].second.bblstats[CostSite::CPU];
+            const BBLStats &pimstats = bblstats[i].second.bblstats[CostSite::PIM];
             int64_t diff = (int64_t)cpustats.elapsed_time - (int64_t)pimstats.elapsed_time;
             out << std::right << std::setw(7) << i
                 << std::right << std::setw(10) << (decision[i] == PIM ? "P" : "C")
@@ -116,9 +108,9 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, std::vector<std::pair
                 << std::right << std::setw(15) << pimstats.elapsed_time
                 << std::right << std::setw(15) << diff
                 << "  "
-                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.first
+                << std::setfill('0') << std::setw(16) << std::hex << bblstats[i].first.first
                 << "  "
-                << std::setfill('0') << std::setw(16) << std::hex << sorted_hash[i].first.second
+                << std::setfill('0') << std::setw(16) << std::hex << bblstats[i].first.second
                 << std::setfill(' ') << std::dec
                 << std::endl;
         }
@@ -126,16 +118,19 @@ std::ostream &CostSolver::PrintDecision(std::ostream &out, std::vector<std::pair
     return out;
 }
 
-CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
+CostSolver::DECISION
+CostSolver::PrintMPKISolution(std::ostream &out)
 {
-    std::vector<std::pair<UUID, BBLStatsPair>> sorted_hash(_bblhash_map.begin(), _bblhash_map.end());
-    std::sort(sorted_hash.begin(), sorted_hash.end(),
-        [](auto &a, auto &b) { return a.second.bblid < b.second.bblid; });
+    auto &sorted = _bblstats_map.getSorted();
 
     DECISION decision;
 
     uint64_t pim_total_instr = 0;
-    for (auto it = sorted_hash.begin(); it != sorted_hash.end(); ++it) {
+    for (auto it = sorted.begin(); it != sorted.end(); ++it) {
+        auto temp = it->second.bblid;
+        // std::cout << temp << std::endl;
+        auto temp2 = it->second.bblstats;
+        auto temp3 = it->second.bblstats[CostSite::PIM];
         pim_total_instr += it->second.bblstats[CostSite::PIM].instruction_count;
     }
 
@@ -143,9 +138,9 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
     uint64_t mpki_threshold = 10;
     uint64_t cpu_only_time = 0, pim_only_time = 0, mpki_time = 0, mpki_cpu_time = 0, mpki_pim_time = 0;
     int i = 0;
-    for (auto it = sorted_hash.begin(); it != sorted_hash.end(); ++it) {
-        BBLStats &cpustats = it->second.bblstats[CostSite::CPU];
-        BBLStats &pimstats = it->second.bblstats[CostSite::PIM];
+    for (auto it = sorted.begin(); it != sorted.end(); ++it) {
+        const BBLStats &cpustats = it->second.bblstats[CostSite::CPU];
+        const BBLStats &pimstats = it->second.bblstats[CostSite::PIM];
         double instr = pimstats.instruction_count;
         double mem = pimstats.memory_access;
         double mpki = mem / instr * 1000.0;
@@ -177,12 +172,13 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
     << "PIM only time (ns): " << pim_only_time << std::endl
     << "MPKI offloading time (ns): " << mpki_time << " = CPU " << mpki_cpu_time << " + PIM " << mpki_pim_time << std::endl;
 
-    PrintDecision(out, sorted_hash, decision, false);
+    PrintDecision(out, decision, false);
 
     return decision;
 }
 
-CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
+CostSolver::DECISION
+CostSolver::PrintPIMProfSolution(std::ostream &out)
 {
     std::sort(_data_reuse.getLeaves().begin(), _data_reuse.getLeaves().end(),
         [] (const TrieNode *l, const TrieNode *r) { return l->_count > r->_count; } );
@@ -198,7 +194,7 @@ CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
     DECISION decision;
 
     //initialize all decision to INVALID
-    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
+    for (uint32_t i = 0; i < _bblstats_map.size(); i++) {
         decision.push_back(INVALID);
     }
 
@@ -213,13 +209,13 @@ CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
         // insert segments until the number of different BBLs hit _batchsize
         while (currentnode < leavessize) {
             DataReuseSegment seg;
-            _data_reuse.ExportSegment(seg, _cost_package->_data_reuse.getLeaves()[currentnode]);
+            _data_reuse.ExportSegment(seg, _data_reuse.getLeaves()[currentnode]);
             std::vector<BBLID> diff = seg.diff(allidset);
             // std::cout << idvec.size() << " " << diff.size() << std::endl;
             if (idvec.size() + diff.size() > (unsigned)_batchsize) break;
             allidset.insert(seg);
             idvec.insert(idvec.end(), diff.begin(), diff.end());
-            _cost_package->_data_reuse.UpdateTrie(partial_root, seg);
+            _data_reuse.UpdateTrie(partial_root, seg);
             currentnode++;
             seg_count = seg.getCount();
         }
@@ -262,9 +258,13 @@ CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
 
     _data_reuse.DeleteTrie(partial_root);
 
-    for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
+    auto &sorted = _bblstats_map.getSorted();
+
+    for (uint32_t i = 0; i < _bblstats_map.size(); i++) {
+        const BBLStats &cpustats = sorted[i].second.bblstats[CostSite::CPU];
+        const BBLStats &pimstats = sorted[i].second.bblstats[CostSite::PIM];
         if (decision[i] == INVALID) {
-            if (_BBL_partial_total[CPU][i] <= _BBL_partial_total[PIM][i]) {
+            if (cpustats.elapsed_time <= pimstats.elapsed_time) {
                 decision[i] = CPU;
             }
             else {
@@ -280,7 +280,7 @@ CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
     cur_total = Cost(decision, _data_reuse.getRoot());
     // iterate over the remaining BBs 2 times until convergence
     for (int j = 0; j < 2; j++) {
-        for (uint32_t i = 0; i < _bbl_size; i++) {
+        for (uint32_t i = 0; i < _bblstats_map.size(); i++) {
             BBLID id = i;
 
             if (decision[id] == CPU) {
@@ -307,6 +307,75 @@ CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
     return decision;
 }
 
+COST
+CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
+{
+    COST cur_reuse_cost = 0;
+    COST cur_elapsed_time = 0;
+    std::map<BBLID, TrieNode *>::iterator it = reusetree->_children.begin();
+    std::map<BBLID, TrieNode *>::iterator eit = reusetree->_children.end();
+    for (; it != eit; it++) {
+        TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
+    }
+    auto &sorted = _bblstats_map.getSorted();
+
+    for (uint32_t i = 0; i < _bblstats_map.size(); i++) {
+        const BBLStats &cpustats = sorted[i].second.bblstats[CostSite::CPU];
+        const BBLStats &pimstats = sorted[i].second.bblstats[CostSite::PIM];
+
+        if (decision[i] == CPU) {
+            cur_elapsed_time += cpustats.elapsed_time;
+        }
+        else if (decision[i] == PIM) {
+            cur_elapsed_time += pimstats.elapsed_time;
+        }
+        else { assert(0); }
+    }
+
+    return (cur_reuse_cost + cur_elapsed_time);
+}
+
+void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
+{
+    if (root->_isLeaf) {
+        if (isDifferent) {
+            // If the initial W is on CPU and there are subsequent R/W on PIM,
+            // then this segment contributes to a flush of CPU and data fetch from PIM.
+            // We conservatively assume that the fetch will promote data to L1
+            if (decision[bblid] == CPU) {
+                // if the initial W can be parallelized, then we assume that
+                // the data corresponding to the chain can be flushed/fetched in parallel
+                // if (_cost_package->_bbl_parallelizable[bblid])
+                //     cost += root->_count * (_flush_cost[CPU] / _cost_package->_core_count[CPU] + _fetch_cost[PIM] / _cost_package->_core_count[PIM]);
+                // else
+                    cost += root->_count * (_flush_cost[CPU] + _fetch_cost[PIM]);
+            }
+            // If the initial W is on PIM and there are subsequent R/W on CPU,
+            // then this segment contributes to a flush of PIM and data fetch from CPU
+            else {
+                // if (_cost_package->_bbl_parallelizable[bblid])
+                //     cost += root->_count * (_flush_cost[PIM] / _cost_package->_core_count[PIM] + _fetch_cost[CPU] / _cost_package->_core_count[CPU]);
+                // else
+                    cost += root->_count * (_flush_cost[PIM] + _fetch_cost[CPU]);
+            }
+        }
+    }
+    else {
+        std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
+        std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
+        for (; it != eit; it++) {
+            if (isDifferent) {
+                TrieBFS(cost, decision, it->first, it->second, true);
+            }
+            else if (decision[bblid] != decision[it->first]) {
+                TrieBFS(cost, decision, it->first, it->second, true);
+            }
+            else {
+                TrieBFS(cost, decision, it->first, it->second, false);
+            }
+        }
+    }
+}
 
 // CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 // {
@@ -421,69 +490,6 @@ CostSolver::DECISION CostSolver::PrintPIMProfSolution(std::ostream &out)
 
 //     return _opt_decision;
 // }
-
-// void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID bblid, TrieNode *root, bool isDifferent)
-// {
-//     if (root->_isLeaf) {
-//         if (isDifferent) {
-//             // If the initial W is on CPU and there are subsequent R/W on PIM,
-//             // then this segment contributes to a flush of CPU and data fetch from PIM.
-//             // We conservatively assume that the fetch will promote data to L1
-//             if (decision[bblid] == CPU) {
-//                 // if the initial W can be parallelized, then we assume that
-//                 // the data corresponding to the chain can be flushed/fetched in parallel
-//                 if (_cost_package->_bbl_parallelizable[bblid])
-//                     cost += root->_count * (_flush_cost[CPU] / _cost_package->_core_count[CPU] + _fetch_cost[PIM] / _cost_package->_core_count[PIM]);
-//                 else
-//                     cost += root->_count * (_flush_cost[CPU] + _fetch_cost[PIM]);
-//             }
-//             // If the initial W is on PIM and there are subsequent R/W on CPU,
-//             // then this segment contributes to a flush of PIM and data fetch from CPU
-//             else {
-//                 if (_cost_package->_bbl_parallelizable[bblid])
-//                     cost += root->_count * (_flush_cost[PIM] / _cost_package->_core_count[PIM] + _fetch_cost[CPU] / _cost_package->_core_count[CPU]);
-//                 else
-//                     cost += root->_count * (_flush_cost[PIM] + _fetch_cost[CPU]);
-//             }
-//         }
-//     }
-//     else {
-//         std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
-//         std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
-//         for (; it != eit; it++) {
-//             if (isDifferent) {
-//                 TrieBFS(cost, decision, it->first, it->second, true);
-//             }
-//             else if (decision[bblid] != decision[it->first]) {
-//                 TrieBFS(cost, decision, it->first, it->second, true);
-//             }
-//             else {
-//                 TrieBFS(cost, decision, it->first, it->second, false);
-//             }
-//         }
-//     }
-// }
-
-// COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
-// {
-//     COST cur_reuse_cost = 0;
-//     COST cur_instr_cost = 0;
-//     COST cur_mem_cost = 0;
-//     std::map<BBLID, TrieNode *>::iterator it = reusetree->_children.begin();
-//     std::map<BBLID, TrieNode *>::iterator eit = reusetree->_children.end();
-//     for (; it != eit; it++) {
-//         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
-//     }
-//     for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
-//         CostSite site = decision[i];
-//         if (site == CPU || site == PIM) {
-//             cur_instr_cost += _cost_package->BBLInstructionCost(site, i);
-//             cur_mem_cost += _cost_package->BBLMemoryCost(site, i);
-//         }
-//     }
-//     return (cur_reuse_cost + cur_instr_cost + cur_mem_cost);
-// }
-
 
 // void CostSolver::ReadConfig(ConfigReader &reader)
 // {

@@ -347,7 +347,7 @@ class STORAGE_LEVEL_BASE
     friend class MEMORY_LEVEL;
   protected:
     static const uint32_t HIT_MISS_NUM = 2;
-    CACHE_STATS _access[ACCESS_TYPE_NUM][HIT_MISS_NUM];
+    CACHE_STATS _access[MAX_ACCESS_TYPE][HIT_MISS_NUM];
 
   protected:
     STORAGE *_storage;
@@ -369,7 +369,7 @@ class STORAGE_LEVEL_BASE
     {
         CACHE_STATS sum = 0;
 
-        for (uint32_t accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
+        for (uint32_t accessType = 0; accessType < MAX_ACCESS_TYPE; accessType++)
         {
             sum += _access[accessType][hit];
         }

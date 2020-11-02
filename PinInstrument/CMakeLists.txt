@@ -1,7 +1,6 @@
 set(SRCFILE
     "main.cpp"
     "PinUtil.cpp"
-    "DataReuse.cpp"
     "CostSolver.cpp"
 )
 

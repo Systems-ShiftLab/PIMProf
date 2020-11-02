@@ -21,17 +21,6 @@ namespace PIMProf {
 /* ===================================================================== */
 /* Typedefs and constants */
 /* ===================================================================== */
-typedef uint32_t CACHE_STATS;
-typedef double COST;
-typedef uint32_t BBLID;
-typedef std::pair<uint64_t, uint64_t> UUID;
-
-
-enum CostSite {
-    CPU, PIM, MAX_COST_SITE,
-    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
-};
-extern const std::string CostSiteName[MAX_COST_SITE];
 
 // MAX_LEVEL comes last to indicate the number of entries in this enum
 enum StorageLevel {
@@ -39,13 +28,31 @@ enum StorageLevel {
 };
 extern const std::string StorageLevelName[MAX_LEVEL];
 
-const BBLID GLOBALBBLID = 0;
+/* ===================================================================== */
+/* Typedefs and constants */
+/* ===================================================================== */
+
+typedef uint32_t CACHE_STATS;
+typedef double COST;
+typedef uint64_t BBLID;
+typedef std::pair<uint64_t, uint64_t> UUID;
+
+const BBLID GLOBAL_BBLID = -1;
+
+enum CostSite
+{
+    CPU,
+    PIM,
+    MAX_COST_SITE,
+    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
+};
+extern const std::string CostSiteName[MAX_COST_SITE];
 
 enum ACCESS_TYPE
 {
     ACCESS_TYPE_LOAD,
     ACCESS_TYPE_STORE,
-    ACCESS_TYPE_NUM
+    MAX_ACCESS_TYPE
 };
 
 /* ===================================================================== */
@@ -58,7 +65,7 @@ class BBLScope {
     inline BBLScope()
     {
         // we set the global BBL ID as 0
-        bblidstack.push(GLOBALBBLID);
+        bblidstack.push(GLOBAL_BBLID);
     }
     inline void push(BBLID bblid)
     {

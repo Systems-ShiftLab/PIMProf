@@ -51,7 +51,7 @@ STORAGE_LEVEL_BASE::STORAGE_LEVEL_BASE(STORAGE *storage, CostSite cost_site, Sto
     _cost_site(cost_site),
     _storage_level(storage_level)
 {
-    for (uint32_t accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
+    for (uint32_t accessType = 0; accessType < MAX_ACCESS_TYPE; accessType++)
     {
         _access[accessType][false] = 0;
         _access[accessType][true] = 0;
@@ -92,7 +92,7 @@ std::ostream & STORAGE_LEVEL_BASE::StatsLong(std::ostream & out) const
 
     out << Name() << ":" << std::endl;
 
-    for (uint32_t i = 0; i < ACCESS_TYPE_NUM; i++)
+    for (uint32_t i = 0; i < MAX_ACCESS_TYPE; i++)
     {
         const ACCESS_TYPE accessType = ACCESS_TYPE(i);
 
@@ -321,7 +321,7 @@ std::ostream & CACHE_LEVEL::StatsLong(std::ostream &out) const
 
 void CACHE_LEVEL::ResetStats()
 {
-    for (uint32_t accessType = 0; accessType < ACCESS_TYPE_NUM; accessType++)
+    for (uint32_t accessType = 0; accessType < MAX_ACCESS_TYPE; accessType++)
     {
         _access[accessType][false] = 0;
         _access[accessType][true] = 0;

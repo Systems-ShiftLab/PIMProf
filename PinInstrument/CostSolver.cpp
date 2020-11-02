@@ -209,13 +209,13 @@ CostSolver::PrintPIMProfSolution(std::ostream &out)
         // insert segments until the number of different BBLs hit _batchsize
         while (currentnode < leavessize) {
             DataReuseSegment seg;
-            _data_reuse.ExportSegment(seg, _data_reuse.getLeaves()[currentnode]);
+            _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[currentnode]);
             std::vector<BBLID> diff = seg.diff(allidset);
             // std::cout << idvec.size() << " " << diff.size() << std::endl;
             if (idvec.size() + diff.size() > (unsigned)_batchsize) break;
             allidset.insert(seg);
             idvec.insert(idvec.end(), diff.begin(), diff.end());
-            _data_reuse.UpdateTrie(partial_root, seg);
+            _data_reuse.UpdateTrie(partial_root, &seg);
             currentnode++;
             seg_count = seg.getCount();
         }

@@ -19,7 +19,7 @@ limitations under the License.
 #### File `LLVMAnalysis/MurmurHash3.cpp` and `LLVMAnalysis/MurmurHash3.h` are public domain software.
 
 
-#### File `PinInstrument/INIReader.h` is distributed under the New BSD license.
+#### File `PIMProfSolver/INIReader.h` is distributed under the New BSD license.
 
 ```
 The "inih" library is distributed under the New BSD license:
@@ -50,7 +50,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-#### Other files in folder `PinInstrument/` is distributed under the Intel Open Source License.
+#### Other files in folder `PIMProfSolver/` is distributed under the Intel Open Source License.
 
 ```
 Intel Open Source License 

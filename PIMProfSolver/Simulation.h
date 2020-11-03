@@ -31,11 +31,11 @@
 
 namespace PIMProf {
 class InstructionLatency {
-    friend class PinInstrument;
+    friend class PIMProfSolver;
 
   private:
 
-    /// Reference to PinInstrument data
+    /// Reference to PIMProfSolver data
     CostPackage *_cost_package;
 
   public:
@@ -67,10 +67,10 @@ class InstructionLatency {
 
 
 class MemoryLatency {
-    friend class PinInstrument;
+    friend class PIMProfSolver;
   private:
     STORAGE *_storage;
-    /// Reference to PinInstrument data
+    /// Reference to PIMProfSolver data
     CostPackage *_cost_package;
 
   public:

@@ -1,22 +1,22 @@
-//===- PinInstrument.cpp - Utils for instrumentation ------------*- C++ -*-===//
+//===- PIMProfSolver.cpp - Utils for instrumentation ------------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
 //
 //
 //===----------------------------------------------------------------------===//
-#include "PinInstrument.h"
+#include "PIMProfSolver.h"
 
 using namespace PIMProf;
 
 /* ===================================================================== */
-/* PinInstrument */
+/* PIMProfSolver */
 /* ===================================================================== */
 
-// Because PinInstrument has to be a global variable
+// Because PIMProfSolver has to be a global variable
 // and is dependent on the command line argument,
 // we have to use a separate function to initialize it.
-void PinInstrument::initialize(int argc, char *argv[])
+void PIMProfSolver::initialize(int argc, char *argv[])
 {
 // because we assume sizeof(ADDRINT) = 8
 # if !(__GNUC__) || !(__x86_64__)
@@ -33,7 +33,7 @@ void PinInstrument::initialize(int argc, char *argv[])
 
 }
 
-// void PinInstrument::ReadControlFlowGraph(const std::string filename)
+// void PIMProfSolver::ReadControlFlowGraph(const std::string filename)
 // {
 //     std::ifstream ifs;
 //     ifs.open(filename.c_str());
@@ -46,7 +46,7 @@ void PinInstrument::initialize(int argc, char *argv[])
 // }
 
 
-void PinInstrument::simulate()
+void PIMProfSolver::simulate()
 {
     INS_AddInstrumentFunction(InstructionInstrument, (void *)this);
     PIN_AddThreadStartFunction(ThreadStart, (void *)this);
@@ -57,7 +57,7 @@ void PinInstrument::simulate()
     PIN_StartProgram();
 }
 
-void PinInstrument::HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT control_value, THREADID threadid)
+void PIMProfSolver::HandleMagic(PIMProfSolver *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT control_value, THREADID threadid)
 {
     uint64_t op = ControlValue::GetOpType(control_value);
     uint64_t isomp = ControlValue::GetIsOpenMP(control_value);
@@ -80,7 +80,7 @@ void PinInstrument::HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT
     }
 }
 
-void PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
+void PIMProfSolver::DoAtAnnotationHead(PIMProfSolver *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -121,7 +121,7 @@ void PinInstrument::DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, 
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
+void PIMProfSolver::DoAtAnnotationTail(PIMProfSolver *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -142,7 +142,7 @@ void PinInstrument::DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, 
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::DoAtROIHead(PinInstrument *self, THREADID threadid)
+void PIMProfSolver::DoAtROIHead(PIMProfSolver *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -152,7 +152,7 @@ void PinInstrument::DoAtROIHead(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::DoAtROITail(PinInstrument *self, THREADID threadid)
+void PIMProfSolver::DoAtROITail(PIMProfSolver *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -162,7 +162,7 @@ void PinInstrument::DoAtROITail(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::DoAtROIDecisionHead(PinInstrument *self, THREADID threadid)
+void PIMProfSolver::DoAtROIDecisionHead(PIMProfSolver *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -174,7 +174,7 @@ void PinInstrument::DoAtROIDecisionHead(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::DoAtROIDecisionTail(PinInstrument *self, THREADID threadid)
+void PIMProfSolver::DoAtROIDecisionTail(PIMProfSolver *self, THREADID threadid)
 {
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexReadLock(&pkg._thread_count_rwmutex);
@@ -186,20 +186,20 @@ void PinInstrument::DoAtROIDecisionTail(PinInstrument *self, THREADID threadid)
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::DoAtAcceleratorHead(PinInstrument *self)
+void PIMProfSolver::DoAtAcceleratorHead(PIMProfSolver *self)
 {
     CostPackage &pkg = self->_cost_package;
     pkg._inAcceleratorFunction = true;
     infomsg() << "see EncodeFrame" << std::endl;
 }
 
-void PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
+void PIMProfSolver::DoAtAcceleratorTail(PIMProfSolver *self)
 {
     CostPackage &pkg = self->_cost_package;
     pkg._inAcceleratorFunction = false;
 }
 
-// void PinInstrument::ImageInstrument(IMG img, void *void_self)
+// void PIMProfSolver::ImageInstrument(IMG img, void *void_self)
 // {
 //     // find annotator head and tail by their names
 //     RTN annotator_head = RTN_FindByName(img, PIMProfAnnotationHead.c_str());
@@ -257,7 +257,7 @@ void PinInstrument::DoAtAcceleratorTail(PinInstrument *self)
 
 int ins_to_skip = -1;
 
-void PinInstrument::InstructionInstrument(INS ins, void *void_self)
+void PIMProfSolver::InstructionInstrument(INS ins, void *void_self)
 {
 
     /***** deal with PIMProf magic *****/
@@ -332,7 +332,7 @@ void PinInstrument::InstructionInstrument(INS ins, void *void_self)
     else
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintInstruction, IARG_PTR, &std::cout, IARG_ADDRINT, INS_Address(ins), IARG_PTR, new std::string(INS_Disassemble(ins)), IARG_END);
 */
-    PinInstrument *self = (PinInstrument *)void_self;
+    PIMProfSolver *self = (PIMProfSolver *)void_self;
 
     uint32_t opcode = (uint32_t)(INS_Opcode(ins));
     bool ismem = INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
@@ -434,9 +434,9 @@ void PinInstrument::InstructionInstrument(INS ins, void *void_self)
 
 #include <memory>
 
-void PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, int32_t flags, void *void_self)
+void PIMProfSolver::ThreadStart(THREADID threadid, CONTEXT *ctxt, int32_t flags, void *void_self)
 {
-    PinInstrument *self = (PinInstrument *)void_self;
+    PIMProfSolver *self = (PIMProfSolver *)void_self;
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexWriteLock(&pkg._thread_count_rwmutex);
     pkg._thread_bbl_scope.push_back(BBLScope());
@@ -472,9 +472,9 @@ void PinInstrument::ThreadStart(THREADID threadid, CONTEXT *ctxt, int32_t flags,
     // PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, int32_t flags, void *void_self)
+void PIMProfSolver::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, int32_t flags, void *void_self)
 {
-    PinInstrument *self = (PinInstrument *)void_self;
+    PIMProfSolver *self = (PIMProfSolver *)void_self;
     CostPackage &pkg = self->_cost_package;
     PIN_RWMutexWriteLock(&pkg._thread_count_rwmutex);
 #ifdef PIMPROFTRACE
@@ -488,9 +488,9 @@ void PinInstrument::ThreadFinish(THREADID threadid, const CONTEXT *ctxt, int32_t
     PIN_RWMutexUnlock(&pkg._thread_count_rwmutex);
 }
 
-void PinInstrument::FinishInstrument(int32_t code, void *void_self)
+void PIMProfSolver::FinishInstrument(int32_t code, void *void_self)
 {
-    PinInstrument *self = (PinInstrument *)void_self;
+    PIMProfSolver *self = (PIMProfSolver *)void_self;
     CostPackage &pkg = self->_cost_package;
     std::ofstream ofs(
         pkg._command_line_parser.outputfile().c_str(),

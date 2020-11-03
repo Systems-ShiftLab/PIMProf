@@ -110,18 +110,24 @@ PRETTY_PRINT_FUNC_HELPER(warning, YELLOWCOLOR)
 /* ===================================================================== */
 
 class CommandLineParser {
+  public:
+    enum Mode {
+        MPKI, PARA, REUSE
+    };
   private:
     std::string _cpustatsfile, _pimstatsfile;
+    std::string _reusefile;
     std::string _outputfile;
-    std::string _mode;
+    Mode _mode;
 
   public:
     void initialize(int argc, char *argv[]);
 
     inline std::string cpustatsfile() { return _cpustatsfile; }
     inline std::string pimstatsfile() { return _pimstatsfile; }
+    inline std::string reusefile() { return _reusefile; }
     inline std::string outputfile() { return _outputfile; }
-    inline std::string mode() { return _mode; }
+    inline Mode mode() { return _mode; }
     inline bool enableglobalbbl() { return true; } // whether considering the dependency with the global BBL, for debug use
 
 };

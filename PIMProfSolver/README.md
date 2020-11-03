@@ -1,4 +1,4 @@
-## PinInstrument
+## PIMProfSolver
 
 ### Differences between data reuse cost and memory cost
 The data reuse cost is the cost of the extra data transfer (data fetch / flush) that is introduced when the different regions of program executing on different places share the same data. 

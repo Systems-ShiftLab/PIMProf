@@ -9,6 +9,7 @@
 #include <cfloat>
 #include <climits>
 
+#include "../LLVMAnalysis/Common.h"
 #include "CostSolver.h"
 
 using namespace PIMProf;
@@ -16,8 +17,7 @@ using namespace PIMProf;
 /* ===================================================================== */
 /* CostSolver */
 /* ===================================================================== */
-void
-CostSolver::initialize(CommandLineParser *parser)
+void CostSolver::initialize(CommandLineParser *parser)
 {
     _command_line_parser = parser;
     _batchthreshold = 0;
@@ -56,26 +56,24 @@ CostSolver::initialize(CommandLineParser *parser)
 }
 
 
-CostSolver::DECISION
-CostSolver::PrintSolution(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
 {
     DECISION decision;
     
-    if (_command_line_parser->mode() == "mpki") {
+    if (_command_line_parser->mode() == CommandLineParser::Mode::MPKI) {
         decision = PrintMPKISolution(out);
     }
-    if (_command_line_parser->mode() == "dep") {
-        decision = PrintPIMProfSolution(out);
+    if (_command_line_parser->mode() == CommandLineParser::Mode::REUSE) {
+        decision = PrintReuseSolution(out);
     }
 
     return decision;
 }
 
-std::ostream &
-CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
+std::ostream & CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
 {
     auto bblstats = _bblstats_map.getSorted();
-    out << "========================================================" << std::endl;
+    out << HORIZONTAL_LINE << std::endl;
     if (toscreen == true) {
         for (uint32_t i = 0; i < _bblstats_map.size(); i++) {
             out << i << ":"
@@ -118,8 +116,7 @@ CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool tosc
     return out;
 }
 
-CostSolver::DECISION
-CostSolver::PrintMPKISolution(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
 {
     auto &sorted = _bblstats_map.getSorted();
 
@@ -177,8 +174,7 @@ CostSolver::PrintMPKISolution(std::ostream &out)
     return decision;
 }
 
-CostSolver::DECISION
-CostSolver::PrintPIMProfSolution(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintReuseSolution(std::ostream &out)
 {
     std::sort(_data_reuse.getLeaves().begin(), _data_reuse.getLeaves().end(),
         [] (const TrieNode *l, const TrieNode *r) { return l->_count > r->_count; } );
@@ -307,8 +303,7 @@ CostSolver::PrintPIMProfSolution(std::ostream &out)
     return decision;
 }
 
-COST
-CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
+COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
 {
     COST cur_reuse_cost = 0;
     COST cur_elapsed_time = 0;

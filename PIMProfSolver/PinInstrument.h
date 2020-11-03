@@ -1,4 +1,4 @@
-//===- PinInstrument.h - Utils for instrumentation --------------*- C++ -*-===//
+//===- PIMProfSolver.h - Utils for instrumentation --------------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -33,7 +33,7 @@
 
 namespace PIMProf {
 
-class PinInstrument {
+class PIMProfSolver {
   private:
     InstructionLatency _instruction_latency;
     MemoryLatency _memory_latency;
@@ -45,7 +45,7 @@ class PinInstrument {
 
 
   public:
-    PinInstrument() {}
+    PIMProfSolver() {}
 
   public:
     void initialize(int argc, char *argv[]);
@@ -63,25 +63,25 @@ class PinInstrument {
 
     /// Main entrance of magic instruction instrumentation
     static void InstructionInstrument(INS ins, void *void_self);
-    static void HandleMagic(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT control_value, THREADID threadid);
+    static void HandleMagic(PIMProfSolver *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT control_value, THREADID threadid);
 
     /// Annotation head and tail are used to mark out the beginning and end of a basic block.
-    static void DoAtAnnotationHead(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid);
-    static void DoAtAnnotationTail(PinInstrument *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid);
+    static void DoAtAnnotationHead(PIMProfSolver *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid);
+    static void DoAtAnnotationTail(PIMProfSolver *self, ADDRINT bblhash_hi, ADDRINT bblhash_lo, ADDRINT isomp, THREADID threadid);
 
     /// ROI head and tail are used to mark out the beginning and end of the ROI,
     /// i.e., the region of instructions that we want to instrument.
     /// In other word, instructions outside the ROI will not call the analysis routine.
-    static void DoAtROIHead(PinInstrument *self, THREADID threadid);
-    static void DoAtROITail(PinInstrument *self, THREADID threadid);
+    static void DoAtROIHead(PIMProfSolver *self, THREADID threadid);
+    static void DoAtROITail(PIMProfSolver *self, THREADID threadid);
 
     /// ROI decision head and tail are used to mark out by hand the regions that will be offloaded to PIM
-    static void DoAtROIDecisionHead(PinInstrument *self, THREADID threadid);
-    static void DoAtROIDecisionTail(PinInstrument *self, THREADID threadid);
+    static void DoAtROIDecisionHead(PIMProfSolver *self, THREADID threadid);
+    static void DoAtROIDecisionTail(PIMProfSolver *self, THREADID threadid);
 
 
-    static void DoAtAcceleratorHead(PinInstrument *self);
-    static void DoAtAcceleratorTail(PinInstrument *self);
+    static void DoAtAcceleratorHead(PIMProfSolver *self);
+    static void DoAtAcceleratorTail(PIMProfSolver *self);
 
 
     /// Execute when a new thread starts and ends

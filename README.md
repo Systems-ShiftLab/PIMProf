@@ -4,7 +4,7 @@ This project is compatible with LLVM 7.0.1 and clang 7
 # Structure of repository
 * `Configs/`: The configuration files of PIMProf. The default is `defaultconfig_32.ini`.
 * `LLVMAnalysis/`: The tool for instrumenting the program. This is implemented as an LLVM pass and invoked by clang. This directory also contains some hooks that can be used for annotating region of interest.
-* `PinInstrument/`: The Pin tool for analyzing the instrumented program.
+* `PIMProfSolver/`: The Pin tool for analyzing the instrumented program.
 * `test/`: The unit test.
 
 # Prerequisite
@@ -32,9 +32,9 @@ We use the unit test in `test/` as an example:
 ```
 $ clang++-7 -Xclang -load -Xclang $(INJECTION_SO) ...
 ```
-2. By default, we generate the Pin tool as `build/PinInstrument/PinInstrument.so`. Start PIMProf analysis by running the program with this Pin tool:
+2. By default, we generate the Pin tool as `build/PIMProfSolver/PIMProfSolver.so`. Start PIMProf analysis by running the program with this Pin tool:
 ```
-$ pin -t build/PinInstrument/PinInstrument.so -c Configs/defaultconfig_32.ini -o decision.out -- ./test.exe
+$ pin -t build/PIMProfSolver/PIMProfSolver.so -c Configs/defaultconfig_32.ini -o decision.out -- ./test.exe
 ```
 Commonly used command line options:
 ```

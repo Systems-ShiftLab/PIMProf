@@ -10,6 +10,8 @@
 
 #include <string>
 
+static const std::string HORIZONTAL_LINE = std::string(60, '=');
+
 static const std::string PIMProfAnnotationHead = "PIMProfAnnotationHead";
 static const std::string PIMProfAnnotationTail = "PIMProfAnnotationTail";
 

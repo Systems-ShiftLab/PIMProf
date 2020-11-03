@@ -111,7 +111,7 @@ class DecisionMap {
         std::string line;
         // skip the preceding lines
         while (std::getline(ifs, line)) {
-            if (line.find("====") != std::string::npos) break;
+            if (line.find(HORIZONTAL_LINE) != std::string::npos) break;
         }
 
         while(std::getline(ifs, line)) {

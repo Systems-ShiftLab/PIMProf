@@ -524,7 +524,7 @@ class STORAGE
     ADDRINT _last_icacheline[MAX_COST_SITE];
 
   public:
-    /// Reference to PinInstrument data
+    /// Reference to PIMProfSolver data
     CostPackage *_cost_package;
 
   public:

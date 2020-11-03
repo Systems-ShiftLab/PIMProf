@@ -1,4 +1,4 @@
-//===- main.cpp - The main entrance of PinInstrument tool ---------------------------*- C++ -*-===//
+//===- main.cpp - The main entrance of PIMProfSolver tool ---------------------------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -26,19 +26,6 @@ CommandLineParser _command_line_parser;
 int main(int argc, char *argv[])
 {
     _command_line_parser.initialize(argc, argv);
-    std::string mode = _command_line_parser.mode();
-    if (mode == "mpki") {
-    }
-    else if (mode == "para") {
-        assert(0);
-    }
-    else if (mode == "dep") {
-        assert(0);
-    }
-    else {
-        assert(0);
-    }
-
 
     _cost_solver.initialize(&_command_line_parser);
     std::ofstream ofs(_command_line_parser.outputfile());

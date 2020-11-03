@@ -22,36 +22,10 @@
 #include <unordered_map>
 
 #include "PinUtil.h"
-#include "DataReuse.h"
+#include "Stats.h"
 
 namespace PIMProf
 {
-class HashFunc
-{
-  public:
-    // assuming UUID is already murmurhash-ed.
-    std::size_t operator()(const UUID &key) const
-    {
-        size_t result = key.first ^ key.second;
-        return result;
-    }
-};
-
-class BBLStats {
-  public:
-    COST elapsed_time; // in nanoseconds
-    uint64_t instruction_count;
-    uint64_t memory_access;
-    BBLStats() : elapsed_time(0), instruction_count(0), memory_access(0) {}
-    BBLStats& operator += (const BBLStats& rhs) {
-
-        this->elapsed_time += rhs.elapsed_time;
-        this->instruction_count += rhs.instruction_count;
-        this->memory_access += rhs.memory_access;
-        return *this;
-    }
-};
-
 class BBLStatsMap
 {
   public:
@@ -68,7 +42,7 @@ class BBLStatsMap
         }
     };
 
-    std::unordered_map<UUID, BBLStatsPair, HashFunc> _bblstats_map;
+    std::unordered_map<UUID, BBLStatsPair, UUIDHashFunc> _bblstats_map;
     std::vector<std::pair<UUID, BBLStatsPair>> _bblstats_sorted;
     bool _bblstats_dirty = true; // dirty flag for _bblstats_sorted
 
@@ -89,7 +63,7 @@ class BBLStatsMap
         _bblstats_dirty = true;
     }
 
-    inline const std::unordered_map<UUID, BBLStatsPair, HashFunc> &getMap() {
+    inline const std::unordered_map<UUID, BBLStatsPair, UUIDHashFunc> &getMap() {
         return _bblstats_map;
     }
 
@@ -156,7 +130,7 @@ class CostSolver {
 
   private:
     DECISION PrintMPKISolution(std::ostream &out);
-    DECISION PrintPIMProfSolution(std::ostream &out);
+    DECISION PrintReuseSolution(std::ostream &out);
 };
 
 } // namespace PIMProf

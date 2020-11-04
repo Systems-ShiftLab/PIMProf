@@ -54,6 +54,13 @@ class HashFunc
     }
 };
 
+struct Decision {
+    CallSite decision;
+    int bblid;
+    double difference;
+    int parallel;
+};
+
 class DecisionMap {
   private:
     std::unordered_map<UUID, Decision, HashFunc> decision_map;

@@ -10,7 +10,8 @@
 
 #include <string>
 
-static const std::string HORIZONTAL_LINE = std::string(60, '=');
+namespace PIMProf {
+static const std::string HORIZONTAL_LINE(60, '=');
 
 static const std::string PIMProfAnnotationHead = "PIMProfAnnotationHead";
 static const std::string PIMProfAnnotationTail = "PIMProfAnnotationTail";
@@ -99,13 +100,11 @@ enum class InjectMode {
     INVALID = 0x3fffffff // a placeholder that does not count as a cost site
 };
 
+typedef uint32_t CACHE_STATS;
+typedef double COST;
+typedef uint64_t BBLID;
 typedef std::pair<uint64_t, uint64_t> UUID;
 
-struct Decision {
-    CallSite decision;
-    int bblid;
-    double difference;
-    int parallel;
-};
+}; // namespace PIMProf
 
 #endif // __COMMON_H__

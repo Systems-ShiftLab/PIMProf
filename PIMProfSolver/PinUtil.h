@@ -15,6 +15,7 @@
 #include <cassert>
 #include <cstdarg>
 
+#include "../LLVMAnalysis/Common.h"
 #include "INIReader.h"
 
 namespace PIMProf {
@@ -31,11 +32,6 @@ extern const std::string StorageLevelName[MAX_LEVEL];
 /* ===================================================================== */
 /* Typedefs and constants */
 /* ===================================================================== */
-
-typedef uint32_t CACHE_STATS;
-typedef double COST;
-typedef uint64_t BBLID;
-typedef std::pair<uint64_t, uint64_t> UUID;
 
 const BBLID GLOBAL_BBLID = -1;
 

@@ -11,8 +11,8 @@ endif()
 
 find_package(LLVM REQUIRED CONFIG)
 add_definitions(${LLVM_DEFINITIONS})
-include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${LLVM_INCLUDE_DIRS} "include")
 link_directories(${LLVM_LIBRARY_DIRS})
 
-add_subdirectory(LLVMAnalysis)
-add_subdirectory(PIMProfSolver)
+add_subdirectory("LLVMAnalysis")
+add_subdirectory("PIMProfSolver")

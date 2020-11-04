@@ -21,7 +21,7 @@
 #include <set>
 #include "pin.H"
 
-#include "../LLVMAnalysis/Common.h"
+#include "Common.h"
 #include "Util.h"
 #include "CostPackage.h"
 #include "Storage.h"

@@ -22,7 +22,7 @@
 #include <unordered_map>
 #include <cassert>
 
-#include "../LLVMAnalysis/Common.h"
+#include "Common.h"
 #include "Util.h"
 #include "DataReuse.h"
 

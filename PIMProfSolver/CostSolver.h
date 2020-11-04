@@ -20,7 +20,7 @@
 #include <set>
 #include <algorithm>
 
-#include "../LLVMAnalysis/Common.h"
+#include "Common.h"
 #include "Util.h"
 #include "Stats.h"
 

@@ -9,7 +9,7 @@
 #include <cfloat>
 #include <climits>
 
-#include "../LLVMAnalysis/Common.h"
+#include "Common.h"
 #include "CostSolver.h"
 
 using namespace PIMProf;

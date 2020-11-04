@@ -15,7 +15,7 @@
 #include <cassert>
 #include <cstdarg>
 
-#include "../LLVMAnalysis/Common.h"
+#include "Common.h"
 #include "INIReader.h"
 
 namespace PIMProf {

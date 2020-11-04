@@ -1,4 +1,4 @@
-//===- [Yizhou]                                      ------------*- C++ -*-===//
+//===- DataReuse.h - Data reuse class template ------------------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -31,13 +31,14 @@ namespace PIMProf
 /* ===================================================================== */
 typedef std::pair<BBLID, ACCESS_TYPE> BBLOP;
 
+template <class Ty>
 class DataReuseSegment
 {
-    friend class DataReuse;
+    template <class Tz> friend class DataReuse;
 
 private:
-    BBLID _headID;
-    std::set<BBLID> _set;
+    Ty _headID;
+    std::set<Ty> _set;
     int _count;
 
 public:
@@ -49,11 +50,11 @@ public:
 
     inline size_t size() const { return _set.size(); }
 
-    inline void insert(BBLID bblid)
+    inline void insert(Ty id)
     {
         if (_set.empty())
-            _headID = bblid;
-        _set.insert(bblid);
+            _headID = id;
+        _set.insert(id);
     }
 
     inline void insert(DataReuseSegment &seg)
@@ -61,9 +62,9 @@ public:
         _set.insert(seg._set.begin(), seg._set.end());
     }
 
-    inline std::vector<BBLID> diff(DataReuseSegment &seg)
+    inline std::vector<Ty> diff(DataReuseSegment &seg)
     {
-        std::vector<BBLID> result;
+        std::vector<Ty> result;
         std::set_difference(
             _set.begin(), _set.end(),
             seg.begin(), seg.end(),
@@ -78,10 +79,10 @@ public:
         _count = 1;
     }
 
-    inline std::set<BBLID>::iterator begin() { return _set.begin(); }
-    inline std::set<BBLID>::iterator end() { return _set.end(); }
-    inline void setHead(BBLID head) { _headID = head; }
-    inline BBLID getHead() const { return _headID; }
+    inline typename std::set<Ty>::iterator begin() { return _set.begin(); }
+    inline typename std::set<Ty>::iterator end() { return _set.end(); }
+    inline void setHead(Ty head) { _headID = head; }
+    inline Ty getHead() const { return _headID; }
     inline void setCount(int count) { _count = count; }
     inline int getCount() const { return _count; }
 
@@ -94,7 +95,7 @@ public:
     {
         out << "head = " << (int64_t)_headID << ", "
             << "count = " << _count << " | ";
-        for (auto it = _set.begin(); it != _set.end(); it++)
+        for (auto it = _set.begin(); it != _set.end(); ++it)
         {
             out << (int64_t)*it << " ";
         }
@@ -106,13 +107,14 @@ public:
 /* ===================================================================== */
 /* TrieNode */
 /* ===================================================================== */
+template <class Ty>
 class TrieNode
 {
 public:
     // the leaf node stores the head of the segment
     bool _isLeaf;
-    std::map<BBLID, TrieNode *> _children;
-    BBLID _curID;
+    std::map<Ty, TrieNode *> _children;
+    Ty _curID;
     TrieNode *_parent;
     int64_t _count;
 
@@ -141,18 +143,19 @@ public:
 /// then this segment contributes to a flush of PIM and data fetch from CPU;
 /// If the initial W is on CPU and there are subsequent R/W on PIM,
 /// then this segment contributes to a flush of CPU and data fetch from PIM.
+template <class Ty>
 class DataReuse
 {
 private:
-    TrieNode *_root;
-    std::vector<TrieNode *> _leaves;
+    TrieNode<Ty> *_root;
+    std::vector<TrieNode<Ty> *> _leaves;
 
 public:
-    DataReuse() { _root = new TrieNode(); }
+    DataReuse() { _root = new TrieNode<Ty>(); }
     ~DataReuse() { DeleteTrie(_root); }
 
 public:
-    void UpdateTrie(TrieNode *root, const DataReuseSegment *seg)
+    void UpdateTrie(TrieNode<Ty> *root, const DataReuseSegment<Ty> *seg)
     {
         // A reuse chain segment of size 1 can be removed
         if (seg->size() <= 1)
@@ -160,26 +163,24 @@ public:
 
         // seg->print(std::cout);
 
-        TrieNode *curNode = root;
-        std::set<BBLID>::iterator it = seg->_set.begin();
-        std::set<BBLID>::iterator eit = seg->_set.end();
-        for (; it != eit; it++)
+        TrieNode<Ty> *curNode = root;
+        for (auto it = seg->_set.begin(); it != seg->_set.end(); ++it)
         {
-            BBLID curID = *it;
-            TrieNode *temp = curNode->_children[curID];
+            Ty curID = *it;
+            TrieNode<Ty> *temp = curNode->_children[curID];
             if (temp == NULL)
             {
-                temp = new TrieNode();
+                temp = new TrieNode<Ty>();
                 temp->_parent = curNode;
                 temp->_curID = curID;
                 curNode->_children[curID] = temp;
             }
             curNode = temp;
         }
-        TrieNode *temp = curNode->_children[seg->_headID];
+        TrieNode<Ty> *temp = curNode->_children[seg->_headID];
         if (temp == NULL)
         {
-            temp = new TrieNode();
+            temp = new TrieNode<Ty>();
             temp->_parent = curNode;
             temp->_curID = seg->_headID;
             curNode->_children[seg->_headID] = temp;
@@ -189,27 +190,25 @@ public:
         temp->_count += seg->getCount();
     }
 
-    void DeleteTrie(TrieNode *root)
+    void DeleteTrie(TrieNode<Ty> *root)
     {
         if (!root->_isLeaf)
         {
-            std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
-            std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
-            for (; it != eit; it++)
+            for (auto it = root->_children.begin(); it != root->_children.end(); ++it)
             {
-                DataReuse::DeleteTrie(it->second);
+                DeleteTrie(it->second);
             }
         }
         delete root;
     }
 
-    void ExportSegment(DataReuseSegment *seg, TrieNode *leaf)
+    void ExportSegment(DataReuseSegment<Ty> *seg, TrieNode<Ty> *leaf)
     {
         assert(leaf->_isLeaf);
         seg->setHead(leaf->_curID);
         seg->setCount(leaf->_count);
 
-        TrieNode *temp = leaf;
+        TrieNode<Ty> *temp = leaf;
         while (temp->_parent != NULL)
         {
             seg->insert(temp->_curID);
@@ -217,7 +216,8 @@ public:
         }
     }
 
-    void PrintDotGraphHelper(std::ostream &out, TrieNode *root, int parent, int &count)
+    // Problematic
+    void PrintDotGraphHelper(std::ostream &out, TrieNode<Ty> *root, int parent, int &count)
     {
         int64_t curID = root->_curID;
         if (root->_isLeaf)
@@ -235,7 +235,7 @@ public:
             count++;
             auto it = root->_children.begin();
             auto eit = root->_children.end();
-            for (; it != eit; it++)
+            for (; it != eit; ++it)
             {
                 DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
             }
@@ -247,11 +247,9 @@ public:
         int parent = 0;
         int count = 1;
         out << "digraph trie {" << std::endl;
-        auto it = _root->_children.begin();
-        auto eit = _root->_children.end();
         out << "    V_0"
             << " [label=\"root\"];" << std::endl;
-        for (; it != eit; it++)
+        for (auto it = _root->_children.begin(); it != _root->_children.end(); ++it)
         {
             DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
         }
@@ -261,17 +259,17 @@ public:
 
     std::ostream &PrintAllSegments(std::ostream &out)
     {
-        for (auto it = _leaves.begin(); it != _leaves.end(); it++)
+        for (auto it = _leaves.begin(); it != _leaves.end(); ++it)
         {
-            DataReuseSegment seg;
+            DataReuseSegment<Ty> seg;
             ExportSegment(&seg, *it);
             seg.print(out);
         }
         return out;
     }
 
-    inline TrieNode *getRoot() { return _root; }
-    inline std::vector<TrieNode *> &getLeaves() { return _leaves; }
+    inline TrieNode<Ty> *getRoot() { return _root; }
+    inline std::vector<TrieNode<Ty> *> &getLeaves() { return _leaves; }
 };
 } // namespace PIMProf
 

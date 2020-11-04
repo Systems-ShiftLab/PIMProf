@@ -1,4 +1,4 @@
-//===- [Yizhou]                                      ------------*- C++ -*-===//
+//===- Stats.h - Header-only class for stats collection ---------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -42,8 +42,8 @@ public:
     uint64_t memory_access;
 
     BBLStats(
-        BBLID _bblid = 0,
-        UUID _bblhash = UUID(0, 0),
+        BBLID _bblid = GLOBAL_BBLID,
+        UUID _bblhash = UUID(GLOBAL_BBLID, GLOBAL_BBLID),
         uint64_t _elapsed_time = 0,
         uint64_t _instruction_count = 0,
         uint64_t _memory_access = 0)
@@ -59,6 +59,9 @@ public:
     }
 };
 
+typedef DataReuseSegment<BBLID> PtrDataReuseSegment;
+typedef DataReuse<BBLID> PtrDataReuse;
+
 class ThreadStats
 {
 private:
@@ -73,8 +76,8 @@ private:
     std::vector<BBLStats *> m_bblid2stats;
     BBLStats *m_globalbblstats;
 
-    std::unordered_map<uint64_t, DataReuseSegment *> m_tag2seg;
-    DataReuse *m_data_reuse;
+    std::unordered_map<uint64_t, PtrDataReuseSegment *> m_tag2seg;
+    PtrDataReuse *m_data_reuse;
 
 public:
     ThreadStats(int _tid = 0)
@@ -89,7 +92,7 @@ public:
         m_bblhash2bblid.insert(std::make_pair(UUID(0, 0), 0));
         m_bblid2stats.push_back(new BBLStats(0, UUID(0, 0)));
         m_globalbblstats = new BBLStats(GLOBAL_BBLID, UUID(GLOBAL_BBLID, GLOBAL_BBLID));
-        m_data_reuse = new DataReuse();
+        m_data_reuse = new PtrDataReuse();
     }
 
     ~ThreadStats()
@@ -203,11 +206,11 @@ public:
     void InsertSegOnHit(uintptr_t tag, bool is_store)
     {
         BBLID bblid = m_current_bblid.back();
-        DataReuseSegment *seg;
+        PtrDataReuseSegment *seg;
         auto it = m_tag2seg.find(tag);
         if (it == m_tag2seg.end())
         {
-            seg = new DataReuseSegment();
+            seg = new PtrDataReuseSegment();
             m_tag2seg.insert(std::make_pair(tag, seg));
         }
         else
@@ -232,7 +235,7 @@ public:
 
     void SplitSegOnMiss(uintptr_t tag)
     {
-        DataReuseSegment *seg;
+        PtrDataReuseSegment *seg;
         auto it = m_tag2seg.find(tag);
         if (it == m_tag2seg.end())
             return; // ignore it if there is no existing segment
@@ -243,26 +246,34 @@ public:
 
     void PrintStats(std::ostream &ofs)
     {
-        std::vector<std::pair<UUID, BBLID>> m_bblhash_sorted(m_bblhash2bblid.begin(), m_bblhash2bblid.end());
-        std::sort(
-            m_bblhash_sorted.begin(),
-            m_bblhash_sorted.end(),
-            [](std::pair<UUID, BBLID> &a, std::pair<UUID, BBLID> &b) { return a.first.first < b.first.first; });
-        for (auto it = m_bblhash_sorted.begin(); it != m_bblhash_sorted.end(); ++it)
+        // std::vector<std::pair<UUID, BBLID>> m_bblhash_sorted(m_bblhash2bblid.begin(), m_bblhash2bblid.end());
+        // std::sort(
+        //     m_bblhash_sorted.begin(),
+        //     m_bblhash_sorted.end(),
+        //     [](std::pair<UUID, BBLID> &a, std::pair<UUID, BBLID> &b) { return a.first.first < b.first.first; });
+        
+        ofs << HORIZONTAL_LINE << std::endl;
+        ofs << "Core " << tid << std::endl;
+        ofs << std::setw(7) << "BBLID"
+            << std::setw(15) << "Time(ns)"
+            << std::setw(15) << "Instruction"
+            << std::setw(15) << "Memory Access"
+            << std::setw(18) << "Hash(hi)"
+            << std::setw(18) << "Hash(lo)"
+            << std::endl;
+        for (BBLID bblid = GLOBAL_BBLID; bblid != (int64_t)m_bblid2stats.size(); ++bblid)
         {
-            UUID bblhash = it->first;
-            BBLID bblid = it->second;
-            ofs << tid << " " << std::hex
-                << bblhash.first << " " << bblhash.second << " " << std::dec
-                << GetBBLStats(bblid)->elapsed_time << " "
-                << GetBBLStats(bblid)->instruction_count << " "
-                << GetBBLStats(bblid)->memory_access << std::endl;
+            UUID bblhash = GetBBLStats(bblid)->bblhash;
+            ofs << std::setw(7) << bblid
+                << std::setw(15) << GetBBLStats(bblid)->elapsed_time
+                << std::setw(15) << GetBBLStats(bblid)->instruction_count
+                << std::setw(15) << GetBBLStats(bblid)->memory_access
+                << "  " << std::hex
+                << std::setfill('0') << std::setw(16) << bblhash.first
+                << "  "
+                << std::setfill('0') << std::setw(16) << bblhash.second
+                << std::setfill(' ') << std::dec << std::endl;
         }
-        ofs << tid << " " << std::hex 
-            << m_globalbblstats->bblhash.first << " " << m_globalbblstats->bblhash.second << " " << std::dec
-            << m_globalbblstats->elapsed_time << " "
-            << m_globalbblstats->instruction_count << " "
-            << m_globalbblstats->memory_access << std::endl;
     }
 
     void PrintPIMTime(std::ostream &ofs)

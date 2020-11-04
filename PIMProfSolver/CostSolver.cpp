@@ -1,4 +1,4 @@
-//===- CostSolver.cpp - Utils for instrumentation ------------*- C++ -*-===//
+//===- CostSolver.cpp - Utils for instrumentation ---------------*- C++ -*-===//
 //
 //
 //===----------------------------------------------------------------------===//
@@ -56,41 +56,41 @@ void CostSolver::initialize(CommandLineParser *parser)
 }
 
 
-CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintSolution(std::ostream &ofs)
 {
     DECISION decision;
     
     if (_command_line_parser->mode() == CommandLineParser::Mode::MPKI) {
-        decision = PrintMPKISolution(out);
+        decision = PrintMPKISolution(ofs);
     }
     if (_command_line_parser->mode() == CommandLineParser::Mode::REUSE) {
-        decision = PrintReuseSolution(out);
+        decision = PrintReuseSolution(ofs);
     }
 
     return decision;
 }
 
-std::ostream & CostSolver::PrintDecision(std::ostream &out, const DECISION &decision, bool toscreen)
+std::ostream & CostSolver::PrintDecision(std::ostream &ofs, const DECISION &decision, bool toscreen)
 {
     auto bblstats = _bblstats_map.getSorted();
-    out << HORIZONTAL_LINE << std::endl;
+    ofs << HORIZONTAL_LINE << std::endl;
     if (toscreen == true) {
         for (uint32_t i = 0; i < _bblstats_map.size(); i++) {
-            out << i << ":"
+            ofs << i << ":"
                 << (decision[i] == CPU ? "C" : "")
                 << (decision[i] == PIM ? "P" : "")
                 << " ";
         }
-        out << std::endl;
+        ofs << std::endl;
     }
     else {
-        out << std::right << std::setw(7) << "BBLID"
-            << std::right << std::setw(10) << "Decision"
-            << std::right << std::setw(15) << "CPU"
-            << std::right << std::setw(15) << "PIM"
-            << std::right << std::setw(15) << "difference"
-            << std::right << std::setw(18) << "Hash(hi)"
-            << std::right << std::setw(18) << "Hash(lo)"
+        ofs << std::setw(7) << "BBLID"
+            << std::setw(10) << "Decision"
+            << std::setw(15) << "CPU"
+            << std::setw(15) << "PIM"
+            << std::setw(15) << "difference"
+            << std::setw(18) << "Hash(hi)"
+            << std::setw(18) << "Hash(lo)"
             << std::endl;
         for (uint32_t i = 0; i < bblstats.size(); i++) {
             if (bblstats[i].second.bblid != i) {
@@ -100,23 +100,22 @@ std::ostream & CostSolver::PrintDecision(std::ostream &out, const DECISION &deci
             const BBLStats &cpustats = bblstats[i].second.bblstats[CostSite::CPU];
             const BBLStats &pimstats = bblstats[i].second.bblstats[CostSite::PIM];
             int64_t diff = (int64_t)cpustats.elapsed_time - (int64_t)pimstats.elapsed_time;
-            out << std::right << std::setw(7) << i
-                << std::right << std::setw(10) << (decision[i] == PIM ? "P" : "C")
-                << std::right << std::setw(15) << cpustats.elapsed_time
-                << std::right << std::setw(15) << pimstats.elapsed_time
-                << std::right << std::setw(15) << diff
+            ofs << std::setw(7) << i
+                << std::setw(10) << (decision[i] == PIM ? "P" : "C")
+                << std::setw(15) << cpustats.elapsed_time
+                << std::setw(15) << pimstats.elapsed_time
+                << std::setw(15) << diff
+                << "  " << std::hex
+                << std::setfill('0') << std::setw(16) << bblstats[i].first.first
                 << "  "
-                << std::setfill('0') << std::setw(16) << std::hex << bblstats[i].first.first
-                << "  "
-                << std::setfill('0') << std::setw(16) << std::hex << bblstats[i].first.second
-                << std::setfill(' ') << std::dec
-                << std::endl;
+                << std::setfill('0') << std::setw(16) << bblstats[i].first.second
+                << std::setfill(' ') << std::dec << std::endl;
         }
     }
-    return out;
+    return ofs;
 }
 
-CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &ofs)
 {
     auto &sorted = _bblstats_map.getSorted();
 
@@ -165,16 +164,16 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &out)
             decision.push_back(CostSite::CPU);
         }
     }
-    out << "CPU only time (ns): " << cpu_only_time << std::endl
+    ofs << "CPU only time (ns): " << cpu_only_time << std::endl
     << "PIM only time (ns): " << pim_only_time << std::endl
     << "MPKI offloading time (ns): " << mpki_time << " = CPU " << mpki_cpu_time << " + PIM " << mpki_pim_time << std::endl;
 
-    PrintDecision(out, decision, false);
+    PrintDecision(ofs, decision, false);
 
     return decision;
 }
 
-CostSolver::DECISION CostSolver::PrintReuseSolution(std::ostream &out)
+CostSolver::DECISION CostSolver::PrintReuseSolution(std::ostream &ofs)
 {
     std::sort(_data_reuse.getLeaves().begin(), _data_reuse.getLeaves().end(),
         [] (const TrieNode *l, const TrieNode *r) { return l->_count > r->_count; } );
@@ -309,7 +308,7 @@ COST CostSolver::Cost(const CostSolver::DECISION &decision, TrieNode *reusetree)
     COST cur_elapsed_time = 0;
     std::map<BBLID, TrieNode *>::iterator it = reusetree->_children.begin();
     std::map<BBLID, TrieNode *>::iterator eit = reusetree->_children.end();
-    for (; it != eit; it++) {
+    for (; it != eit; ++it) {
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
     auto &sorted = _bblstats_map.getSorted();
@@ -358,7 +357,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
     else {
         std::map<BBLID, TrieNode *>::iterator it = root->_children.begin();
         std::map<BBLID, TrieNode *>::iterator eit = root->_children.end();
-        for (; it != eit; it++) {
+        for (; it != eit; ++it) {
             if (isDifferent) {
                 TrieBFS(cost, decision, it->first, it->second, true);
             }
@@ -372,7 +371,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
     }
 }
 
-// CostSolver::DECISION CostSolver::PrintSolution(std::ostream &out)
+// CostSolver::DECISION CostSolver::PrintSolution(std::ostream &ofs)
 // {
 //     SetBBLSize(_cost_package->_bbl_size);
 //     // set partial total
@@ -392,7 +391,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //               << std::right << std::setw(15) << "REUSE"
 //               << std::right << std::setw(15) << "TOTAL"
 //               << std::endl;
-//     out << std::right << std::setw(14) << "PLAN"
+//     ofs << std::right << std::setw(14) << "PLAN"
 //               << std::right << std::setw(15) << "INSTRUCTION"
 //               << std::right << std::setw(15) << "MEMORY"
 //               << std::right << std::setw(15) << "INS_MEM"
@@ -415,7 +414,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         }
 //     }
 //     PrintDecisionStat(std::cout, _mpki_decision, "MPKI");
-//     PrintDecisionStat(out, _mpki_decision, "MPKI");
+//     PrintDecisionStat(ofs, _mpki_decision, "MPKI");
 // #endif
 
 //     // pure CPU
@@ -424,7 +423,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         _pure_cpu_decision.push_back(CPU);
 //     }
 //     PrintDecisionStat(std::cout, _pure_cpu_decision, "Pure CPU");
-//     PrintDecisionStat(out, _pure_cpu_decision, "Pure CPU");
+//     PrintDecisionStat(ofs, _pure_cpu_decision, "Pure CPU");
 
 //      // pure PIM
 //     DECISION _pure_pim_decision;
@@ -432,7 +431,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         _pure_pim_decision.push_back(PIM);
 //     }
 //     PrintDecisionStat(std::cout, _pure_pim_decision, "Pure PIM");
-//     PrintDecisionStat(out, _pure_pim_decision, "Pure PIM");
+//     PrintDecisionStat(ofs, _pure_pim_decision, "Pure PIM");
 
 
 //     // greedy decision
@@ -448,16 +447,16 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //     // std::ofstream tempofs("greedy_decision.out", std::ofstream::out);
 //     // PrintDecision(tempofs, decision, false);
 //     PrintDecisionStat(std::cout, _greedy_decision, "Greedy");
-//     PrintDecisionStat(out, _greedy_decision, "Greedy");
+//     PrintDecisionStat(ofs, _greedy_decision, "Greedy");
 
 //     // Optimal
 //     DECISION _opt_decision = FindOptimal();
 //     PrintDecisionStat(std::cout, _opt_decision, "PIMProf opt");
-//     PrintDecisionStat(out, _opt_decision, "PIMProf opt");
-//     out << std::endl;
+//     PrintDecisionStat(ofs, _opt_decision, "PIMProf opt");
+//     ofs << std::endl;
 
 // #ifdef PIMPROF_MPKI
-//      out << std::right << std::setw(14) << "PLAN"
+//      ofs << std::right << std::setw(14) << "PLAN"
 //           << std::right << std::setw(15) << "INSTRUCTION"
 //           << std::right << std::setw(15) << "L1I"
 //           << std::right << std::setw(15) << "L1D"
@@ -465,22 +464,22 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //           << std::right << std::setw(15) << "L3"
 //           << std::right << std::setw(15) << "MEMORY"
 //           << std::endl;
-//      PrintCostBreakdown(out, _pure_cpu_decision, "Pure CPU");
-//      PrintCostBreakdown(out, _pure_pim_decision, "Pure PIM");
-//      PrintCostBreakdown(out, _greedy_decision, "Greedy");
-//      PrintCostBreakdown(out, _opt_decision, "PIMProf opt");
-//      out << std::endl;
+//      PrintCostBreakdown(ofs, _pure_cpu_decision, "Pure CPU");
+//      PrintCostBreakdown(ofs, _pure_pim_decision, "Pure PIM");
+//      PrintCostBreakdown(ofs, _greedy_decision, "Greedy");
+//      PrintCostBreakdown(ofs, _opt_decision, "PIMProf opt");
+//      ofs << std::endl;
 // #endif
 
-//     PrintDecision(out, _opt_decision, false);
+//     PrintDecision(ofs, _opt_decision, false);
 
 //     if (!_cost_package->_roi_decision.empty()) {
-//         out << std::endl;
+//         ofs << std::endl;
 //         // decision based on ROI
 //         PrintDecisionStat(std::cout, _cost_package->_roi_decision, "ROIDecision");
-//         PrintDecisionStat(out, _cost_package->_roi_decision, "ROI decision");
-//         out << std::endl;
-//         PrintDecision(out, _cost_package->_roi_decision, false);
+//         PrintDecisionStat(ofs, _cost_package->_roi_decision, "ROI decision");
+//         ofs << std::endl;
+//         PrintDecision(ofs, _cost_package->_roi_decision, false);
 //     }
 
 //     return _opt_decision;
@@ -585,7 +584,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 // }
 
 
-// std::ostream &CostSolver::PrintDecisionStat(std::ostream &out, const DECISION &decision, const std::string &name)
+// std::ostream &CostSolver::PrintDecisionStat(std::ostream &ofs, const DECISION &decision, const std::string &name)
 // {
 //     COST cur_reuse_cost = 0;
 //     COST cur_instr_cost = 0;
@@ -593,7 +592,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //     COST cur_ins_mem_cost = 0;
 //     std::map<BBLID, TrieNode *>::iterator it = _cost_package->_data_reuse.getRoot()->_children.begin();
 //     std::map<BBLID, TrieNode *>::iterator eit = _cost_package->_data_reuse.getRoot()->_children.end();
-//     for (; it != eit; it++) {
+//     for (; it != eit; ++it) {
 //         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
 //     }
 //     for (uint32_t i = 0; i < _cost_package->_bbl_size; i++) {
@@ -605,7 +604,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         }
 //     }
 
-//     out << std::right << std::setw(14) << name + ":"
+//     ofs << std::right << std::setw(14) << name + ":"
 //         << std::right << std::setw(15) << cur_instr_cost 
 //         << std::right << std::setw(15) << cur_mem_cost
 //         << std::right << std::setw(15) << cur_ins_mem_cost
@@ -613,10 +612,10 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         << std::right << std::setw(15) << cur_reuse_cost
 //         << std::right << std::setw(15) << (cur_instr_cost + cur_mem_cost + cur_reuse_cost)
 //         << std::endl;
-//     return out;
+//     return ofs;
 // }
 
-// std::ostream &CostSolver::PrintCostBreakdown(std::ostream &out, const DECISION &decision, const std::string &name)
+// std::ostream &CostSolver::PrintCostBreakdown(std::ostream &ofs, const DECISION &decision, const std::string &name)
 // {
 //     COST cur_instr_cost = 0;
 //     COST cur_storage_level_cost[MAX_LEVEL] = {0};
@@ -636,7 +635,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         }
 //     }
 
-//     out << std::right << std::setw(14) << name + ":"
+//     ofs << std::right << std::setw(14) << name + ":"
 //         << std::right << std::setw(15) << cur_instr_cost 
 //         << std::right << std::setw(15) << cur_storage_level_cost[IL1]
 //         << std::right << std::setw(15) << cur_storage_level_cost[DL1]
@@ -644,10 +643,10 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         << std::right << std::setw(15) << cur_storage_level_cost[UL3]
 //         << std::right << std::setw(15) << cur_storage_level_cost[MEM]
 //         << std::endl;
-//     return out;
+//     return ofs;
 // }
 
-// std::ostream &CostSolver::PrintAnalytics(std::ostream &out)
+// std::ostream &CostSolver::PrintAnalytics(std::ostream &ofs)
 // {
 // #ifdef PIMPROF_MPKI
 //     uint64_t total = 0;
@@ -657,10 +656,10 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //         total_visit += _cost_package->_bbl_visit_cnt[i];
 //     }
 
-//     out << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
-//     out << std::endl;
+//     ofs << "avg instruction in BB: "  << total << " " << total_visit << " " << ((double)total / total_visit) << std::endl;
+//     ofs << std::endl;
 
-//     out << std::right << std::setw(8) << "opcode"
+//     ofs << std::right << std::setw(8) << "opcode"
 //               << std::right << std::setw(15) << "name"
 //               << std::right << std::setw(20) << "cnt"
 //               << std::right << std::setw(15) << "CPUCost"
@@ -668,7 +667,7 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //               << std::endl;
 //     for (uint32_t i = 0; i < MAX_INDEX; i++) {
 //         if (_cost_package->_type_instr_cnt[i] > 0) {
-//             out << std::right << std::setw(8) << i
+//             ofs << std::right << std::setw(8) << i
 //                   << std::right << std::setw(15) << OPCODE_StringShort(i)
 //                   << std::right << std::setw(20) << _cost_package->_type_instr_cnt[i]
 //                   << std::right << std::setw(15) << _cost_package->_type_instr_cost[CPU][i]
@@ -676,13 +675,13 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //                   << std::endl;
 //         }
 //     }
-//     out << std::endl;
+//     ofs << std::endl;
 
-//     out << "total instr: " << _cost_package->_total_instr_cnt << std::endl;
-//     out << "total simd instr: " << _cost_package->_total_simd_instr_cnt << std::endl;
+//     ofs << "total instr: " << _cost_package->_total_instr_cnt << std::endl;
+//     ofs << "total simd instr: " << _cost_package->_total_simd_instr_cnt << std::endl;
 
-//     out << "CPU simd cost: " << _cost_package->_total_simd_cost[CPU] << std::endl;
-//     out << "PIM simd cost: " << _cost_package->_total_simd_cost[PIM] << std::endl;
+//     ofs << "CPU simd cost: " << _cost_package->_total_simd_cost[CPU] << std::endl;
+//     ofs << "PIM simd cost: " << _cost_package->_total_simd_cost[PIM] << std::endl;
 // #endif
 //     // std::vector<std::vector<uint32_t>> cdftemp;
 //     // std::vector<uint32_t> cdf; 
@@ -697,28 +696,28 @@ void CostSolver::TrieBFS(COST &cost, const CostSolver::DECISION &decision, BBLID
 //     // }
 //     // for (uint32_t i = 0; i < cdf.size(); i++) {
 //     //     if (cdf[i] > 0) {
-//     //         out << i << " ";
+//     //         ofs << i << " ";
 //     //         for (uint32_t j = 0; j < cdftemp[i].size(); j++)
-//     //             out << cdftemp[i][j] << " ";
-//     //         out << std::endl;
+//     //             ofs << cdftemp[i][j] << " ";
+//     //         ofs << std::endl;
 //     //     }
 //     // }
-//     // out << std::endl;
+//     // ofs << std::endl;
 //     // for (uint32_t i = 0; i < cdf.size(); i++) {
 //     //     if (cdf[i] > 0)
-//     //     out << i << " " << cdf[i] << std::endl;
+//     //     ofs << i << " " << cdf[i] << std::endl;
 //     // }
-//     // out << std::endl;
+//     // ofs << std::endl;
 //     // for (uint32_t i = 0; i < cdftemp[cdf.size() - 1].size(); i++) {
 //     //     BBLID bblid = cdftemp[cdf.size() - 1][i];
 //     //     infomsg() << cdf.size() << " " << bblid << std::endl;
 //     //     auto &map = _cost_package->_bbl_hash;
 //     //     for (auto it = map.begin(); it != map.end(); ++it) {
 //     //         if (it->second == bblid) {
-//     //             out << (int64_t)it->first.first << " " << (int64_t)it->first.second << std::endl;
+//     //             ofs << (int64_t)it->first.first << " " << (int64_t)it->first.second << std::endl;
 //     //             break;
 //     //         }
 //     //     } 
 //     // }
-//     return out;
+//     return ofs;
 // }

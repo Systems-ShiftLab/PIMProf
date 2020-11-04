@@ -38,6 +38,45 @@ static const std::string OpenMPIdentifier = ".omp";
 static const std::string PThreadsIdentifier = "pthread_create";
 
 /* ===================================================================== */
+/* Typedefs */
+/* ===================================================================== */
+
+typedef uint32_t CACHE_STATS;
+typedef double COST;
+typedef int64_t BBLID;
+typedef std::pair<uint64_t, uint64_t> UUID;
+
+// We use the last i64 to encode control bits, layout:
+// |    isomp    |   optype    |
+// 64            32            0
+class ControlValue {
+  public:
+    static inline uint64_t GetControlValue(uint64_t optype, uint64_t isomp) {
+        return ((isomp << 32) | optype);
+    }
+    static inline uint64_t GetIsOpenMP(uint64_t controlvalue) {
+        return (controlvalue >> 32);
+    }
+    static inline uint64_t GetOpType(uint64_t controlvalue) {
+        return ((((uint64_t)1 << 32) - 1) & controlvalue);
+    }
+};
+
+class UUIDHashFunc
+{
+public:
+    // assuming UUID is already murmurhash-ed.
+    std::size_t operator()(const UUID &key) const
+    {
+        size_t result = key.first ^ key.second;
+        return result;
+    }
+};
+
+template<typename val>
+using UUIDHashMap = std::unordered_map<UUID, val, UUIDHashFunc>;
+
+/* ===================================================================== */
 /* Enums and constants */
 /* ===================================================================== */
 
@@ -73,6 +112,13 @@ enum CostSite {
     INVALID = 0x3fffffff // a placeholder that does not count as a cost site
 };
 
+enum ACCESS_TYPE
+{
+    ACCESS_TYPE_LOAD,
+    ACCESS_TYPE_STORE,
+    MAX_ACCESS_TYPE
+};
+
 enum class InjectMode {
     SNIPER, VTUNE, PIMPROF,
     DEFAULT = 0x0fffffff,
@@ -88,44 +134,7 @@ const int SNIPER_SIM_PIMPROF_BBL_END = 1025;
 const int SNIPER_SIM_PIMPROF_OFFLOAD_START = 1026;
 const int SNIPER_SIM_PIMPROF_OFFLOAD_END = 1027;
 
-/* ===================================================================== */
-/* Typedefs */
-/* ===================================================================== */
-
-typedef uint32_t CACHE_STATS;
-typedef double COST;
-typedef uint64_t BBLID;
-typedef std::pair<uint64_t, uint64_t> UUID;
-
-// We use the last i64 to encode control bits, layout:
-// |    isomp    |   optype    |
-// 64            32            0
-class ControlValue {
-  public:
-    static inline uint64_t GetControlValue(uint64_t optype, uint64_t isomp) {
-        return ((isomp << 32) | optype);
-    }
-    static inline uint64_t GetIsOpenMP(uint64_t controlvalue) {
-        return (controlvalue >> 32);
-    }
-    static inline uint64_t GetOpType(uint64_t controlvalue) {
-        return ((((uint64_t)1 << 32) - 1) & controlvalue);
-    }
-};
-
-class UUIDHashFunc
-{
-public:
-    // assuming UUID is already murmurhash-ed.
-    std::size_t operator()(const UUID &key) const
-    {
-        size_t result = key.first ^ key.second;
-        return result;
-    }
-};
-
-template<typename val>
-using UUIDHashMap = std::unordered_map<UUID, val, UUIDHashFunc>;
+const BBLID GLOBAL_BBLID = -1;
 
 }; // namespace PIMProf
 

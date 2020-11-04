@@ -289,7 +289,7 @@ class LRU : public CACHE_SET
     {
         CacheTagList::iterator it = _tags.begin();
         CacheTagList::iterator eit = _tags.end();
-        for (; it != eit; it++)
+        for (; it != eit; ++it)
         {
             CACHE_TAG *tag = *it;
             // promote the accessed cache line to the front

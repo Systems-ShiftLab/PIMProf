@@ -20,15 +20,6 @@
 
 namespace PIMProf {
 
-const BBLID GLOBAL_BBLID = -1;
-
-enum ACCESS_TYPE
-{
-    ACCESS_TYPE_LOAD,
-    ACCESS_TYPE_STORE,
-    MAX_ACCESS_TYPE
-};
-
 /* ===================================================================== */
 /* BBLScope */
 /* ===================================================================== */

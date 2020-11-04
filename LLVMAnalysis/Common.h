@@ -9,8 +9,12 @@
 #define __COMMON_H__
 
 #include <string>
+#include <unordered_map>
 
 namespace PIMProf {
+/* ===================================================================== */
+/* Identifiers */
+/* ===================================================================== */
 static const std::string HORIZONTAL_LINE(60, '=');
 
 static const std::string PIMProfAnnotationHead = "PIMProfAnnotationHead";
@@ -33,9 +37,9 @@ static const std::string OpenMPIdentifier = ".omp";
 
 static const std::string PThreadsIdentifier = "pthread_create";
 
-static const int PIMProfAnnotationBBLID = -1;
-
-static const int BBLStartingID = 0;
+/* ===================================================================== */
+/* Enums and constants */
+/* ===================================================================== */
 
 enum MAGIC_OP {
     MAGIC_OP_ANNOTATIONHEAD,
@@ -55,14 +59,43 @@ enum VTUNE_MODE {
     VTUNE_MODE_FRAME_END
 };
 
-#define SNIPER_SIM_CMD_ROI_START       1
-#define SNIPER_SIM_CMD_ROI_END         2
+/*
+    Meaning of different mode:
+    "CPU" or "CPUONLY" - Put start and end annotations around CPU-friendly BBLs
+    "PIM" or "PIMONLY" - Put start and end annotations around PIM-friendly BBLs
+    "NOTPIM" - Put end annotations at the start of PIM-friendly BBLs, and put start annotations at the end of PIM-friendly BBLs
+    "ALL" - Put start and end annotations at all BBLs, in this case the second argument can be used to differentiate whether it is CPU or PIM friendly
+*/
+enum CostSite {
+    CPU, PIM, MAX_COST_SITE,
+    NOTPIM, ALL,
+    DEFAULT = 0x0fffffff,
+    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
+};
 
-#define SNIPER_SIM_PIMPROF_BBL_START  1024
-#define SNIPER_SIM_PIMPROF_BBL_END    1025
-#define SNIPER_SIM_PIMPROF_OFFLOAD_START  1026
-#define SNIPER_SIM_PIMPROF_OFFLOAD_END    1027
+enum class InjectMode {
+    SNIPER, VTUNE, PIMPROF,
+    DEFAULT = 0x0fffffff,
+    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
+};
 
+// These numbers need to be consistent with Sniper
+const int SNIPER_SIM_CMD_ROI_START = 1;
+const int SNIPER_SIM_CMD_ROI_END = 2;
+
+const int SNIPER_SIM_PIMPROF_BBL_START = 1024;
+const int SNIPER_SIM_PIMPROF_BBL_END = 1025;
+const int SNIPER_SIM_PIMPROF_OFFLOAD_START = 1026;
+const int SNIPER_SIM_PIMPROF_OFFLOAD_END = 1027;
+
+/* ===================================================================== */
+/* Typedefs */
+/* ===================================================================== */
+
+typedef uint32_t CACHE_STATS;
+typedef double COST;
+typedef uint64_t BBLID;
+typedef std::pair<uint64_t, uint64_t> UUID;
 
 // We use the last i64 to encode control bits, layout:
 // |    isomp    |   optype    |
@@ -80,30 +113,19 @@ class ControlValue {
     }
 };
 
-/*
-    Meaning of different mode:
-    "CPU" or "CPUONLY" - Put start and end annotations around CPU-friendly BBLs
-    "PIM" or "PIMONLY" - Put start and end annotations around PIM-friendly BBLs
-    "NOTPIM" - Put end annotations at the start of PIM-friendly BBLs, and put start annotations at the end of PIM-friendly BBLs
-    "ALL" - Put start and end annotations at all BBLs, in this case the second argument can be used to differentiate whether it is CPU or PIM friendly
-*/
-enum class CallSite {
-    CPU, PIM, MAX_COST_SITE,
-    NOTPIM, ALL,
-    DEFAULT = 0x0fffffff,
-    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
+class UUIDHashFunc
+{
+public:
+    // assuming UUID is already murmurhash-ed.
+    std::size_t operator()(const UUID &key) const
+    {
+        size_t result = key.first ^ key.second;
+        return result;
+    }
 };
 
-enum class InjectMode {
-    SNIPER, VTUNE, PIMPROF,
-    DEFAULT = 0x0fffffff,
-    INVALID = 0x3fffffff // a placeholder that does not count as a cost site
-};
-
-typedef uint32_t CACHE_STATS;
-typedef double COST;
-typedef uint64_t BBLID;
-typedef std::pair<uint64_t, uint64_t> UUID;
+template<typename val>
+using UUIDHashMap = std::unordered_map<UUID, val, UUIDHashFunc>;
 
 }; // namespace PIMProf
 

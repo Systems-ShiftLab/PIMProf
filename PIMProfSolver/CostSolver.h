@@ -19,9 +19,9 @@
 #include <list>
 #include <set>
 #include <algorithm>
-#include <unordered_map>
 
-#include "PinUtil.h"
+#include "../LLVMAnalysis/Common.h"
+#include "Util.h"
 #include "Stats.h"
 
 namespace PIMProf
@@ -42,7 +42,7 @@ class BBLStatsMap
         }
     };
 
-    std::unordered_map<UUID, BBLStatsPair, UUIDHashFunc> _bblstats_map;
+    UUIDHashMap<BBLStatsPair> _bblstats_map;
     std::vector<std::pair<UUID, BBLStatsPair>> _bblstats_sorted;
     bool _bblstats_dirty = true; // dirty flag for _bblstats_sorted
 
@@ -63,7 +63,7 @@ class BBLStatsMap
         _bblstats_dirty = true;
     }
 
-    inline const std::unordered_map<UUID, BBLStatsPair, UUIDHashFunc> &getMap() {
+    inline const UUIDHashMap<BBLStatsPair> &getMap() {
         return _bblstats_map;
     }
 

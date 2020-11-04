@@ -25,7 +25,7 @@
 #include "pin.H"
 #include "../LLVMAnalysis/Common.h"
 
-#include "PinUtil.h"
+#include "Util.h"
 #include "CostPackage.h"
 #include "Storage.h"
 

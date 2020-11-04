@@ -34,7 +34,6 @@
 #include <assert.h>
 #include <fstream>
 #include <sstream>
-#include <unordered_map>
 
 #include "MurmurHash3.h"
 #include "Common.h"
@@ -43,19 +42,9 @@
 using namespace llvm;
 
 namespace PIMProf { // Anonymous namespace
-class HashFunc
-{
-  public:
-    // assuming UUID is already murmurhash-ed.
-    std::size_t operator()(const UUID &key) const
-    {
-        size_t result = key.first ^ key.second;
-        return result;
-    }
-};
 
 struct Decision {
-    CallSite decision;
+    CostSite decision;
     int bblid;
     double difference;
     int parallel;
@@ -63,11 +52,11 @@ struct Decision {
 
 class DecisionMap {
   private:
-    std::unordered_map<UUID, Decision, HashFunc> decision_map;
+    UUIDHashMap<Decision> decision_map;
   public:
     Decision getBasicBlockDecision(Module &M, BasicBlock &BB) {
         Decision decision;
-        decision.decision = CallSite::INVALID;
+        decision.decision = CostSite::INVALID;
         // use the content of BB itself as the hash key
         std::string BB_content;
         raw_string_ostream rso(BB_content);
@@ -132,7 +121,7 @@ class DecisionMap {
                 }
                 else if (i == 1) {
                     ss >> token;
-                    decision.decision = (token == "P" ? CallSite::PIM : CallSite::CPU);
+                    decision.decision = (token == "P" ? CostSite::PIM : CostSite::CPU);
                 }
                 else if (i == 4) {
                     ss >> decision.difference;
@@ -159,9 +148,9 @@ class DecisionMap {
 int found_cnt = 0, not_found_cnt = 0;
 int cpu_inject_cnt = 0, pim_inject_cnt = 0;
 
-CallSite ROI = CallSite::INVALID;
+CostSite ROI = CostSite::INVALID;
 InjectMode Mode = InjectMode::INVALID;
-CallSite GlobalDecision = CallSite::INVALID;
+CostSite GlobalDecision = CostSite::INVALID;
 
 DecisionMap decision_map;
 
@@ -173,7 +162,7 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     Decision decision = decision_map.getBasicBlockDecision(M, BB);
 
     // if not found, then return
-    if (decision.decision == CallSite::INVALID) {
+    if (decision.decision == CostSite::INVALID) {
         not_found_cnt++;
         return;
     }
@@ -190,33 +179,33 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*BB.getFirstInsertionPt());
     
-    if (GlobalDecision == CallSite::CPU && decision.decision == CallSite::PIM) {
-        if (ROI == CallSite::CPU) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+    if (GlobalDecision == CostSite::CPU && decision.decision == CostSite::PIM) {
+        if (ROI == CostSite::CPU) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::CPU, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::CPU, BB.getTerminator());
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 0, beginning);
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 1, BB.getTerminator());
             pim_inject_cnt++;
         }
-        if (ROI == CallSite::PIM) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
+        if (ROI == CostSite::PIM) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::PIM, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::PIM, BB.getTerminator());
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 0, beginning);
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 1, BB.getTerminator());
             pim_inject_cnt++;
         }
     }
-    else if (GlobalDecision == CallSite::PIM && decision.decision == CallSite::CPU) {
-        if (ROI == CallSite::CPU) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::CPU, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::CPU, BB.getTerminator());
+    else if (GlobalDecision == CostSite::PIM && decision.decision == CostSite::CPU) {
+        if (ROI == CostSite::CPU) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::CPU, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::CPU, BB.getTerminator());
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 0, beginning);
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 1, BB.getTerminator());
             cpu_inject_cnt++;
         }
-        if (ROI == CallSite::PIM) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CallSite::PIM, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CallSite::PIM, BB.getTerminator());
+        if (ROI == CostSite::PIM) {
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::PIM, beginning);
+            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::PIM, BB.getTerminator());
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 0, beginning);
             InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 1, BB.getTerminator());
             cpu_inject_cnt++;
@@ -270,7 +259,7 @@ void InjectVTuneOffloaderCall(Module &M, BasicBlock &BB) {
     Decision decision = decision_map.getBasicBlockDecision(M, BB);
 
     // if not found, then return
-    if (decision.decision == CallSite::INVALID) {
+    if (decision.decision == CostSite::INVALID) {
         not_found_cnt++;
         return;
     }
@@ -279,20 +268,20 @@ void InjectVTuneOffloaderCall(Module &M, BasicBlock &BB) {
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*BB.getFirstInsertionPt());
-    if (decision.decision == CallSite::CPU) {
-        if (ROI == CallSite::CPU || ROI == CallSite::ALL) {
+    if (decision.decision == CostSite::CPU) {
+        if (ROI == CostSite::CPU || ROI == CostSite::ALL) {
             InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
             InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
             cpu_inject_cnt++;
         }
     }
-    if (decision.decision == CallSite::PIM) {
-        if (ROI == CallSite::NOTPIM) {
+    if (decision.decision == CostSite::PIM) {
+        if (ROI == CostSite::NOTPIM) {
             InjectVTuneITT(M, VTUNE_MODE_FRAME_END, beginning);
             InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, BB.getTerminator());
             pim_inject_cnt++;
         }
-        if (ROI == CallSite::PIM || ROI == CallSite::ALL) {
+        if (ROI == CostSite::PIM || ROI == CostSite::ALL) {
             InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
             InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
             pim_inject_cnt++;
@@ -305,7 +294,7 @@ void InjectVTuneOffloaderCall(Module &M, Function &F) {
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
     InjectVTuneITT(M, VTUNE_MODE_RESUME, beginning);
-    if (ROI == CallSite::NOTPIM) {
+    if (ROI == CostSite::NOTPIM) {
         InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
     }
 
@@ -313,7 +302,7 @@ void InjectVTuneOffloaderCall(Module &M, Function &F) {
     for (auto &BB : F) {
         for (auto &I : BB) {
             if (isa<ReturnInst>(I)) {
-                if (ROI == CallSite::NOTPIM) {
+                if (ROI == CostSite::NOTPIM) {
                     InjectVTuneITT(M, VTUNE_MODE_FRAME_END, &I);
                 }
                 InjectVTuneITT(M, VTUNE_MODE_DETACH, &I);
@@ -357,9 +346,9 @@ struct OffloaderInjection : public ModulePass {
         std::cout << "roi: " << roienv << std::endl;
         std::cout << "inject mode:" << injectmodeenv << std::endl;
 
-        if (strcmp(roienv, "ALL") == 0) ROI = CallSite::ALL;
-        else if (strcmp(roienv, "CPUONLY") == 0) ROI = CallSite::CPU;
-        else if (strcmp(roienv, "PIMONLY") == 0) ROI = CallSite::PIM;
+        if (strcmp(roienv, "ALL") == 0) ROI = CostSite::ALL;
+        else if (strcmp(roienv, "CPUONLY") == 0) ROI = CostSite::CPU;
+        else if (strcmp(roienv, "PIMONLY") == 0) ROI = CostSite::PIM;
         else {
             assert(0 && "Invalid environment variable PIMPROFROI");
         }

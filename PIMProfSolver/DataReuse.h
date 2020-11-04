@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include "PinUtil.h"
+#include "Util.h"
 
 namespace PIMProf
 {

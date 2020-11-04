@@ -15,10 +15,9 @@
 #include <stack>
 #include <algorithm>
 #include <iostream>
-#include <unordered_map>
 #include <memory>
 
-#include "PinUtil.h"
+#include "Util.h"
 #include "DataReuse.h"
 #include "INIReader.h"
 
@@ -27,24 +26,12 @@ static const uint32_t MAX_INDEX = 4096;
 static const uint32_t INDEX_SPECIAL = 3000;
 static const uint32_t MAX_MEM_SIZE = 512;
 
-
-class HashFunc
-{
-  public:
-    // assuming UUID is already murmurhash-ed.
-    std::size_t operator()(const UUID &key) const
-    {
-        size_t result = key.first ^ key.second;
-        return result;
-    }
-};
-
 class CostPackage {
   public:
     ConfigReader _config_reader;
 
 //   public:
-//     std::unordered_map<UUID, uint32_t, HashFunc> _bbl_hash;
+//     UUIDHashMap<uint32_t> _bbl_hash;
 //     BBLID _bbl_size = 0;
 //     bool _inAcceleratorFunction;
 //     /// whether the current function is in .omp function

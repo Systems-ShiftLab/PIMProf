@@ -23,7 +23,7 @@
 #include <cassert>
 
 #include "../LLVMAnalysis/Common.h"
-#include "PinUtil.h"
+#include "Util.h"
 #include "DataReuse.h"
 
 namespace PIMProf
@@ -31,17 +31,6 @@ namespace PIMProf
 /* ===================================================================== */
 /* PIMProf Thread Data Collection */
 /* ===================================================================== */
-
-class UUIDHashFunc
-{
-public:
-    // assuming UUID is already murmurhash-ed.
-    std::size_t operator()(const UUID &key) const
-    {
-        size_t result = key.first ^ key.second;
-        return result;
-    }
-};
 
 class BBLStats
 {
@@ -80,7 +69,7 @@ private:
 
     // all class objects need to be stored in pointer form,
     // otherwise Sniper will somehow deallocate them unexpectedly.
-    std::unordered_map<UUID, BBLID, UUIDHashFunc> m_bblhash2bblid;
+    UUIDHashMap<BBLID> m_bblhash2bblid;
     std::vector<BBLStats *> m_bblid2stats;
     BBLStats *m_globalbblstats;
 

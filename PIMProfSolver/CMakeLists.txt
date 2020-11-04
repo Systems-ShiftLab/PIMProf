@@ -1,6 +1,6 @@
 set(SRCFILE
     "main.cpp"
-    "PinUtil.cpp"
+    "Util.cpp"
     "CostSolver.cpp"
 )
 

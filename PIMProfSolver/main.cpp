@@ -11,7 +11,7 @@
 #include <fstream>
 #include <unistd.h>
 
-#include <PinUtil.h>
+#include <Util.h>
 #include <CostSolver.h>
 
 using namespace PIMProf;

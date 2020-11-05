@@ -37,24 +37,23 @@ class DataReuseSegment
     template <class Tz> friend class DataReuse;
 
 private:
-    Ty _headID;
+    Ty _head;
     std::set<Ty> _set;
     int _count;
 
 public:
     inline DataReuseSegment()
     {
-        _headID = -1;
         _count = 1;
     }
 
     inline size_t size() const { return _set.size(); }
 
-    inline void insert(Ty id)
+    inline void insert(Ty elem)
     {
         if (_set.empty())
-            _headID = id;
-        _set.insert(id);
+            _head = elem;
+        _set.insert(elem);
     }
 
     inline void insert(DataReuseSegment &seg)
@@ -74,30 +73,30 @@ public:
 
     inline void clear()
     {
-        _headID = -1;
         _set.clear();
         _count = 1;
     }
 
     inline typename std::set<Ty>::iterator begin() { return _set.begin(); }
     inline typename std::set<Ty>::iterator end() { return _set.end(); }
-    inline void setHead(Ty head) { _headID = head; }
-    inline Ty getHead() const { return _headID; }
+    inline void setHead(Ty head) { _head = head; }
+    inline Ty getHead() const { return _head; }
     inline void setCount(int count) { _count = count; }
     inline int getCount() const { return _count; }
 
     inline bool operator==(DataReuseSegment &rhs)
     {
-        return (_headID == rhs._headID && _set == rhs._set);
+        return (_head == rhs._head && _set == rhs._set);
     }
 
-    std::ostream &print(std::ostream &out)
+    // the printing function needs to know how to index the elements of type Ty
+    std::ostream &print(std::ostream &out, BBLID (*get_id)(Ty))
     {
-        out << "head = " << (int64_t)_headID << ", "
+        out << "head = " << get_id(_head) << ", "
             << "count = " << _count << " | ";
         for (auto it = _set.begin(); it != _set.end(); ++it)
         {
-            out << (int64_t)*it << " ";
+            out << get_id(*it) << " ";
         }
         out << std::endl;
         return out;
@@ -114,7 +113,7 @@ public:
     // the leaf node stores the head of the segment
     bool _isLeaf;
     std::map<Ty, TrieNode *> _children;
-    Ty _curID;
+    Ty _cur;
     TrieNode *_parent;
     int64_t _count;
 
@@ -166,24 +165,24 @@ public:
         TrieNode<Ty> *curNode = root;
         for (auto it = seg->_set.begin(); it != seg->_set.end(); ++it)
         {
-            Ty curID = *it;
-            TrieNode<Ty> *temp = curNode->_children[curID];
+            Ty cur = *it;
+            TrieNode<Ty> *temp = curNode->_children[cur];
             if (temp == NULL)
             {
                 temp = new TrieNode<Ty>();
                 temp->_parent = curNode;
-                temp->_curID = curID;
-                curNode->_children[curID] = temp;
+                temp->_cur = cur;
+                curNode->_children[cur] = temp;
             }
             curNode = temp;
         }
-        TrieNode<Ty> *temp = curNode->_children[seg->_headID];
+        TrieNode<Ty> *temp = curNode->_children[seg->_head];
         if (temp == NULL)
         {
             temp = new TrieNode<Ty>();
             temp->_parent = curNode;
-            temp->_curID = seg->_headID;
-            curNode->_children[seg->_headID] = temp;
+            temp->_cur = seg->_head;
+            curNode->_children[seg->_head] = temp;
             _leaves.push_back(temp);
         }
         temp->_isLeaf = true;
@@ -205,65 +204,65 @@ public:
     void ExportSegment(DataReuseSegment<Ty> *seg, TrieNode<Ty> *leaf)
     {
         assert(leaf->_isLeaf);
-        seg->setHead(leaf->_curID);
+        seg->setHead(leaf->_cur);
         seg->setCount(leaf->_count);
 
         TrieNode<Ty> *temp = leaf;
         while (temp->_parent != NULL)
         {
-            seg->insert(temp->_curID);
+            seg->insert(temp->_cur);
             temp = temp->_parent;
         }
     }
 
-    // Problematic
-    void PrintDotGraphHelper(std::ostream &out, TrieNode<Ty> *root, int parent, int &count)
-    {
-        int64_t curID = root->_curID;
-        if (root->_isLeaf)
-        {
-            out << "    V_" << count << " [shape=box, label=\"head = " << curID << "\n cnt = " << root->_count << "\"];" << std::endl;
-            out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
-            parent = count;
-            count++;
-        }
-        else
-        {
-            out << "    V_" << count << " [label=\"" << curID << "\"];" << std::endl;
-            out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
-            parent = count;
-            count++;
-            auto it = root->_children.begin();
-            auto eit = root->_children.end();
-            for (; it != eit; ++it)
-            {
-                DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
-            }
-        }
-    }
+    // // Problematic
+    // void PrintDotGraphHelper(std::ostream &out, TrieNode<Ty> *root, int parent, int &count)
+    // {
+    //     int64_t cur = root->_cur;
+    //     if (root->_isLeaf)
+    //     {
+    //         out << "    V_" << count << " [shape=box, label=\"head = " << cur << "\n cnt = " << root->_count << "\"];" << std::endl;
+    //         out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
+    //         parent = count;
+    //         count++;
+    //     }
+    //     else
+    //     {
+    //         out << "    V_" << count << " [label=\"" << cur << "\"];" << std::endl;
+    //         out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
+    //         parent = count;
+    //         count++;
+    //         auto it = root->_children.begin();
+    //         auto eit = root->_children.end();
+    //         for (; it != eit; ++it)
+    //         {
+    //             DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
+    //         }
+    //     }
+    // }
 
-    std::ostream &PrintDotGraph(std::ostream &out)
-    {
-        int parent = 0;
-        int count = 1;
-        out << "digraph trie {" << std::endl;
-        out << "    V_0"
-            << " [label=\"root\"];" << std::endl;
-        for (auto it = _root->_children.begin(); it != _root->_children.end(); ++it)
-        {
-            DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
-        }
-        out << "}" << std::endl;
-        return out;
-    }
+    // std::ostream &PrintDotGraph(std::ostream &out)
+    // {
+    //     int parent = 0;
+    //     int count = 1;
+    //     out << "digraph trie {" << std::endl;
+    //     out << "    V_0"
+    //         << " [label=\"root\"];" << std::endl;
+    //     for (auto it = _root->_children.begin(); it != _root->_children.end(); ++it)
+    //     {
+    //         DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
+    //     }
+    //     out << "}" << std::endl;
+    //     return out;
+    // }
 
-    std::ostream &PrintAllSegments(std::ostream &out)
+    std::ostream &PrintAllSegments(std::ostream &out, BBLID (*get_id)(Ty))
     {
         for (auto it = _leaves.begin(); it != _leaves.end(); ++it)
         {
             DataReuseSegment<Ty> seg;
             ExportSegment(&seg, *it);
-            seg.print(out);
+            seg.print(out, get_id);
         }
         return out;
     }

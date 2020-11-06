@@ -121,7 +121,11 @@ public:
         }
         else {
             auto it = m_bblhash2stats.find(bblhash);
-            assert(it != m_bblhash2stats.end());
+            if (it == m_bblhash2stats.end()) {
+                PrintStats(std::cout);
+                std::cout << "tid=" << tid << " size=" << m_bblhash2stats.size() << " hash=" << std::hex << bblhash.first << " " << bblhash.second << std::endl;
+                assert(it != m_bblhash2stats.end());
+            }
             return it->second;
         }
     }
@@ -135,9 +139,20 @@ public:
     {
         UUID bblhash = UUID(hi, lo);
         auto it = m_bblhash2stats.find(bblhash);
+        // std::cout << tid << " " << std::hex << hi << " " << lo << std::endl;
+        if (bblhash == UUID(0, 0)) {
+            std::cout << tid << std::endl;
+        }
         if (it == m_bblhash2stats.end()) {
             BBLStats *stats = new BBLStats(GLOBAL_BBLID, bblhash);
+            // if (bblhash == UUID(0, 0)) {
+            //     std::cout << "before: " << m_bblhash2stats.size() << std::endl;
+            // }
             m_bblhash2stats.insert(std::make_pair(bblhash, stats));
+            // if (bblhash == UUID(0, 0)) {
+            //     std::cout << "after: " << m_bblhash2stats.size() << std::endl;
+            // }
+            
         }
         m_current_bblhash.push_back(bblhash);
     }
@@ -199,6 +214,13 @@ public:
     void InsertSegOnHit(uintptr_t tag, bool is_store)
     {
         UUID bblhash = m_current_bblhash.back();
+        if (bblhash != UUID(GLOBAL_BBLID, GLOBAL_BBLID)) {
+            if (m_bblhash2stats.find(bblhash) == m_bblhash2stats.end()) {
+                PrintStats(std::cout);
+                std::cout << "tid=" << tid << " size=" << m_bblhash2stats.size() << " hash=" << std::hex << bblhash.first << " " << bblhash.second << std::endl;
+                assert(m_bblhash2stats.find(bblhash) != m_bblhash2stats.end());
+            }
+        }
         PtrDataReuseSegment *seg;
         auto it = m_tag2seg.find(tag);
         if (it == m_tag2seg.end())

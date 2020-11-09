@@ -89,7 +89,8 @@ public:
         return (_head == rhs._head && _set == rhs._set);
     }
 
-    // the printing function needs to know how to index the elements of type Ty
+    // the printing function needs to know how to index the elements of type Ty, so it accepts a function with prototype:
+    // BBLID get_id(Ty elem);
     std::ostream &print(std::ostream &out, BBLID (*get_id)(Ty))
     {
         out << "head = " << get_id(_head) << ", "
@@ -152,6 +153,8 @@ private:
 public:
     DataReuse() { _root = new TrieNode<Ty>(); }
     ~DataReuse() { DeleteTrie(_root); }
+    inline TrieNode<Ty> *getRoot() { return _root; }
+    inline std::vector<TrieNode<Ty> *> &getLeaves() { return _leaves; }
 
 public:
     void UpdateTrie(TrieNode<Ty> *root, const DataReuseSegment<Ty> *seg)
@@ -215,46 +218,53 @@ public:
         }
     }
 
-    // // Problematic
-    // void PrintDotGraphHelper(std::ostream &out, TrieNode<Ty> *root, int parent, int &count)
-    // {
-    //     int64_t cur = root->_cur;
-    //     if (root->_isLeaf)
-    //     {
-    //         out << "    V_" << count << " [shape=box, label=\"head = " << cur << "\n cnt = " << root->_count << "\"];" << std::endl;
-    //         out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
-    //         parent = count;
-    //         count++;
-    //     }
-    //     else
-    //     {
-    //         out << "    V_" << count << " [label=\"" << cur << "\"];" << std::endl;
-    //         out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
-    //         parent = count;
-    //         count++;
-    //         auto it = root->_children.begin();
-    //         auto eit = root->_children.end();
-    //         for (; it != eit; ++it)
-    //         {
-    //             DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
-    //         }
-    //     }
-    // }
+    // Sort leaves by _count in descending order
+    void SortLeaves() {
+        std::sort(_leaves.begin(), _leaves.end(),
+            [] (const TrieNode<Ty> *lhs, const TrieNode<Ty> *rhs) { return lhs->_count > rhs->_count; });
+    }
 
-    // std::ostream &PrintDotGraph(std::ostream &out)
-    // {
-    //     int parent = 0;
-    //     int count = 1;
-    //     out << "digraph trie {" << std::endl;
-    //     out << "    V_0"
-    //         << " [label=\"root\"];" << std::endl;
-    //     for (auto it = _root->_children.begin(); it != _root->_children.end(); ++it)
-    //     {
-    //         DataReuse::PrintDotGraphHelper(out, it->second, parent, count);
-    //     }
-    //     out << "}" << std::endl;
-    //     return out;
-    // }
+    // the printing function needs to know how to index the elements of type Ty, so it accepts a function with prototype:
+    // BBLID get_id(Ty elem);
+    void PrintDotGraphHelper(std::ostream &out, TrieNode<Ty> *root, int parent, int &count, BBLID (*get_id)(Ty))
+    {
+        BBLID cur = get_id(root->_cur);
+        if (root->_isLeaf)
+        {
+            out << "    V_" << count << " [shape=box, label=\"head = " << cur << "\n cnt = " << root->_count << "\"];" << std::endl;
+            out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
+            parent = count;
+            count++;
+        }
+        else
+        {
+            out << "    V_" << count << " [label=\"" << cur << "\"];" << std::endl;
+            out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
+            parent = count;
+            count++;
+            auto it = root->_children.begin();
+            auto eit = root->_children.end();
+            for (; it != eit; ++it)
+            {
+                DataReuse::PrintDotGraphHelper(out, it->second, parent, count, get_id);
+            }
+        }
+    }
+
+    std::ostream &PrintDotGraph(std::ostream &out, BBLID (*get_id)(Ty))
+    {
+        int parent = 0;
+        int count = 1;
+        out << "digraph trie {" << std::endl;
+        out << "    V_0"
+            << " [label=\"root\"];" << std::endl;
+        for (auto it = _root->_children.begin(); it != _root->_children.end(); ++it)
+        {
+            DataReuse::PrintDotGraphHelper(out, it->second, parent, count, get_id);
+        }
+        out << "}" << std::endl;
+        return out;
+    }
 
     std::ostream &PrintAllSegments(std::ostream &out, BBLID (*get_id)(Ty))
     {
@@ -266,9 +276,6 @@ public:
         }
         return out;
     }
-
-    inline TrieNode<Ty> *getRoot() { return _root; }
-    inline std::vector<TrieNode<Ty> *> &getLeaves() { return _leaves; }
 };
 } // namespace PIMProf
 

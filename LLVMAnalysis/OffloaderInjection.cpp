@@ -226,11 +226,11 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
     InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_START, beginning);
     if (ROI == GlobalDecision) {
         // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, -1, (uint64_t) ROI, beginning);
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, 0, 0, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, MAIN_BBLID, 0, beginning);
     }
     else {
         // For testing purpose
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, 0, 0, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, 0, beginning);
     }
 
     // inject an end call before every return instruction
@@ -239,11 +239,11 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
             if (isa<ReturnInst>(I)) {
                 if (ROI == GlobalDecision) {
                     // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, -1, (uint64_t) ROI, &I);
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, 0, 1, &I);
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, MAIN_BBLID, 1, &I);
                 }
                 else {
                     // For testing purpose
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, 0, 0, &I);
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, 0, &I);
                 }
                 InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
             }

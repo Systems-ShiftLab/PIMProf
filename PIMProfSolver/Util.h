@@ -29,7 +29,6 @@ class BBLScope {
   public:
     inline BBLScope()
     {
-        // we set the global BBL ID as 0
         bblidstack.push(GLOBAL_BBLID);
     }
     inline void push(BBLID bblid)

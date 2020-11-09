@@ -45,13 +45,21 @@ public:
 
     BBLStats(
         BBLID _bblid = GLOBAL_BBLID,
-        UUID _bblhash = UUID(GLOBAL_BBLID, GLOBAL_BBLID),
+        UUID _bblhash = GLOBAL_BBLHASH,
         uint64_t _elapsed_time = 0,
         uint64_t _instruction_count = 0,
         uint64_t _memory_access = 0)
         : bblid(_bblid), bblhash(_bblhash), elapsed_time(_elapsed_time), instruction_count(_instruction_count), memory_access(_memory_access)
     {
     }
+
+    // BBLStats(const BBLStats &rhs) {
+    //     bblid = rhs.bblid;
+    //     bblhash = rhs.bblhash;
+    //     elapsed_time = rhs.elapsed_time;
+    //     instruction_count = rhs.instruction_count;
+    //     memory_access = rhs.memory_access;
+    // }
 
     BBLStats& operator += (const BBLStats& rhs) {
         this->elapsed_time += rhs.elapsed_time;
@@ -63,6 +71,19 @@ public:
 
 typedef DataReuseSegment<BBLStats *> PtrDataReuseSegment;
 typedef DataReuse<BBLStats *> PtrDataReuse;
+
+// the pointers in sorted will point to the same location as the pointers in statsmap
+inline void SortStatsMap(UUIDHashMap<BBLStats *> &statsmap, std::vector<BBLStats *> &sorted)
+{
+    sorted.clear();
+    for (auto it = statsmap.begin(); it != statsmap.end(); ++it) {
+        sorted.push_back(it->second);
+    }
+    std::sort(
+        sorted.begin(),
+        sorted.end(),
+        [](BBLStats *lhs, BBLStats *rhs) { return lhs->bblhash < rhs->bblhash; });
+}
 
 class ThreadStats
 {
@@ -76,9 +97,6 @@ private:
     // all class objects need to be stored in pointer form,
     // otherwise Sniper will somehow deallocate them unexpectedly.
     UUIDHashMap<BBLStats *> m_bblhash2stats;
-    // UUIDHashMap<BBLID> m_bblhash2bblid;
-    // std::vector<BBLStats *> m_bblid2stats;
-    BBLStats *m_globalbblstats;
 
     std::unordered_map<uint64_t, PtrDataReuseSegment *> m_tag2seg;
     PtrDataReuse *m_data_reuse;
@@ -89,11 +107,9 @@ public:
     {
         m_using_pim = false;
         m_pim_time = 0;
-        // UUID(GLOBAL_BBLID, GLOBAL_BBLID) is the region outside main function.
-        // UUID(0, 0) is the region that is inside main function but outside
-        // any other BBL, we assign this region as BBL 0.
-        m_current_bblhash.push_back(UUID(GLOBAL_BBLID, GLOBAL_BBLID));
-        m_globalbblstats = new BBLStats(GLOBAL_BBLID, UUID(GLOBAL_BBLID, GLOBAL_BBLID));
+        // GLOBAL_BBLHASH is the region outside main function.
+        m_bblhash2stats.insert(std::make_pair(GLOBAL_BBLHASH, new BBLStats()));
+        m_current_bblhash.push_back(GLOBAL_BBLHASH);
         m_data_reuse = new PtrDataReuse();
     }
 
@@ -103,7 +119,6 @@ public:
         {
             delete it->second;
         }
-        delete m_globalbblstats;
         delete m_data_reuse;
         for (auto it = m_tag2seg.begin(); it != m_tag2seg.end(); ++it)
         {
@@ -114,20 +129,16 @@ public:
     void setTid(int _tid) { tid = _tid; }
     bool IsUsingPIM() { return m_using_pim; }
 
-    BBLStats *GetBBLStats(UUID bblhash)
+    BBLStats *GetBBLStats(UUID temp)
     {
-        if (bblhash == UUID(GLOBAL_BBLID, GLOBAL_BBLID)) {
-            return m_globalbblstats;
+        UUID bblhash = m_current_bblhash.back();
+        auto it = m_bblhash2stats.find(bblhash);
+        if (it == m_bblhash2stats.end()) {
+            PrintStats(std::cout);
+            std::cout << "tid=" << tid << " size=" << m_bblhash2stats.size() << " hash=" << std::hex << bblhash.first << " " << bblhash.second << std::endl;
+            assert(it != m_bblhash2stats.end());
         }
-        else {
-            auto it = m_bblhash2stats.find(bblhash);
-            if (it == m_bblhash2stats.end()) {
-                PrintStats(std::cout);
-                std::cout << "tid=" << tid << " size=" << m_bblhash2stats.size() << " hash=" << std::hex << bblhash.first << " " << bblhash.second << std::endl;
-                assert(it != m_bblhash2stats.end());
-            }
-            return it->second;
-        }
+        return it->second;
     }
 
     UUID GetCurrentBBLHash()
@@ -214,7 +225,7 @@ public:
     void InsertSegOnHit(uintptr_t tag, bool is_store)
     {
         UUID bblhash = m_current_bblhash.back();
-        if (bblhash != UUID(GLOBAL_BBLID, GLOBAL_BBLID)) {
+        if (bblhash != GLOBAL_BBLHASH) {
             if (m_bblhash2stats.find(bblhash) == m_bblhash2stats.end()) {
                 PrintStats(std::cout);
                 std::cout << "tid=" << tid << " size=" << m_bblhash2stats.size() << " hash=" << std::hex << bblhash.first << " " << bblhash.second << std::endl;
@@ -259,19 +270,6 @@ public:
         seg->clear();
     }
 
-    // the pointers in sorted will point to the same location as the pointers in statsmap
-    void GetSortedStats(UUIDHashMap<BBLStats *> &statsmap, std::vector<BBLStats *> &sorted)
-    {
-        sorted.clear();
-        for (auto it = statsmap.begin(); it != statsmap.end(); ++it) {
-            sorted.push_back(it->second);
-        }
-        std::sort(
-            sorted.begin(),
-            sorted.end(),
-            [](BBLStats *lhs, BBLStats *rhs) { return lhs->bblhash < rhs->bblhash; });
-    }
-
     void MergeStatsMap(UUIDHashMap<BBLStats *> &statsmap)
     {
         for (auto it = m_bblhash2stats.begin(); it != m_bblhash2stats.end(); ++it) {
@@ -288,10 +286,11 @@ public:
         }
     }
 
+    // threads should achieve consensus on BBLID
     void GenerateBBLID(UUIDHashMap<BBLStats *> &statsmap)
     {
         std::vector<BBLStats *> sorted;
-        GetSortedStats(statsmap, sorted);
+        SortStatsMap(statsmap, sorted);
         for (BBLID i = 0; i < (int)sorted.size(); ++i) {
             statsmap[sorted[i]->bblhash]->bblid = i;
         }
@@ -311,7 +310,7 @@ public:
     void PrintStats(std::ostream &ofs)
     {
         std::vector<BBLStats *> sorted;
-        GetSortedStats(m_bblhash2stats, sorted);
+        SortStatsMap(m_bblhash2stats, sorted);
 
         ofs << HORIZONTAL_LINE << std::endl;
         ofs << "Core " << tid << std::endl;

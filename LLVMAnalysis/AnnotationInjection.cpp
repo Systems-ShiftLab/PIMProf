@@ -87,13 +87,13 @@ void InjectSniperAnnotationCall(Module &M, Function &F) {
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
     InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_START, beginning);
-    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, 0, 0, beginning);
+    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, MAIN_BBLID, beginning);
 
     // inject an end call before every return instruction
     for (auto &BB : F) {
         for (auto &I : BB) {
             if (isa<ReturnInst>(I)) {
-                InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, 0, 0, &I);
+                InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, MAIN_BBLID, &I);
                 InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
             }
         }

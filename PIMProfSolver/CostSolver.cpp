@@ -52,7 +52,7 @@ CostSolver::~CostSolver()
     }
 }
 
-void CostSolver::ParseStats(std::istream &ifs, UUIDHashMap<BBLStats *> &statsmap)
+void CostSolver::ParseStats(std::istream &ifs, UUIDHashMap<ThreadBBLStats *> &statsmap)
 {
     std::string line, token;
     
@@ -72,10 +72,11 @@ void CostSolver::ParseStats(std::istream &ifs, UUIDHashMap<BBLStats *> &statsmap
            >> std::hex >> bblstats.bblhash.first >> bblstats.bblhash.second;
         auto it = statsmap.find(bblstats.bblhash);
         if (statsmap.find(bblstats.bblhash) == statsmap.end()) {
-            statsmap.insert(std::make_pair(bblstats.bblhash, new BBLStats(bblstats)));
+            ThreadBBLStats *p = new ThreadBBLStats(bblstats);
+            statsmap.insert(std::make_pair(bblstats.bblhash, p));
         }
         else {
-            *it->second += bblstats;
+            it->second->MergeStats(bblstats);
         }
     }
 }
@@ -124,7 +125,7 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &ofs)
 
 std::ostream & CostSolver::PrintDecision(std::ostream &ofs, const DECISION &decision, bool toscreen)
 {
-    const std::vector<BBLStats *> *sorted = getSorted();
+    const std::vector<ThreadBBLStats *> *sorted = getSorted();
     ofs << HORIZONTAL_LINE << std::endl;
     if (toscreen == true) {
         for (uint32_t i = 0; i < decision.size(); i++) {
@@ -146,13 +147,13 @@ std::ostream & CostSolver::PrintDecision(std::ostream &ofs, const DECISION &deci
             << std::setw(18) << "Hash(lo)"
             << std::endl;
         for (uint32_t i = 0; i < sorted[CPU].size(); i++) {
-            const BBLStats *cpustats = sorted[CPU][i];
-            const BBLStats *pimstats = sorted[PIM][i];
-            COST diff = cpustats->elapsed_time - pimstats->elapsed_time;
+            auto *cpustats = sorted[CPU][i];
+            auto *pimstats = sorted[PIM][i];
+            COST diff = cpustats->MaxElapsedTime() - pimstats->MaxElapsedTime();
             ofs << std::setw(7) << i
                 << std::setw(10) << (decision[i] == PIM ? "P" : "C")
-                << std::setw(15) << cpustats->elapsed_time
-                << std::setw(15) << pimstats->elapsed_time
+                << std::setw(15) << cpustats->MaxElapsedTime()
+                << std::setw(15) << pimstats->MaxElapsedTime()
                 << std::setw(15) << diff
                 << "  " << std::hex
                 << std::setfill('0') << std::setw(16) << cpustats->bblhash.first
@@ -166,7 +167,7 @@ std::ostream & CostSolver::PrintDecision(std::ostream &ofs, const DECISION &deci
 
 CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &ofs)
 {
-    const std::vector<BBLStats *> *sorted = getSorted();
+    const std::vector<ThreadBBLStats *> *sorted = getSorted();
 
     DECISION decision;
 
@@ -177,35 +178,35 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &ofs)
 
     uint64_t instr_threshold = pim_total_instr * 0.01;
     uint64_t mpki_threshold = 10;
-    uint64_t cpu_only_time = 0, pim_only_time = 0, mpki_time = 0, mpki_cpu_time = 0, mpki_pim_time = 0;
+    COST cpu_only_time = 0, pim_only_time = 0, mpki_time = 0, mpki_cpu_time = 0, mpki_pim_time = 0;
     
     for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
-        const BBLStats *cpustats = sorted[CPU][i];
-        const BBLStats *pimstats = sorted[PIM][i];
+        auto *cpustats = sorted[CPU][i];
+        auto *pimstats = sorted[PIM][i];
 
         double instr = pimstats->instruction_count;
         double mem = pimstats->memory_access;
         double mpki = mem / instr * 1000.0;
 
-        cpu_only_time += cpustats->elapsed_time;
-        pim_only_time += pimstats->elapsed_time;
+        cpu_only_time += cpustats->MaxElapsedTime();
+        pim_only_time += pimstats->MaxElapsedTime();
 
         // deal with the part that is not inside any BBL
         if (cpustats->bblhash == GLOBAL_BBLHASH) {
-            mpki_time += cpustats->elapsed_time;
-            mpki_cpu_time += cpustats->elapsed_time;
+            mpki_time += cpustats->MaxElapsedTime();
+            mpki_cpu_time += cpustats->MaxElapsedTime();
             decision.push_back(CostSite::CPU);
             continue;
         }
 
         if (mpki > mpki_threshold && instr > instr_threshold) {
-            mpki_time += pimstats->elapsed_time;
-            mpki_pim_time += pimstats->elapsed_time;
+            mpki_time += pimstats->MaxElapsedTime();
+            mpki_pim_time += pimstats->MaxElapsedTime();
             decision.push_back(CostSite::PIM);
         }
         else {
-            mpki_time += cpustats->elapsed_time;
-            mpki_cpu_time += cpustats->elapsed_time;
+            mpki_time += cpustats->MaxElapsedTime();
+            mpki_cpu_time += cpustats->MaxElapsedTime();
             decision.push_back(CostSite::CPU);
         }
     }
@@ -295,15 +296,15 @@ CostSolver::DECISION CostSolver::PrintReuseSolution(std::ostream &ofs)
 
     _data_reuse.DeleteTrie(partial_root);
 
-    const std::vector<BBLStats *> *sorted = getSorted();
+    const std::vector<ThreadBBLStats *> *sorted = getSorted();
 
     // assign decision for BBLs that did not occur in the reuse chains
     for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
-        const BBLStats *cpustats = sorted[CPU][i];
-        const BBLStats *pimstats = sorted[PIM][i];
+        auto *cpustats = sorted[CPU][i];
+        auto *pimstats = sorted[PIM][i];
 
         if (decision[i] == INVALID) {
-            if (cpustats->elapsed_time <= pimstats->elapsed_time) {
+            if (cpustats->MaxElapsedTime() <= pimstats->MaxElapsedTime()) {
                 decision[i] = CPU;
             }
             else {
@@ -353,16 +354,16 @@ COST CostSolver::Cost(const CostSolver::DECISION &decision, BBLIDTrieNode *reuse
     for (; it != eit; ++it) {
         TrieBFS(cur_reuse_cost, decision, it->first, it->second, false);
     }
-    const std::vector<BBLStats *> *sorted = getSorted();
+    const std::vector<ThreadBBLStats *> *sorted = getSorted();
 
     for (uint32_t i = 0; i < sorted[CPU].size(); i++) {
-        const BBLStats *cpustats = sorted[CPU][i];
-        const BBLStats *pimstats = sorted[PIM][i];
+        auto *cpustats = sorted[CPU][i];
+        auto *pimstats = sorted[PIM][i];
         if (decision[i] == CPU) {
-            cur_elapsed_time += cpustats->elapsed_time;
+            cur_elapsed_time += cpustats->MaxElapsedTime();
         }
         else if (decision[i] == PIM) {
-            cur_elapsed_time += pimstats->elapsed_time;
+            cur_elapsed_time += pimstats->MaxElapsedTime();
         }
         else {
             // do nothing, since decision[i] == INVALID means that node i has not

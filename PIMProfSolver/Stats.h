@@ -61,10 +61,15 @@ public:
     //     memory_access = rhs.memory_access;
     // }
 
+    BBLStats& MergeStats(const BBLStats &rhs) {
+        elapsed_time += rhs.elapsed_time;
+        instruction_count += rhs.instruction_count;
+        memory_access += rhs.memory_access;
+        return *this;
+    }
+
     BBLStats& operator += (const BBLStats& rhs) {
-        this->elapsed_time += rhs.elapsed_time;
-        this->instruction_count += rhs.instruction_count;
-        this->memory_access += rhs.memory_access;
+        MergeStats(rhs);
         return *this;
     }
 };
@@ -135,7 +140,10 @@ public:
         auto it = m_bblhash2stats.find(bblhash);
         if (it == m_bblhash2stats.end()) {
             PrintStats(std::cout);
-            std::cout << "tid=" << tid << " size=" << m_bblhash2stats.size() << " hash=" << std::hex << bblhash.first << " " << bblhash.second << std::endl;
+            printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), bblhash.first, bblhash.second);
+            auto p = m_bblhash2stats.find(bblhash);
+            std::cout << (p != m_bblhash2stats.end()) << std::endl;
+            assert(p != m_bblhash2stats.end());
             assert(it != m_bblhash2stats.end());
         }
         return it->second;
@@ -276,12 +284,12 @@ public:
             auto p = statsmap.find(it->first);
             if (p == statsmap.end()) {
                 BBLStats *stats = new BBLStats(GLOBAL_BBLID, it->first);
-                *stats += *it->second;
+                stats->MergeStats(*it->second);
                 statsmap.insert(std::make_pair(it->first, stats));
             }
             else {
                 // merge the stats
-                *p->second += *it->second;
+                p->second->MergeStats(*it->second);
             }
         }
     }

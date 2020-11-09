@@ -26,6 +26,53 @@
 
 namespace PIMProf
 {
+class ThreadBBLStats : public BBLStats {
+  public:
+    std::vector<COST> thread_elapsed_time;
+    double parallelism;
+    bool dirty;
+
+    ThreadBBLStats(const BBLStats &bblstats) : BBLStats(bblstats)
+    {
+        thread_elapsed_time.push_back(bblstats.elapsed_time);
+        parallelism = 0;
+    }
+
+    ThreadBBLStats& MergeStats(const BBLStats &rhs) {
+        BBLStats::MergeStats(rhs);
+        thread_elapsed_time.push_back(rhs.elapsed_time);
+        return *this;
+    }
+
+    void SortElapsedTime() {
+        std::sort(thread_elapsed_time.begin(), thread_elapsed_time.end());
+    }
+
+    COST MaxElapsedTime() {
+        if (dirty) {
+            SortElapsedTime();
+            elapsed_time = thread_elapsed_time[thread_elapsed_time.size() - 1];
+        }
+        return elapsed_time;
+    }
+
+
+
+
+};
+
+inline void SortStatsMap(UUIDHashMap<ThreadBBLStats *> &statsmap, std::vector<ThreadBBLStats *> &sorted)
+{
+    sorted.clear();
+    for (auto it = statsmap.begin(); it != statsmap.end(); ++it) {
+        sorted.push_back(it->second);
+    }
+    std::sort(
+        sorted.begin(),
+        sorted.end(),
+        [](ThreadBBLStats *lhs, ThreadBBLStats *rhs) { return lhs->bblhash < rhs->bblhash; });
+}
+
 class CostSolver {
   public:
     /// A DECISION is a vector that represents a certain offloading decision, for example:
@@ -39,8 +86,8 @@ class CostSolver {
 
   private:
     CommandLineParser *_command_line_parser;
-    UUIDHashMap<BBLStats *> _bblhash2stats[MAX_COST_SITE];
-    std::vector<BBLStats *> _sortedstats[MAX_COST_SITE];
+    UUIDHashMap<ThreadBBLStats *> _bblhash2stats[MAX_COST_SITE];
+    std::vector<ThreadBBLStats *> _sortedstats[MAX_COST_SITE];
     bool _dirty = true; // track if _sortedstats is stale
 
     BBLIDDataReuse _data_reuse;
@@ -57,15 +104,29 @@ class CostSolver {
     void initialize(CommandLineParser *parser);
     ~CostSolver();
 
-    void ParseStats(std::istream &ifs, UUIDHashMap<BBLStats *> &stats);
+    void ParseStats(std::istream &ifs, UUIDHashMap<ThreadBBLStats *> &stats);
     void ParseReuse(std::istream &ifs, BBLIDDataReuse &reuse);
 
-    inline const std::vector<BBLStats *> *getSorted() {
+    inline const std::vector<ThreadBBLStats *> *getSorted() {
         if (_dirty) {
-            for (int i = 0; i < MAX_COST_SITE; i++) {
-                _sortedstats[i].clear();
-                SortStatsMap(_bblhash2stats[i], _sortedstats[i]);
+
+            SortStatsMap(_bblhash2stats[CPU], _sortedstats[CPU]);
+            // align CPU with PIM
+            for (auto it = _sortedstats[CPU].begin(); it != _sortedstats[CPU].end(); ++it) {
+                UUID bblhash = (*it)->bblhash;
+                BBLID bblid = (*it)->bblid;
+                auto p = _bblhash2stats[PIM].find(bblhash);
+                if (p != _bblhash2stats[PIM].end()) {
+                    _sortedstats[PIM].push_back(p->second);
+                    p->second->bblid = bblid;
+                }
+                else {
+                    ThreadBBLStats *stats = new ThreadBBLStats(BBLStats(bblid, bblhash));
+                    _bblhash2stats[PIM].insert(std::make_pair(bblhash, stats));
+                    _sortedstats[PIM].push_back(stats);
+                }
             }
+
             assert(_sortedstats[CPU].size() == _sortedstats[PIM].size());
             for (BBLID i = 0; i < _sortedstats[CPU].size(); i++) {
                 assert(_sortedstats[CPU][i]->bblid == _sortedstats[PIM][i]->bblid);
@@ -91,7 +152,7 @@ class CostSolver {
 
     void PrintStats(std::ostream &ofs)
     {
-        const std::vector<BBLStats *> *sorted = getSorted();
+        const std::vector<ThreadBBLStats *> *sorted = getSorted();
 
         for (int i = 0; i < MAX_COST_SITE; ++i) {
             ofs << HORIZONTAL_LINE << std::endl;

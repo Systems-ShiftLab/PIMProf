@@ -136,16 +136,28 @@ public:
 
     BBLStats *GetBBLStats(UUID temp)
     {
-        UUID bblhash = m_current_bblhash.back();
-        auto it = m_bblhash2stats.find(bblhash);
-        if (it == m_bblhash2stats.end()) {
-            PrintStats(std::cout);
-            printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), bblhash.first, bblhash.second);
-            auto p = m_bblhash2stats.find(bblhash);
-            std::cout << (p != m_bblhash2stats.end()) << std::endl;
-            assert(p != m_bblhash2stats.end());
-            assert(it != m_bblhash2stats.end());
+        
+        // auto it0 = m_bblhash2stats.find(bblhash);
+        // auto it = m_bblhash2stats.find(bblhash);
+        // auto it2 = m_bblhash2stats.find(bblhash);
+        // if (bblhash == UUID(0, 0))
+        //     printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), bblhash.first, bblhash.second);
+        // if (it == m_bblhash2stats.end() || m_bblhash2stats.find(bblhash) == m_bblhash2stats.end()) {
+        //     PrintStats(std::cout);
+        //     printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), bblhash.first, bblhash.second);
+        //     auto it3 = m_bblhash2stats.find(bblhash);
+        //     std::cout << (it0 != m_bblhash2stats.end()) << std::endl;
+        //     std::cout << (it != m_bblhash2stats.end()) << std::endl;
+        //     std::cout << (it2 != m_bblhash2stats.end()) << std::endl;
+        //     std::cout << (it3 != m_bblhash2stats.end()) << std::endl;
+        //     assert(it != m_bblhash2stats.end());
+        // }
+        auto it = m_bblhash2stats.end();
+        while (it == m_bblhash2stats.end()) {
+            UUID bblhash = m_current_bblhash.back();
+            it = m_bblhash2stats.find(bblhash);
         }
+
         return it->second;
     }
 
@@ -215,8 +227,9 @@ public:
     void AddTimeInstruction(uint64_t time, uint64_t instr)
     {
         UUID bblhash = m_current_bblhash.back();
-        GetBBLStats(bblhash)->elapsed_time += time;
-        GetBBLStats(bblhash)->instruction_count += instr;
+        BBLStats *bblstats = GetBBLStats(bblhash);
+        bblstats->elapsed_time += time;
+        bblstats->instruction_count += instr;
     }
 
     void AddMemory(uint64_t memory_access)

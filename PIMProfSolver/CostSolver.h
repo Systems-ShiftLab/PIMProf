@@ -30,7 +30,7 @@ class ThreadBBLStats : public BBLStats {
   public:
     std::vector<COST> thread_elapsed_time;
     double parallelism;
-    bool dirty;
+    bool dirty = true;
 
     ThreadBBLStats(const BBLStats &bblstats) : BBLStats(bblstats)
     {
@@ -142,6 +142,9 @@ class CostSolver {
     void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, BBLIDTrieNode *root, bool isDifferent);
 
     COST Cost(const DECISION &decision, BBLIDTrieNode *reusetree);
+    COST ElapsedTime(CostSite site); // return CPU/PIM only elapsd time
+    std::pair<COST, COST> ElapsedTime(const DECISION &decision); // return execution time pair (cpu_elapsed_time, pim_elapsed_time) for decision
+    COST ReuseCost(const DECISION &decision, BBLIDTrieNode *reusetree);
 
     void ReadConfig(ConfigReader &reader);
 

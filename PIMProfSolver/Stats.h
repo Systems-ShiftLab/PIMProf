@@ -153,9 +153,17 @@ public:
         //     assert(it != m_bblhash2stats.end());
         // }
         auto it = m_bblhash2stats.end();
+        int cnt = 0;
+        // TODO: In Sniper, somehow we need to find multiple times
+        // to get the correct bblstats very ocassionally, this does not
+        // cause fatal errors currently, but we need to fix this later.
         while (it == m_bblhash2stats.end()) {
             UUID bblhash = m_current_bblhash.back();
             it = m_bblhash2stats.find(bblhash);
+            cnt++;
+        }
+        if (cnt > 1) {
+            printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), it->first.first, it->first.second);
         }
 
         return it->second;
@@ -246,13 +254,6 @@ public:
     void InsertSegOnHit(uintptr_t tag, bool is_store)
     {
         UUID bblhash = m_current_bblhash.back();
-        if (bblhash != GLOBAL_BBLHASH) {
-            if (m_bblhash2stats.find(bblhash) == m_bblhash2stats.end()) {
-                PrintStats(std::cout);
-                std::cout << "tid=" << tid << " size=" << m_bblhash2stats.size() << " hash=" << std::hex << bblhash.first << " " << bblhash.second << std::endl;
-                assert(m_bblhash2stats.find(bblhash) != m_bblhash2stats.end());
-            }
-        }
         PtrDataReuseSegment *seg;
         auto it = m_tag2seg.find(tag);
         if (it == m_tag2seg.end())

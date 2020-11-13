@@ -25,14 +25,14 @@ void CostSolver::initialize(CommandLineParser *parser)
 
     std::ifstream cpustats(_command_line_parser->cpustatsfile());
     std::ifstream pimstats(_command_line_parser->pimstatsfile());
+    assert(cpustats.is_open());
+    assert(pimstats.is_open());
     ParseStats(cpustats, _bblhash2stats[CPU]);
     ParseStats(pimstats, _bblhash2stats[PIM]);
 
-    if (_command_line_parser->mode() == CommandLineParser::REUSE) {
-        std::ifstream reuse(_command_line_parser->reusefile());
-        ParseReuse(reuse, _data_reuse);
-    }
-    
+    std::ifstream reuse(_command_line_parser->reusefile());
+    assert(reuse.is_open());
+    ParseReuse(reuse, _data_reuse);
 
     // temporarily define flush and fetch cost here
     _flush_cost[CostSite::CPU] = 60;
@@ -51,6 +51,37 @@ CostSolver::~CostSolver()
         }
     }
 }
+
+const std::vector<ThreadBBLStats *>* CostSolver::getSorted()
+{
+        if (_dirty) {
+
+            SortStatsMap(_bblhash2stats[CPU], _sortedstats[CPU]);
+            // align CPU with PIM
+            for (auto it = _sortedstats[CPU].begin(); it != _sortedstats[CPU].end(); ++it) {
+                UUID bblhash = (*it)->bblhash;
+                BBLID bblid = (*it)->bblid;
+                auto p = _bblhash2stats[PIM].find(bblhash);
+                if (p != _bblhash2stats[PIM].end()) {
+                    _sortedstats[PIM].push_back(p->second);
+                    p->second->bblid = bblid;
+                }
+                else {
+                    ThreadBBLStats *stats = new ThreadBBLStats(BBLStats(bblid, bblhash));
+                    _bblhash2stats[PIM].insert(std::make_pair(bblhash, stats));
+                    _sortedstats[PIM].push_back(stats);
+                }
+            }
+
+            assert(_sortedstats[CPU].size() == _sortedstats[PIM].size());
+            for (BBLID i = 0; i < _sortedstats[CPU].size(); i++) {
+                assert(_sortedstats[CPU][i]->bblid == _sortedstats[PIM][i]->bblid);
+                assert(_sortedstats[CPU][i]->bblhash == _sortedstats[PIM][i]->bblhash);
+            }
+            _dirty = false;
+        }
+        return _sortedstats;
+    }
 
 void CostSolver::ParseStats(std::istream &ifs, UUIDHashMap<ThreadBBLStats *> &statsmap)
 {
@@ -81,6 +112,36 @@ void CostSolver::ParseStats(std::istream &ifs, UUIDHashMap<ThreadBBLStats *> &st
     }
 }
 
+void CostSolver::PrintStats(std::ostream &ofs)
+{
+    const std::vector<ThreadBBLStats *> *sorted = getSorted();
+
+    for (int i = 0; i < MAX_COST_SITE; ++i) {
+        ofs << HORIZONTAL_LINE << std::endl;
+        ofs << std::setw(7) << "BBLID"
+            << std::setw(15) << "Time(ns)"
+            << std::setw(15) << "Instruction"
+            << std::setw(15) << "Memory Access"
+            << std::setw(18) << "Hash(hi)"
+            << std::setw(18) << "Hash(lo)"
+            << std::endl;
+        for (auto it = sorted[i].begin(); it != sorted[i].end(); ++it)
+        {
+            UUID bblhash = (*it)->bblhash;
+            ofs << std::setw(7) << (*it)->bblid
+                << std::setw(15) << (*it)->elapsed_time
+                << std::setw(15) << (*it)->instruction_count
+                << std::setw(15) << (*it)->memory_access
+                << "  " << std::hex
+                << std::setfill('0') << std::setw(16) << bblhash.first
+                << "  "
+                << std::setfill('0') << std::setw(16) << bblhash.second
+                << std::setfill(' ') << std::dec << std::endl;
+        }
+    }
+    
+}
+
 void CostSolver::ParseReuse(std::istream &ifs, DataReuse<BBLID> &reuse)
 {
     std::string line, token;
@@ -106,7 +167,7 @@ void CostSolver::ParseReuse(std::istream &ifs, DataReuse<BBLID> &reuse)
         reuse.UpdateTrie(reuse.getRoot(), &seg);
     }
 
-    reuse.PrintAllSegments(std::cout, [](BBLID bblid){ return bblid; });
+    // reuse.PrintAllSegments(std::cout, [](BBLID bblid){ return bblid; });
 }
 
 CostSolver::DECISION CostSolver::PrintSolution(std::ostream &ofs)
@@ -114,11 +175,26 @@ CostSolver::DECISION CostSolver::PrintSolution(std::ostream &ofs)
     DECISION decision;
     
     if (_command_line_parser->mode() == CommandLineParser::Mode::MPKI) {
-        decision = PrintMPKISolution(ofs);
+        ofs << "CPU only time (ns): " << ElapsedTime(CPU) << std::endl
+            << "PIM only time (ns): " << ElapsedTime(PIM) << std::endl;
+        decision = PrintMPKIStats(ofs);
     }
     if (_command_line_parser->mode() == CommandLineParser::Mode::REUSE) {
-        decision = PrintReuseSolution(ofs);
+        ofs << "CPU only time (ns): " << ElapsedTime(CPU) << std::endl
+            << "PIM only time (ns): " << ElapsedTime(PIM) << std::endl;
+
+        const std::vector<ThreadBBLStats *> *sorted = getSorted();
+        uint64_t instr_cnt = 0;
+        for (int i = 0; i < sorted[CPU].size(); i++) {
+            instr_cnt += sorted[CPU][i]->instruction_count;
+        }
+        ofs << "Instruction " << instr_cnt << std::endl;
+        PrintMPKIStats(ofs);
+        PrintGreedyStats(ofs);
+        decision = PrintReuseStats(ofs);
     }
+
+    PrintDecision(ofs, decision, false);
 
     return decision;
 }
@@ -165,12 +241,10 @@ std::ostream & CostSolver::PrintDecision(std::ostream &ofs, const DECISION &deci
     return ofs;
 }
 
-CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &ofs)
+CostSolver::DECISION CostSolver::PrintMPKIStats(std::ostream &ofs)
 {
     const std::vector<ThreadBBLStats *> *sorted = getSorted();
-
     DECISION decision;
-
     uint64_t pim_total_instr = 0;
     for (auto it = sorted[PIM].begin(); it != sorted[PIM].end(); ++it) {
         pim_total_instr += (*it)->instruction_count;
@@ -178,7 +252,6 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &ofs)
 
     uint64_t instr_threshold = pim_total_instr * 0.01;
     uint64_t mpki_threshold = 10;
-    COST mpki_time = 0, mpki_cpu_time = 0, mpki_pim_time = 0;
     
     for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
         auto *cpustats = sorted[CPU][i];
@@ -190,33 +263,51 @@ CostSolver::DECISION CostSolver::PrintMPKISolution(std::ostream &ofs)
 
         // deal with the part that is not inside any BBL
         if (cpustats->bblhash == GLOBAL_BBLHASH) {
-            mpki_time += cpustats->MaxElapsedTime();
-            mpki_cpu_time += cpustats->MaxElapsedTime();
             decision.push_back(CostSite::CPU);
             continue;
         }
 
         if (mpki > mpki_threshold && instr > instr_threshold) {
-            mpki_time += pimstats->MaxElapsedTime();
-            mpki_pim_time += pimstats->MaxElapsedTime();
             decision.push_back(CostSite::PIM);
         }
         else {
-            mpki_time += cpustats->MaxElapsedTime();
-            mpki_cpu_time += cpustats->MaxElapsedTime();
             decision.push_back(CostSite::CPU);
         }
     }
-    ofs << "CPU only time (ns): " << ElapsedTime(CPU) << std::endl
-    << "PIM only time (ns): " << ElapsedTime(PIM) << std::endl
-    << "MPKI offloading time (ns): " << mpki_time << " = CPU " << mpki_cpu_time << " + PIM " << mpki_pim_time << std::endl;
 
-    PrintDecision(ofs, decision, false);
+    COST reuse_cost = ReuseCost(decision, _data_reuse.getRoot());
+    auto elapsed_time = ElapsedTime(decision);
+    COST total_time = reuse_cost + elapsed_time.first + elapsed_time.second;
+
+    ofs << "MPKI offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << std::endl;
 
     return decision;
 }
 
-CostSolver::DECISION CostSolver::PrintReuseSolution(std::ostream &ofs)
+CostSolver::DECISION CostSolver::PrintGreedyStats(std::ostream &ofs)
+{
+    const std::vector<ThreadBBLStats *> *sorted = getSorted();
+    DECISION decision;
+    for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
+        auto *cpustats = sorted[CPU][i];
+        auto *pimstats = sorted[PIM][i];
+        if (cpustats->MaxElapsedTime() <= pimstats->MaxElapsedTime()) {
+            decision.push_back(CPU);
+        }
+        else {
+            decision.push_back(PIM);
+        }
+    }
+    COST reuse_cost = ReuseCost(decision, _data_reuse.getRoot());
+    auto elapsed_time = ElapsedTime(decision);
+    COST total_time = reuse_cost + elapsed_time.first + elapsed_time.second;
+
+    ofs << "Greedy offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << std::endl;
+
+    return decision;
+}
+
+CostSolver::DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
 {
     _data_reuse.SortLeaves();
 
@@ -337,33 +428,11 @@ CostSolver::DECISION CostSolver::PrintReuseSolution(std::ostream &ofs)
         std::cout << "cur_total = " << cur_total << std::endl;
     }
 
-    ofs << "CPU only time (ns): " << ElapsedTime(CPU) << std::endl
-    << "PIM only time (ns): " << ElapsedTime(PIM) << std::endl;
-
-    DECISION greedy_decision;
-    for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
-        auto *cpustats = sorted[CPU][i];
-        auto *pimstats = sorted[PIM][i];
-        if (cpustats->MaxElapsedTime() <= pimstats->MaxElapsedTime()) {
-            greedy_decision.push_back(CPU);
-        }
-        else {
-            greedy_decision.push_back(PIM);
-        }
-    }
-    COST reuse_cost = ReuseCost(greedy_decision, _data_reuse.getRoot());
-    auto elapsed_time = ElapsedTime(greedy_decision);
+    COST reuse_cost = ReuseCost(decision, _data_reuse.getRoot());
+    auto elapsed_time = ElapsedTime(decision);
     COST total_time = reuse_cost + elapsed_time.first + elapsed_time.second;
 
-    ofs << "Greedy offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << std::endl;
-
-    reuse_cost = ReuseCost(decision, _data_reuse.getRoot());
-    elapsed_time = ElapsedTime(decision);
-    total_time = reuse_cost + elapsed_time.first + elapsed_time.second;
-
     ofs << "Reuse offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << std::endl;
-
-    PrintDecision(ofs, decision, false);
 
     return decision;
 }
@@ -380,7 +449,7 @@ COST CostSolver::ElapsedTime(CostSite site)
     COST elapsed_time = 0;
     for (BBLID i = 0; i < sorted[site].size(); ++i) {
         auto *stats = sorted[site][i];
-        elapsed_time += stats->MaxElapsedTime();
+        elapsed_time += stats->ElapsedTime(0);
     }
     return elapsed_time;
 }

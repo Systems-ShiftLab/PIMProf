@@ -232,11 +232,12 @@ public:
         }
     }
 
+    // time unit is FS (1e-6 NS)
     void AddTimeInstruction(uint64_t time, uint64_t instr)
     {
         UUID bblhash = m_current_bblhash.back();
         BBLStats *bblstats = GetBBLStats(bblhash);
-        bblstats->elapsed_time += time;
+        bblstats->elapsed_time += (COST)time / 1e6;
         bblstats->instruction_count += instr;
     }
 
@@ -246,9 +247,10 @@ public:
         GetBBLStats(bblhash)->memory_access += memory_access;
     }
 
+    // time unit is FS (1e-6 NS)
     void AddOffloadingTime(uint64_t time)
     {
-        m_pim_time += time;
+        m_pim_time += (COST)time / 1e6;
     }
 
     void InsertSegOnHit(uintptr_t tag, bool is_store)

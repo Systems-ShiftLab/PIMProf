@@ -27,37 +27,42 @@
 namespace PIMProf
 {
 class ThreadBBLStats : public BBLStats {
-  public:
+  private:
     std::vector<COST> thread_elapsed_time;
+    std::vector<COST> sorted_elapsed_time;
     double parallelism;
     bool dirty = true;
 
+  public:
     ThreadBBLStats(const BBLStats &bblstats) : BBLStats(bblstats)
     {
         thread_elapsed_time.push_back(bblstats.elapsed_time);
+        sorted_elapsed_time.push_back(bblstats.elapsed_time);
         parallelism = 0;
     }
 
     ThreadBBLStats& MergeStats(const BBLStats &rhs) {
         BBLStats::MergeStats(rhs);
         thread_elapsed_time.push_back(rhs.elapsed_time);
+        sorted_elapsed_time.push_back(rhs.elapsed_time);
         return *this;
     }
 
     void SortElapsedTime() {
-        std::sort(thread_elapsed_time.begin(), thread_elapsed_time.end());
+        std::sort(sorted_elapsed_time.begin(), sorted_elapsed_time.end());
+    }
+
+    COST ElapsedTime(int tid) {
+        return thread_elapsed_time[tid];
     }
 
     COST MaxElapsedTime() {
         if (dirty) {
             SortElapsedTime();
-            elapsed_time = thread_elapsed_time[thread_elapsed_time.size() - 1];
+            elapsed_time = sorted_elapsed_time[thread_elapsed_time.size() - 1];
         }
         return elapsed_time;
     }
-
-
-
 
 };
 
@@ -107,35 +112,7 @@ class CostSolver {
     void ParseStats(std::istream &ifs, UUIDHashMap<ThreadBBLStats *> &stats);
     void ParseReuse(std::istream &ifs, BBLIDDataReuse &reuse);
 
-    inline const std::vector<ThreadBBLStats *> *getSorted() {
-        if (_dirty) {
-
-            SortStatsMap(_bblhash2stats[CPU], _sortedstats[CPU]);
-            // align CPU with PIM
-            for (auto it = _sortedstats[CPU].begin(); it != _sortedstats[CPU].end(); ++it) {
-                UUID bblhash = (*it)->bblhash;
-                BBLID bblid = (*it)->bblid;
-                auto p = _bblhash2stats[PIM].find(bblhash);
-                if (p != _bblhash2stats[PIM].end()) {
-                    _sortedstats[PIM].push_back(p->second);
-                    p->second->bblid = bblid;
-                }
-                else {
-                    ThreadBBLStats *stats = new ThreadBBLStats(BBLStats(bblid, bblhash));
-                    _bblhash2stats[PIM].insert(std::make_pair(bblhash, stats));
-                    _sortedstats[PIM].push_back(stats);
-                }
-            }
-
-            assert(_sortedstats[CPU].size() == _sortedstats[PIM].size());
-            for (BBLID i = 0; i < _sortedstats[CPU].size(); i++) {
-                assert(_sortedstats[CPU][i]->bblid == _sortedstats[PIM][i]->bblid);
-                assert(_sortedstats[CPU][i]->bblhash == _sortedstats[PIM][i]->bblhash);
-            }
-            _dirty = false;
-        }
-        return _sortedstats;
-    }
+    const std::vector<ThreadBBLStats *>* getSorted();
 
     DECISION PrintSolution(std::ostream &out);
 
@@ -153,39 +130,12 @@ class CostSolver {
     // std::ostream &PrintCostBreakdown(std::ostream &out, const DECISION &decision, const std::string &name);
     // std::ostream &PrintAnalytics(std::ostream &out);
 
-    void PrintStats(std::ostream &ofs)
-    {
-        const std::vector<ThreadBBLStats *> *sorted = getSorted();
-
-        for (int i = 0; i < MAX_COST_SITE; ++i) {
-            ofs << HORIZONTAL_LINE << std::endl;
-            ofs << std::setw(7) << "BBLID"
-                << std::setw(15) << "Time(ns)"
-                << std::setw(15) << "Instruction"
-                << std::setw(15) << "Memory Access"
-                << std::setw(18) << "Hash(hi)"
-                << std::setw(18) << "Hash(lo)"
-                << std::endl;
-            for (auto it = sorted[i].begin(); it != sorted[i].end(); ++it)
-            {
-                UUID bblhash = (*it)->bblhash;
-                ofs << std::setw(7) << (*it)->bblid
-                    << std::setw(15) << (*it)->elapsed_time
-                    << std::setw(15) << (*it)->instruction_count
-                    << std::setw(15) << (*it)->memory_access
-                    << "  " << std::hex
-                    << std::setfill('0') << std::setw(16) << bblhash.first
-                    << "  "
-                    << std::setfill('0') << std::setw(16) << bblhash.second
-                    << std::setfill(' ') << std::dec << std::endl;
-            }
-        }
-        
-    }
+    void PrintStats(std::ostream &ofs);
 
   private:
-    DECISION PrintMPKISolution(std::ostream &out);
-    DECISION PrintReuseSolution(std::ostream &out);
+    DECISION PrintMPKIStats(std::ostream &ofs);
+    DECISION PrintReuseStats(std::ostream &ofs);
+    DECISION PrintGreedyStats(std::ostream &ofs);
 };
 
 } // namespace PIMProf

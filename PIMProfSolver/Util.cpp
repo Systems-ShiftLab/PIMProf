@@ -53,10 +53,11 @@ void CommandLineParser::initialize(int argc, char *argv[])
     optind++;
     if (_mode_string == "mpki") {
         _mode = Mode::MPKI;
-        const char* const short_opt = "c:p:o:h";
+        const char* const short_opt = "c:p:r:o:h";
         const option long_opt[] = {
             {"cpu", required_argument, nullptr, 'c'},
             {"pim", required_argument, nullptr, 'p'},
+            {"reuse", required_argument, nullptr, 'r'},
             {"output", required_argument, nullptr, 'o'},
             {"help", no_argument, nullptr, 'h'},
             {nullptr, no_argument, nullptr, 0}

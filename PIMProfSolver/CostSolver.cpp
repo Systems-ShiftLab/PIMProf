@@ -25,13 +25,13 @@ void CostSolver::initialize(CommandLineParser *parser)
 
     std::ifstream cpustats(_command_line_parser->cpustatsfile());
     std::ifstream pimstats(_command_line_parser->pimstatsfile());
+    std::ifstream reuse(_command_line_parser->reusefile());
     assert(cpustats.is_open());
     assert(pimstats.is_open());
+    assert(reuse.is_open());
     ParseStats(cpustats, _bblhash2stats[CPU]);
     ParseStats(pimstats, _bblhash2stats[PIM]);
 
-    std::ifstream reuse(_command_line_parser->reusefile());
-    assert(reuse.is_open());
     ParseReuse(reuse, _data_reuse);
 
     // temporarily define flush and fetch cost here

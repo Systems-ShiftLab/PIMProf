@@ -95,7 +95,7 @@ class ThreadStats
 private:
     int tid;
     bool m_using_pim;
-    uint64_t m_pim_time;
+    COST m_pim_time;
 
     std::vector<UUID> m_current_bblhash;
 
@@ -109,9 +109,9 @@ private:
 public:
     ThreadStats(int _tid = 0)
         : tid(_tid)
+        , m_using_pim(false)
+        , m_pim_time(0)
     {
-        m_using_pim = false;
-        m_pim_time = 0;
         // GLOBAL_BBLHASH is the region outside main function.
         m_bblhash2stats.insert(std::make_pair(GLOBAL_BBLHASH, new BBLStats()));
         m_current_bblhash.push_back(GLOBAL_BBLHASH);
@@ -178,20 +178,10 @@ public:
     {
         UUID bblhash = UUID(hi, lo);
         auto it = m_bblhash2stats.find(bblhash);
-        // std::cout << tid << " " << std::hex << hi << " " << lo << std::endl;
-        if (bblhash == UUID(0, 0)) {
-            std::cout << tid << std::endl;
-        }
+        // printf("%d: %lx %lx\n", tid, bblhash.first, bblhash.second);
         if (it == m_bblhash2stats.end()) {
             BBLStats *stats = new BBLStats(GLOBAL_BBLID, bblhash);
-            // if (bblhash == UUID(0, 0)) {
-            //     std::cout << "before: " << m_bblhash2stats.size() << std::endl;
-            // }
             m_bblhash2stats.insert(std::make_pair(bblhash, stats));
-            // if (bblhash == UUID(0, 0)) {
-            //     std::cout << "after: " << m_bblhash2stats.size() << std::endl;
-            // }
-            
         }
         m_current_bblhash.push_back(bblhash);
     }
@@ -199,6 +189,11 @@ public:
     void BBLEnd(uint64_t hi, uint64_t lo)
     {
         UUID bblhash = UUID(hi, lo);
+        // printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash.back().first, m_current_bblhash.back().second);
+        if (bblhash != m_current_bblhash.back()) 
+        {
+            printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash.back().first, m_current_bblhash.back().second);
+        }
         assert(bblhash == m_current_bblhash.back());
         m_current_bblhash.pop_back();
     }

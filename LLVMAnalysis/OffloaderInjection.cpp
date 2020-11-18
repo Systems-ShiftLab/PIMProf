@@ -181,15 +181,14 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     Instruction *beginning = &(*BB.getFirstInsertionPt());
 
     if (decision.decision == CostSite::PIM) {
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_TEST_START, beginning);
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_TEST_END, BB.getTerminator());
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_DECISION_PIM, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_DECISION_PIM, BB.getTerminator());
         pim_inject_cnt++;
     }
     else {
-        // do nothing
-        // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_TEST_START, beginning);
-        // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_TEST_END, BB.getTerminator());
-        // cpu_inject_cnt++;
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_DECISION_CPU, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_DECISION_CPU, BB.getTerminator());
+        cpu_inject_cnt++;
     }
 }
 
@@ -202,12 +201,10 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
     if (MainDecision == CostSite::PIM) {
         // offload start
         // prototype: OffloadStart(uint64_t hi, uint64_t type)
-        // here type=PIMPROF_TEST_START shows this is the start of main BBL
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, MAIN_BBLID, PIMPROF_TEST_START, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, MAIN_BBLID, PIMPROF_DECISION_PIM, beginning);
     }
     else {
-        // Do not offload, but record the start of main BBL
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, MAIN_BBLID, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, PIMPROF_DECISION_CPU, beginning);
     }
 
     // inject an end call before every return instruction
@@ -218,11 +215,10 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
                     // offload end
                     // prototype: OffloadStart(uint64_t hi, uint64_t type)
                     // here type=PIMPROF_TEST_END shows this is the end of main BBL
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, MAIN_BBLID, PIMPROF_TEST_END, &I);
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, MAIN_BBLID, PIMPROF_DECISION_PIM, &I);
                 }
                 else {
-                    // Do not offload, but record the start of main BBL
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, MAIN_BBLID, &I);
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, PIMPROF_DECISION_CPU, &I);
                 }
                 InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
             }

@@ -96,7 +96,7 @@ private:
     int tid;
     COST m_pim_time;
 
-    int m_using_pim;
+    std::vector<bool> m_using_pim;
     std::vector<UUID> m_current_bblhash;
 
     // all class objects need to be stored in pointer form,
@@ -113,10 +113,10 @@ public:
     ThreadStats(int _tid = 0)
         : tid(_tid)
         , m_pim_time(0)
-        , m_using_pim(0)
     {
         // GLOBAL_BBLHASH is the region outside main function.
         m_bblhash2stats.insert(std::make_pair(GLOBAL_BBLHASH, new BBLStats()));
+        m_using_pim.push_back(false);
         m_current_bblhash.push_back(GLOBAL_BBLHASH);
         m_data_reuse = new PtrDataReuse();
     }
@@ -145,7 +145,7 @@ public:
     }
 
     void setTid(int _tid) { tid = _tid; }
-    bool IsUsingPIM() { return m_using_pim > 0; }
+    bool IsUsingPIM() { return m_using_pim.back(); }
 
     BBLStats *GetBBLStats(UUID temp)
     {
@@ -213,33 +213,17 @@ public:
 
     void OffloadStart(uint64_t hi, uint64_t type)
     {
-        m_using_pim++;
-        // type is used to distinguish actual BBL start and end
-        // since the start of a BBL could be the end of offloading
-        // our compiling tool only provide the high bits of bblhash in this case
-        if (type == PIMPROF_TEST_START) {
-            BBLStart(hi, 0);
-        }
-        else if (type == PIMPROF_TEST_END) {
-            BBLEnd(hi, 0);
-        }
-        else {
-            assert(0);
-        }
+        m_using_pim.push_back(type == PIMPROF_DECISION_PIM);
+        // our compiling tool uses only the high bits of bblhash
+        // to distinguish BBLs in this case
+        BBLStart(hi, 0);
     }
 
     void OffloadEnd(uint64_t hi, uint64_t type)
     {
-        m_using_pim--;
-        if (type == PIMPROF_TEST_START) {
-            BBLStart(hi, 0);
-        }
-        else if (type == PIMPROF_TEST_END) {
-            BBLEnd(hi, 0);
-        }
-        else {
-            assert(0);
-        }
+        assert(m_using_pim.back() == (type == PIMPROF_DECISION_PIM));
+        m_using_pim.pop_back();
+        BBLEnd(hi, 0);
     }
 
     // time unit is FS (1e-6 NS)

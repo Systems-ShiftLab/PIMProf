@@ -94,8 +94,8 @@ class DecisionMap {
         // // std::cout << isomp << " " << ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONHEAD, isomp) << std::endl;
     }
 
-    Decision getGlobalDecision() {
-        return decision_map[UUID(0, 0)];
+    Decision getMainDecision() {
+        return decision_map[UUID(MAIN_BBLID, MAIN_BBLID)];
     }
 
     void initDecisionMap(const char *in)
@@ -148,9 +148,10 @@ class DecisionMap {
 int found_cnt = 0, not_found_cnt = 0;
 int cpu_inject_cnt = 0, pim_inject_cnt = 0;
 
-CostSite ROI = CostSite::INVALID;
+// ROI indicates which part we want to annotate in the program
+// CostSite ROI = CostSite::INVALID;
 InjectMode Mode = InjectMode::INVALID;
-CostSite GlobalDecision = CostSite::INVALID;
+CostSite MainDecision = CostSite::INVALID;
 
 DecisionMap decision_map;
 
@@ -178,44 +179,17 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*BB.getFirstInsertionPt());
-    
-    if (GlobalDecision == CostSite::CPU && decision.decision == CostSite::PIM) {
-        if (ROI == CostSite::CPU) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::CPU, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::CPU, BB.getTerminator());
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 0, beginning);
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 1, BB.getTerminator());
-            pim_inject_cnt++;
-        }
-        if (ROI == CostSite::PIM) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::PIM, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::PIM, BB.getTerminator());
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 0, beginning);
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 1, BB.getTerminator());
-            pim_inject_cnt++;
-        }
-    }
-    else if (GlobalDecision == CostSite::PIM && decision.decision == CostSite::CPU) {
-        if (ROI == CostSite::CPU) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::CPU, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::CPU, BB.getTerminator());
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 0, beginning);
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 1, BB.getTerminator());
-            cpu_inject_cnt++;
-        }
-        if (ROI == CostSite::PIM) {
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, decision.bblid, (uint64_t) CostSite::PIM, beginning);
-            // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, decision.bblid, (uint64_t) CostSite::PIM, BB.getTerminator());
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], 0, beginning);
-            InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], 1, BB.getTerminator());
-            cpu_inject_cnt++;
-        }
+
+    if (decision.decision == CostSite::PIM) {
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_TEST_START, beginning);
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_TEST_END, BB.getTerminator());
+        pim_inject_cnt++;
     }
     else {
-        // For testing purpose
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, bblhash[1], bblhash[0], beginning);
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, bblhash[1], bblhash[0], BB.getTerminator());
-        assert(bblhash[1] != 0);
+        // do nothing
+        // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_TEST_START, beginning);
+        // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_TEST_END, BB.getTerminator());
+        // cpu_inject_cnt++;
     }
 }
 
@@ -224,26 +198,31 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
     InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_START, beginning);
-    if (ROI == GlobalDecision) {
-        // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, -1, (uint64_t) ROI, beginning);
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, MAIN_BBLID, 0, beginning);
+
+    if (MainDecision == CostSite::PIM) {
+        // offload start
+        // prototype: OffloadStart(uint64_t hi, uint64_t type)
+        // here type=PIMPROF_TEST_START shows this is the start of main BBL
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, MAIN_BBLID, PIMPROF_TEST_START, beginning);
     }
     else {
-        // For testing purpose
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, 0, beginning);
+        // Do not offload, but record the start of main BBL
+        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, MAIN_BBLID, beginning);
     }
 
     // inject an end call before every return instruction
     for (auto &BB : F) {
         for (auto &I : BB) {
             if (isa<ReturnInst>(I)) {
-                if (ROI == GlobalDecision) {
-                    // InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, -1, (uint64_t) ROI, &I);
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, MAIN_BBLID, 1, &I);
+                if (MainDecision == CostSite::PIM) {
+                    // offload end
+                    // prototype: OffloadStart(uint64_t hi, uint64_t type)
+                    // here type=PIMPROF_TEST_END shows this is the end of main BBL
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, MAIN_BBLID, PIMPROF_TEST_END, &I);
                 }
                 else {
-                    // For testing purpose
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, 0, &I);
+                    // Do not offload, but record the start of main BBL
+                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, MAIN_BBLID, &I);
                 }
                 InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
             }
@@ -255,61 +234,61 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
 * VTune
 ********************************************************/
 
-void InjectVTuneOffloaderCall(Module &M, BasicBlock &BB) {
-    Decision decision = decision_map.getBasicBlockDecision(M, BB);
+// void InjectVTuneOffloaderCall(Module &M, BasicBlock &BB) {
+//     Decision decision = decision_map.getBasicBlockDecision(M, BB);
 
-    // if not found, then return
-    if (decision.decision == CostSite::INVALID) {
-        not_found_cnt++;
-        return;
-    }
-    found_cnt++;
+//     // if not found, then return
+//     if (decision.decision == CostSite::INVALID) {
+//         not_found_cnt++;
+//         return;
+//     }
+//     found_cnt++;
 
-    // need to skip all PHIs and LandingPad instructions
-    // check the declaration of getFirstInsertionPt()
-    Instruction *beginning = &(*BB.getFirstInsertionPt());
-    if (decision.decision == CostSite::CPU) {
-        if (ROI == CostSite::CPU || ROI == CostSite::ALL) {
-            InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
-            InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
-            cpu_inject_cnt++;
-        }
-    }
-    if (decision.decision == CostSite::PIM) {
-        if (ROI == CostSite::NOTPIM) {
-            InjectVTuneITT(M, VTUNE_MODE_FRAME_END, beginning);
-            InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, BB.getTerminator());
-            pim_inject_cnt++;
-        }
-        if (ROI == CostSite::PIM || ROI == CostSite::ALL) {
-            InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
-            InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
-            pim_inject_cnt++;
-        }
-    }
-}
+//     // need to skip all PHIs and LandingPad instructions
+//     // check the declaration of getFirstInsertionPt()
+//     Instruction *beginning = &(*BB.getFirstInsertionPt());
+//     if (decision.decision == CostSite::CPU) {
+//         if (ROI == CostSite::CPU || ROI == CostSite::ALL) {
+//             InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
+//             InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
+//             cpu_inject_cnt++;
+//         }
+//     }
+//     if (decision.decision == CostSite::PIM) {
+//         if (ROI == CostSite::NOTPIM) {
+//             InjectVTuneITT(M, VTUNE_MODE_FRAME_END, beginning);
+//             InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, BB.getTerminator());
+//             pim_inject_cnt++;
+//         }
+//         if (ROI == CostSite::PIM || ROI == CostSite::ALL) {
+//             InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
+//             InjectVTuneITT(M, VTUNE_MODE_FRAME_END, BB.getTerminator());
+//             pim_inject_cnt++;
+//         }
+//     }
+// }
 
-void InjectVTuneOffloaderCall(Module &M, Function &F) {
-    // need to skip all PHIs and LandingPad instructions
-    // check the declaration of getFirstInsertionPt()
-    Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
-    InjectVTuneITT(M, VTUNE_MODE_RESUME, beginning);
-    if (ROI == CostSite::NOTPIM) {
-        InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
-    }
+// void InjectVTuneOffloaderCall(Module &M, Function &F) {
+//     // need to skip all PHIs and LandingPad instructions
+//     // check the declaration of getFirstInsertionPt()
+//     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
+//     InjectVTuneITT(M, VTUNE_MODE_RESUME, beginning);
+//     if (ROI == CostSite::NOTPIM) {
+//         InjectVTuneITT(M, VTUNE_MODE_FRAME_BEGIN, beginning);
+//     }
 
-    // inject an end call before every return instruction
-    for (auto &BB : F) {
-        for (auto &I : BB) {
-            if (isa<ReturnInst>(I)) {
-                if (ROI == CostSite::NOTPIM) {
-                    InjectVTuneITT(M, VTUNE_MODE_FRAME_END, &I);
-                }
-                InjectVTuneITT(M, VTUNE_MODE_DETACH, &I);
-            }
-        }
-    }
-}
+//     // inject an end call before every return instruction
+//     for (auto &BB : F) {
+//         for (auto &I : BB) {
+//             if (isa<ReturnInst>(I)) {
+//                 if (ROI == CostSite::NOTPIM) {
+//                     InjectVTuneITT(M, VTUNE_MODE_FRAME_END, &I);
+//                 }
+//                 InjectVTuneITT(M, VTUNE_MODE_DETACH, &I);
+//             }
+//         }
+//     }
+// }
 
 class PIMProfAAW : public AssemblyAnnotationWriter {
 public:
@@ -331,27 +310,27 @@ struct OffloaderInjection : public ModulePass {
 
     virtual bool runOnModule(Module &M) {
         char *decisionfileenv = NULL;
-        char *roienv = NULL;
+        // char *roienv = NULL;
         char *injectmodeenv = NULL;
 
         decisionfileenv = std::getenv(PIMProfDecisionEnv.c_str());
-        roienv = std::getenv(PIMProfROIEnv.c_str());
+        // roienv = std::getenv(PIMProfROIEnv.c_str());
         injectmodeenv = std::getenv(PIMProfInjectModeEnv.c_str());
 
         assert(decisionfileenv != NULL);
-        assert(roienv != NULL);
+        // assert(roienv != NULL);
         assert(injectmodeenv != NULL);
 
         std::cout << "filename: " << decisionfileenv << std::endl;
-        std::cout << "roi: " << roienv << std::endl;
-        std::cout << "inject mode:" << injectmodeenv << std::endl;
+        // std::cout << "roi: " << roienv << std::endl;
+        // std::cout << "inject mode:" << injectmodeenv << std::endl;
 
-        if (strcmp(roienv, "ALL") == 0) ROI = CostSite::ALL;
-        else if (strcmp(roienv, "CPUONLY") == 0) ROI = CostSite::CPU;
-        else if (strcmp(roienv, "PIMONLY") == 0) ROI = CostSite::PIM;
-        else {
-            assert(0 && "Invalid environment variable PIMPROFROI");
-        }
+        // if (strcmp(roienv, "ALL") == 0) ROI = CostSite::ALL;
+        // else if (strcmp(roienv, "CPUONLY") == 0) ROI = CostSite::CPU;
+        // else if (strcmp(roienv, "PIMONLY") == 0) ROI = CostSite::PIM;
+        // else {
+        //     assert(0 && "Invalid environment variable PIMPROFROI");
+        // }
 
         if (strcmp(injectmodeenv, "SNIPER") == 0) Mode = InjectMode::SNIPER;
         // else if (strcmp(injectmodeenv, "VTUNE") == 0) Mode = InjectMode::VTUNE;
@@ -362,7 +341,7 @@ struct OffloaderInjection : public ModulePass {
 
         decision_map.initDecisionMap(decisionfileenv);
 
-        GlobalDecision = decision_map.getGlobalDecision().decision;
+        MainDecision = decision_map.getMainDecision().decision;
 
         /********************************************************
          * Inject offloader function to each basic block according to
@@ -389,16 +368,17 @@ struct OffloaderInjection : public ModulePass {
             }
         }
         if (Mode == InjectMode::VTUNE) {
-            for (auto &func : M) {
-                for (auto &bb: func) {
-                    InjectVTuneOffloaderCall(M, bb);
-                }
-            }
-            for (auto &func : M) {
-                if (func.getName() == "main") {
-                    InjectVTuneOffloaderCall(M, func);
-                }
-            }
+            assert(0);
+            // for (auto &func : M) {
+            //     for (auto &bb: func) {
+            //         InjectVTuneOffloaderCall(M, bb);
+            //     }
+            // }
+            // for (auto &func : M) {
+            //     if (func.getName() == "main") {
+            //         InjectVTuneOffloaderCall(M, func);
+            //     }
+            // }
         }
         
         errs() << "Found = " << found_cnt << ", Not Found = " << not_found_cnt << "\n";

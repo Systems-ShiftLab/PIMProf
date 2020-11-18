@@ -9,6 +9,7 @@
 #define __COMMON_H__
 
 #include <string>
+#include <map>
 #include <unordered_map>
 
 namespace PIMProf {
@@ -73,8 +74,10 @@ public:
     }
 };
 
+// template<typename val>
+// using UUIDHashMap = std::unordered_map<UUID, val, UUIDHashFunc>;
 template<typename val>
-using UUIDHashMap = std::unordered_map<UUID, val, UUIDHashFunc>;
+using UUIDHashMap = std::map<UUID, val>;
 
 /* ===================================================================== */
 /* Enums and constants */
@@ -133,6 +136,9 @@ const int SNIPER_SIM_PIMPROF_BBL_START = 1024;
 const int SNIPER_SIM_PIMPROF_BBL_END = 1025;
 const int SNIPER_SIM_PIMPROF_OFFLOAD_START = 1026;
 const int SNIPER_SIM_PIMPROF_OFFLOAD_END = 1027;
+
+const int PIMPROF_TEST_START = 0;
+const int PIMPROF_TEST_END = 1;
 
 const BBLID GLOBAL_BBLID = 0;
 const UUID GLOBAL_BBLHASH(GLOBAL_BBLID, GLOBAL_BBLID);

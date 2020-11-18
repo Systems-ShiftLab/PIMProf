@@ -46,7 +46,7 @@ public:
     BBLStats(
         BBLID _bblid = GLOBAL_BBLID,
         UUID _bblhash = GLOBAL_BBLHASH,
-        uint64_t _elapsed_time = 0,
+        COST _elapsed_time = 0,
         uint64_t _instruction_count = 0,
         uint64_t _memory_access = 0)
         : bblid(_bblid), bblhash(_bblhash), elapsed_time(_elapsed_time), instruction_count(_instruction_count), memory_access(_memory_access)
@@ -94,23 +94,26 @@ class ThreadStats
 {
 private:
     int tid;
-    bool m_using_pim;
     COST m_pim_time;
 
+    int m_using_pim;
     std::vector<UUID> m_current_bblhash;
 
     // all class objects need to be stored in pointer form,
     // otherwise Sniper will somehow deallocate them unexpectedly.
     UUIDHashMap<BBLStats *> m_bblhash2stats;
 
+    // a map from tag to data reuse segments
     std::unordered_map<uint64_t, PtrDataReuseSegment *> m_tag2seg;
+
+    // data structure for storing data reuse info
     PtrDataReuse *m_data_reuse;
 
 public:
     ThreadStats(int _tid = 0)
         : tid(_tid)
-        , m_using_pim(false)
         , m_pim_time(0)
+        , m_using_pim(0)
     {
         // GLOBAL_BBLHASH is the region outside main function.
         m_bblhash2stats.insert(std::make_pair(GLOBAL_BBLHASH, new BBLStats()));
@@ -120,6 +123,16 @@ public:
 
     ~ThreadStats()
     {
+        COST total = 0;
+        std::vector<std::pair<UUID, COST>> sorted(m_bblhash2cputime.begin(), m_bblhash2cputime.end());
+        std::sort(sorted.begin(), sorted.end(), 
+            [](const std::pair<UUID, COST> &lhs, const std::pair<UUID, COST> &rhs) { return lhs.first.first < rhs.first.first; });
+        for (auto it : sorted) {
+            total += it.second;
+            std::cout << std::hex << it.first.first << " " << it.first.second << std::dec << " " << it.second << std::endl;
+        }
+        std::cout << "TOTAL = " << total << std::endl;
+
         for (auto it = m_bblhash2stats.begin(); it != m_bblhash2stats.end(); ++it)
         {
             delete it->second;
@@ -132,7 +145,7 @@ public:
     }
 
     void setTid(int _tid) { tid = _tid; }
-    bool IsUsingPIM() { return m_using_pim; }
+    bool IsUsingPIM() { return m_using_pim > 0; }
 
     BBLStats *GetBBLStats(UUID temp)
     {
@@ -178,7 +191,7 @@ public:
     {
         UUID bblhash = UUID(hi, lo);
         auto it = m_bblhash2stats.find(bblhash);
-        // printf("%d: %lx %lx\n", tid, bblhash.first, bblhash.second);
+        
         if (it == m_bblhash2stats.end()) {
             BBLStats *stats = new BBLStats(GLOBAL_BBLID, bblhash);
             m_bblhash2stats.insert(std::make_pair(bblhash, stats));
@@ -200,30 +213,32 @@ public:
 
     void OffloadStart(uint64_t hi, uint64_t type)
     {
-        m_using_pim = true;
+        m_using_pim++;
         // type is used to distinguish actual BBL start and end
         // since the start of a BBL could be the end of offloading
         // our compiling tool only provide the high bits of bblhash in this case
-        if (type == 0)
-        {
+        if (type == PIMPROF_TEST_START) {
             BBLStart(hi, 0);
         }
-        else
-        {
+        else if (type == PIMPROF_TEST_END) {
             BBLEnd(hi, 0);
+        }
+        else {
+            assert(0);
         }
     }
 
     void OffloadEnd(uint64_t hi, uint64_t type)
     {
-        m_using_pim = false;
-        if (type == 0)
-        {
+        m_using_pim--;
+        if (type == PIMPROF_TEST_START) {
             BBLStart(hi, 0);
         }
-        else
-        {
+        else if (type == PIMPROF_TEST_END) {
             BBLEnd(hi, 0);
+        }
+        else {
+            assert(0);
         }
     }
 
@@ -262,8 +277,8 @@ public:
         {
             seg = it->second;
         }
-
-        seg->insert(GetBBLStats(bblhash));
+        BBLStats *bblstats = GetBBLStats(bblhash);
+        seg->insert(bblstats);
         // int32_t threadcount = _storage->_cost_package->_thread_count;
         // if (threadcount > seg->getCount())
         seg->setCount(1);
@@ -272,7 +287,7 @@ public:
         {
             m_data_reuse->UpdateTrie(m_data_reuse->getRoot(), seg);
             seg->clear();
-            seg->insert(GetBBLStats(bblhash));
+            seg->insert(bblstats);
             // if (threadcount > seg->getCount())
             seg->setCount(1);
         }
@@ -370,6 +385,16 @@ public:
         ofs << "Core " << tid << std::endl;
         m_data_reuse->PrintAllSegments(ofs,
             [](BBLStats *stats) { return stats->bblid; });
+    }
+
+  private:
+    UUIDHashMap<COST> m_bblhash2cputime;
+
+  public:
+    void AddCPUTime(uint64_t time)
+    {
+        UUID bblhash = m_current_bblhash.back();
+        m_bblhash2cputime[bblhash] += (COST)time / 1e6;
     }
 };
 

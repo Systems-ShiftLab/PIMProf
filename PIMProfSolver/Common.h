@@ -74,10 +74,10 @@ public:
     }
 };
 
-// template<typename val>
-// using UUIDHashMap = std::unordered_map<UUID, val, UUIDHashFunc>;
 template<typename val>
-using UUIDHashMap = std::map<UUID, val>;
+using UUIDHashMap = std::unordered_map<UUID, val, UUIDHashFunc>;
+// template<typename val>
+// using UUIDHashMap = std::map<UUID, val>;
 
 /* ===================================================================== */
 /* Enums and constants */

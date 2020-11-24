@@ -96,15 +96,15 @@ private:
     int tid;
     COST m_pim_time;
 
-    std::vector<bool> m_using_pim;
-    std::vector<UUID> m_current_bblhash;
+    std::vector<bool> *m_using_pim;
+    std::vector<UUID> *m_current_bblhash;
 
     // all class objects need to be stored in pointer form,
     // otherwise Sniper will somehow deallocate them unexpectedly.
-    UUIDHashMap<BBLStats *> m_bblhash2stats;
+    UUIDHashMap<BBLStats *> *m_bblhash2stats;
 
     // a map from tag to data reuse segments
-    std::unordered_map<uint64_t, PtrDataReuseSegment *> m_tag2seg;
+    std::unordered_map<uint64_t, PtrDataReuseSegment *> *m_tag2seg;
 
     // data structure for storing data reuse info
     PtrDataReuse *m_data_reuse;
@@ -114,10 +114,18 @@ public:
         : tid(_tid)
         , m_pim_time(0)
     {
+        m_using_pim = new std::vector<bool>;
+        m_using_pim->push_back(false);
+
+        m_current_bblhash = new std::vector<UUID>;
+        m_current_bblhash->push_back(GLOBAL_BBLHASH);
+
         // GLOBAL_BBLHASH is the region outside main function.
-        m_bblhash2stats.insert(std::make_pair(GLOBAL_BBLHASH, new BBLStats()));
-        m_using_pim.push_back(false);
-        m_current_bblhash.push_back(GLOBAL_BBLHASH);
+        m_bblhash2stats = new UUIDHashMap<BBLStats *>;
+        m_bblhash2stats->insert(std::make_pair(GLOBAL_BBLHASH, new BBLStats()));
+
+        m_tag2seg = new std::unordered_map<uint64_t, PtrDataReuseSegment *>;
+
         m_data_reuse = new PtrDataReuse();
     }
 
@@ -125,58 +133,68 @@ public:
     {
         COST total = 0;
         std::vector<std::pair<UUID, COST>> sorted(m_bblhash2cputime.begin(), m_bblhash2cputime.end());
-        std::sort(sorted.begin(), sorted.end(), 
-            [](const std::pair<UUID, COST> &lhs, const std::pair<UUID, COST> &rhs) { return lhs.first.first < rhs.first.first; });
+        std::sort(sorted.begin(), sorted.end(),
+            [](const std::pair<UUID, COST> &lhs, const std::pair<UUID, COST> &rhs) {
+                return lhs.first.first < rhs.first.first;
+            }
+        );
         for (auto it : sorted) {
             total += it.second;
             std::cout << std::hex << it.first.first << " " << it.first.second << std::dec << " " << it.second << std::endl;
         }
         std::cout << "TOTAL = " << total << std::endl;
 
-        for (auto it = m_bblhash2stats.begin(); it != m_bblhash2stats.end(); ++it)
+        delete m_using_pim;
+        delete m_current_bblhash;
+
+        for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it)
         {
             delete it->second;
         }
+        delete m_bblhash2stats;
+
+        for (auto it = m_tag2seg->begin(); it != m_tag2seg->end(); ++it)
+        {
+            delete it->second;
+        }
+        delete m_tag2seg;
+
         delete m_data_reuse;
-        for (auto it = m_tag2seg.begin(); it != m_tag2seg.end(); ++it)
-        {
-            delete it->second;
-        }
     }
 
     void setTid(int _tid) { tid = _tid; }
-    bool IsUsingPIM() { return m_using_pim.back(); }
+    bool IsUsingPIM() { return m_using_pim->back(); }
 
     BBLStats *GetBBLStats(UUID temp)
     {
         
-        // auto it0 = m_bblhash2stats.find(bblhash);
-        // auto it = m_bblhash2stats.find(bblhash);
-        // auto it2 = m_bblhash2stats.find(bblhash);
+        // auto it0 = m_bblhash2stats->find(bblhash);
+        // auto it = m_bblhash2stats->find(bblhash);
+        // auto it2 = m_bblhash2stats->find(bblhash);
         // if (bblhash == UUID(0, 0))
-        //     printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), bblhash.first, bblhash.second);
-        // if (it == m_bblhash2stats.end() || m_bblhash2stats.find(bblhash) == m_bblhash2stats.end()) {
+        //     printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats->size(), bblhash.first, bblhash.second);
+        // if (it == m_bblhash2stats->end() || m_bblhash2stats->find(bblhash) == m_bblhash2stats->end()) {
         //     PrintStats(std::cout);
-        //     printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), bblhash.first, bblhash.second);
-        //     auto it3 = m_bblhash2stats.find(bblhash);
-        //     std::cout << (it0 != m_bblhash2stats.end()) << std::endl;
-        //     std::cout << (it != m_bblhash2stats.end()) << std::endl;
-        //     std::cout << (it2 != m_bblhash2stats.end()) << std::endl;
-        //     std::cout << (it3 != m_bblhash2stats.end()) << std::endl;
-        //     assert(it != m_bblhash2stats.end());
+        //     printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats->size(), bblhash.first, bblhash.second);
+        //     auto it3 = m_bblhash2stats->find(bblhash);
+        //     std::cout << (it0 != m_bblhash2stats->end()) << std::endl;
+        //     std::cout << (it != m_bblhash2stats->end()) << std::endl;
+        //     std::cout << (it2 != m_bblhash2stats->end()) << std::endl;
+        //     std::cout << (it3 != m_bblhash2stats->end()) << std::endl;
+        //     assert(it != m_bblhash2stats->end());
         // }
-        auto it = m_bblhash2stats.end();
+        auto it = m_bblhash2stats->end();
         int cnt = 0;
         // TODO: In Sniper, somehow we need to find multiple times
         // to get the correct bblstats very ocassionally, this does not
         // cause fatal errors currently, but we need to fix this later.
-        while (it == m_bblhash2stats.end()) {
-            UUID bblhash = m_current_bblhash.back();
-            it = m_bblhash2stats.find(bblhash);
+        while (it == m_bblhash2stats->end()) {
+            UUID bblhash = m_current_bblhash->back();
+            it = m_bblhash2stats->find(bblhash);
             cnt++;
         }
         if (cnt > 1) {
-            printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats.size(), it->first.first, it->first.second);
+            printf("tid=%d size=%lu hash=%lx %lx\n", tid, m_bblhash2stats->size(), it->first.first, it->first.second);
         }
 
         return it->second;
@@ -184,36 +202,50 @@ public:
 
     UUID GetCurrentBBLHash()
     {
-        return m_current_bblhash.back();
+        return m_current_bblhash->back();
     }
+
+    size_t stats_size = 0;
 
     void BBLStart(uint64_t hi, uint64_t lo)
     {
-        UUID bblhash = UUID(hi, lo);
-        auto it = m_bblhash2stats.find(bblhash);
-        
-        if (it == m_bblhash2stats.end()) {
-            BBLStats *stats = new BBLStats(GLOBAL_BBLID, bblhash);
-            m_bblhash2stats.insert(std::make_pair(bblhash, stats));
+        UUID bblhash = std::make_pair(hi, lo);
+        // printf("%d: %lx %lx\n", tid, bblhash.first, bblhash.second);
+        if (m_bblhash2stats->size() > stats_size) {
+            std::cout << m_bblhash2stats->size() << std::endl;
+            stats_size = m_bblhash2stats->size();
         }
-        m_current_bblhash.push_back(bblhash);
+        
+        if (hi == 0x2f596e4c26da8253) {
+            std::cout << m_bblhash2stats->size() << std::endl;
+            for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it) {
+                std::cout << std::hex << it->first.first << " " << it->first.second << " " << it->second->bblhash.first << " " << it->second->bblhash.second << std::dec << std::endl;
+            }
+        }
+        auto it = m_bblhash2stats->find(bblhash);
+        
+        if (it == m_bblhash2stats->end()) {
+            BBLStats *stats = new BBLStats(GLOBAL_BBLID, bblhash);
+            m_bblhash2stats->insert(std::make_pair(bblhash, stats));
+        }
+        m_current_bblhash->push_back(bblhash);
     }
 
     void BBLEnd(uint64_t hi, uint64_t lo)
     {
         UUID bblhash = UUID(hi, lo);
-        // printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash.back().first, m_current_bblhash.back().second);
-        if (bblhash != m_current_bblhash.back()) 
+        // printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash->back().first, m_current_bblhash->back().second);
+        if (bblhash != m_current_bblhash->back()) 
         {
-            printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash.back().first, m_current_bblhash.back().second);
+            printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash->back().first, m_current_bblhash->back().second);
         }
-        assert(bblhash == m_current_bblhash.back());
-        m_current_bblhash.pop_back();
+        assert(bblhash == m_current_bblhash->back());
+        m_current_bblhash->pop_back();
     }
 
     void OffloadStart(uint64_t hi, uint64_t type)
     {
-        m_using_pim.push_back(type == PIMPROF_DECISION_PIM);
+        m_using_pim->push_back(type == PIMPROF_DECISION_PIM);
         // our compiling tool uses only the high bits of bblhash
         // to distinguish BBLs in this case
         BBLStart(hi, 0);
@@ -221,15 +253,15 @@ public:
 
     void OffloadEnd(uint64_t hi, uint64_t type)
     {
-        assert(m_using_pim.back() == (type == PIMPROF_DECISION_PIM));
-        m_using_pim.pop_back();
+        assert(m_using_pim->back() == (type == PIMPROF_DECISION_PIM));
+        m_using_pim->pop_back();
         BBLEnd(hi, 0);
     }
 
     // time unit is FS (1e-6 NS)
     void AddTimeInstruction(uint64_t time, uint64_t instr)
     {
-        UUID bblhash = m_current_bblhash.back();
+        UUID bblhash = m_current_bblhash->back();
         BBLStats *bblstats = GetBBLStats(bblhash);
         bblstats->elapsed_time += (COST)time / 1e6;
         bblstats->instruction_count += instr;
@@ -237,7 +269,7 @@ public:
 
     void AddMemory(uint64_t memory_access)
     {
-        UUID bblhash = m_current_bblhash.back();
+        UUID bblhash = m_current_bblhash->back();
         GetBBLStats(bblhash)->memory_access += memory_access;
     }
 
@@ -249,13 +281,13 @@ public:
 
     void InsertSegOnHit(uintptr_t tag, bool is_store)
     {
-        UUID bblhash = m_current_bblhash.back();
+        UUID bblhash = m_current_bblhash->back();
         PtrDataReuseSegment *seg;
-        auto it = m_tag2seg.find(tag);
-        if (it == m_tag2seg.end())
+        auto it = m_tag2seg->find(tag);
+        if (it == m_tag2seg->end())
         {
             seg = new PtrDataReuseSegment();
-            m_tag2seg.insert(std::make_pair(tag, seg));
+            m_tag2seg->insert(std::make_pair(tag, seg));
         }
         else
         {
@@ -280,8 +312,8 @@ public:
     void SplitSegOnMiss(uintptr_t tag)
     {
         PtrDataReuseSegment *seg;
-        auto it = m_tag2seg.find(tag);
-        if (it == m_tag2seg.end())
+        auto it = m_tag2seg->find(tag);
+        if (it == m_tag2seg->end())
             return; // ignore it if there is no existing segment
         seg = it->second;
         m_data_reuse->UpdateTrie(m_data_reuse->getRoot(), seg);
@@ -290,7 +322,7 @@ public:
 
     void MergeStatsMap(UUIDHashMap<BBLStats *> &statsmap)
     {
-        for (auto it = m_bblhash2stats.begin(); it != m_bblhash2stats.end(); ++it) {
+        for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it) {
             auto p = statsmap.find(it->first);
             if (p == statsmap.end()) {
                 BBLStats *stats = new BBLStats(GLOBAL_BBLID, it->first);
@@ -317,7 +349,7 @@ public:
     void AssignBBLID(UUIDHashMap<BBLStats *> &statsmap)
     {
 
-        for (auto it = m_bblhash2stats.begin(); it != m_bblhash2stats.end(); ++it) {
+        for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it) {
             UUID bblhash = it->second->bblhash;
             auto p = statsmap.find(bblhash);
             assert(p != statsmap.end());
@@ -328,7 +360,7 @@ public:
     void PrintStats(std::ostream &ofs)
     {
         std::vector<BBLStats *> sorted;
-        SortStatsMap(m_bblhash2stats, sorted);
+        SortStatsMap(*m_bblhash2stats, sorted);
 
         ofs << HORIZONTAL_LINE << std::endl;
         ofs << "Core " << tid << std::endl;
@@ -377,7 +409,7 @@ public:
   public:
     void AddCPUTime(uint64_t time)
     {
-        UUID bblhash = m_current_bblhash.back();
+        UUID bblhash = m_current_bblhash->back();
         m_bblhash2cputime[bblhash] += (COST)time / 1e6;
     }
 };

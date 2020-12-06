@@ -211,23 +211,6 @@ public:
     void BBLStart(uint64_t hi, uint64_t lo)
     {
         UUID bblhash = UUID(hi, lo);
-        
-        if (hi == 0x2f596e4c26da8253) {
-            printf("tid = %d\n", tid);
-            printf("%d: %lx %lx\n", tid, bblhash.first, bblhash.second);
-            if (stats_addr != m_bblhash2stats) {
-                printf("%p %p %p\n", &stats_addr, &m_bblhash2stats, m_bblhash2stats);
-                stats_addr = m_bblhash2stats;
-            }
-            if (m_bblhash2stats->size() > stats_size) {
-                std::cout << m_bblhash2stats->size() << std::endl;
-                stats_size = m_bblhash2stats->size();
-            }
-            std::cout << m_bblhash2stats->size() << std::endl;
-            for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it) {
-                std::cout << std::hex << it->first.first << " " << it->first.second << " " << it->second->bblhash.first << " " << it->second->bblhash.second << std::dec << std::endl;
-            }
-        }
         auto it = m_bblhash2stats->find(bblhash);
         
         if (it == m_bblhash2stats->end()) {

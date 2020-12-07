@@ -96,6 +96,9 @@ private:
     int tid;
     COST m_pim_time;
 
+    int m_switch_cpu2pim;
+    int m_switch_pim2cpu;
+
     std::vector<bool> *m_using_pim;
     std::vector<UUID> *m_current_bblhash;
 
@@ -113,6 +116,8 @@ public:
     ThreadStats(int _tid = 0)
         : tid(_tid)
         , m_pim_time(0)
+        , m_switch_cpu2pim(0)
+        , m_switch_pim2cpu(0)
     {
         m_using_pim = new std::vector<bool>;
         m_using_pim->push_back(false);
@@ -143,6 +148,9 @@ public:
             std::cout << std::hex << it.first.first << " " << it.first.second << std::dec << " " << it.second << std::endl;
         }
         std::cout << "TOTAL = " << total << std::endl;
+
+        std::cout << "Switch CPU to PIM = " << m_switch_cpu2pim << std::endl;
+        std::cout << "Switch PIM to CPU = " << m_switch_pim2cpu << std::endl;
 
         delete m_using_pim;
         delete m_current_bblhash;
@@ -226,7 +234,7 @@ public:
         // printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash->back().first, m_current_bblhash->back().second);
         if (bblhash != m_current_bblhash->back()) 
         {
-            printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash->back().first, m_current_bblhash->back().second);
+            printf("BBLEnd annotator not match: %d %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, m_current_bblhash->back().first, m_current_bblhash->back().second);
         }
         assert(bblhash == m_current_bblhash->back());
         m_current_bblhash->pop_back();
@@ -234,7 +242,18 @@ public:
 
     void OffloadStart(uint64_t hi, uint64_t type)
     {
+        // printf("Start %d %lx %lu\n", tid, hi, type);
+        bool prev_back = m_using_pim->back();
         m_using_pim->push_back(type == PIMPROF_DECISION_PIM);
+
+        if (prev_back != m_using_pim->back()) {
+            if (prev_back) {
+                m_switch_pim2cpu++;
+            }
+            else {
+                m_switch_cpu2pim++;
+            }
+        }
         // our compiling tool uses only the high bits of bblhash
         // to distinguish BBLs in this case
         BBLStart(hi, 0);
@@ -242,8 +261,21 @@ public:
 
     void OffloadEnd(uint64_t hi, uint64_t type)
     {
+        // printf("End %d %lx %lu\n", tid, hi, type);
+        if (m_using_pim->back() != (type == PIMPROF_DECISION_PIM)) {
+            printf("OffloadEnd annotator not match: %d %lx %lu\n", tid, hi, type);
+        }
         assert(m_using_pim->back() == (type == PIMPROF_DECISION_PIM));
+        bool prev_back = m_using_pim->back();
         m_using_pim->pop_back();
+        if (prev_back != m_using_pim->back()) {
+            if (prev_back) {
+                m_switch_pim2cpu++;
+            }
+            else {
+                m_switch_cpu2pim++;
+            }
+        }
         BBLEnd(hi, 0);
     }
 
@@ -352,7 +384,7 @@ public:
         SortStatsMap(*m_bblhash2stats, sorted);
 
         ofs << HORIZONTAL_LINE << std::endl;
-        ofs << "Core " << tid << std::endl;
+        ofs << "Thread " << tid << std::endl;
         ofs << std::setw(7) << "BBLID"
             << std::setw(15) << "Time(ns)"
             << std::setw(15) << "Instruction"

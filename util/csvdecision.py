@@ -19,7 +19,8 @@ def main(mypath):
                 [None, "Greedy", None, None, None],
                 [None, "Opt", None, None, None],
             ]
-            with open(name, "r") as f:
+            print(name)
+            with open(join(mypath, name), "r") as f:
                 line = f.readline().split() # CPU-only
                 rows[0][2] = line[4]
 

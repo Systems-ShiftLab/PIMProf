@@ -167,6 +167,9 @@ void CostSolver::ParseReuse(std::istream &ifs, DataReuse<BBLID> &reuse)
         reuse.UpdateTrie(reuse.getRoot(), &seg);
     }
 
+    std::ofstream ofs("graph.dot", std::ios::out);
+    reuse.PrintDotGraph(ofs, [](BBLID bblid){ return bblid; });
+
     // reuse.PrintAllSegments(std::cout, [](BBLID bblid){ return bblid; });
 }
 
@@ -326,46 +329,47 @@ CostSolver::DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
 
     BBLIDTrieNode *partial_root = new BBLIDTrieNode();
     BBLIDDataReuseSegment allidset;
-    int currentnode = 0;
-    int leavessize = _data_reuse.getLeaves().size();
+    int cur_node = 0;
+    int leaves_size = _data_reuse.getLeaves().size();
 
-    for (int i = 0; currentnode < leavessize; i++) {
-        std::vector<BBLID> idvec;
-        // insert segments until the number of different BBLs hit _batchsize
-        while (currentnode < leavessize) {
+    int batch_cnt = 0;
+    while(cur_node < leaves_size) {
+        std::vector<BBLID> cur_batch;
+        // insert segments until the number of different BBLs exceeds _batchsize or all nodes are added
+        while (cur_node < leaves_size) {
             BBLIDDataReuseSegment seg;
-            _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[currentnode]);
+            _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[cur_node]);
             std::vector<BBLID> diff = seg.diff(allidset);
-            // std::cout << idvec.size() << " " << diff.size() << std::endl;
-            if (idvec.size() + diff.size() > (unsigned)_batchsize) break;
+            // std::cout << cur_batch.size() << " " << diff.size() << std::endl;
+            
             allidset.insert(seg);
-            idvec.insert(idvec.end(), diff.begin(), diff.end());
+            cur_batch.insert(cur_batch.end(), diff.begin(), diff.end());
             _data_reuse.UpdateTrie(partial_root, &seg);
-            currentnode++;
+            cur_node++;
             seg_count = seg.getCount();
+
+            if (cur_batch.size() + diff.size() > (unsigned)_batchsize) break;
         }
 
-        int idvecsize = idvec.size();
-        std::cout << "batch " << i << std::endl;
-        for (int j = 0; j < idvecsize; j++) {
-            std::cout << idvec[j] << " "; 
+        int cur_batch_size = cur_batch.size();
+        std::cout << "batch " << batch_cnt << std::endl;
+        for (int j = 0; j < cur_batch_size; j++) {
+            std::cout << cur_batch[j] << " "; 
         }
-        std::cout << std::endl;
 
         // find optimal in this batch
-        assert(idvecsize <= _batchsize);
-        uint64_t permute = (1 << idvecsize) - 1;
+        uint64_t permute = (1 << cur_batch_size) - 1;
 
         // should not compare the cost between batches, so reset cur_total
         cur_total = FLT_MAX;
 
         DECISION temp_decision = decision;
         for (; permute != (uint64_t)(-1); permute--) {
-            for (int j = 0; j < idvecsize; j++) {
+            for (int j = 0; j < cur_batch_size; j++) {
                 if ((permute >> j) & 1)
-                    temp_decision[idvec[j]] = PIM;
+                    temp_decision[cur_batch[j]] = PIM;
                 else
-                    temp_decision[idvec[j]] = CPU;
+                    temp_decision[cur_batch[j]] = CPU;
             }
             // PrintDecision(std::cout, temp_decision, true);
             COST temp_total = Cost(temp_decision, partial_root);
@@ -374,9 +378,10 @@ CostSolver::DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
                 decision = temp_decision;
             }
         }
-        std::cout << "cur_total = " << cur_total << std::endl;
-        std::cout << seg_count << " " << reuse_max << " " << cur_total << std::endl;
+        std::cout << "seg_count = " << seg_count << ", reuse_max = " << reuse_max << ", cur_total = " << cur_total << std::endl;
+        std::cout << std::endl;
         if (seg_count * reuse_max < _batchthreshold * cur_total) break;
+        batch_cnt++;
     }
     // std::ofstream ofs("temp.dot", std::ofstream::out);
     // _cost_package->_data_reuse.print(ofs, partial_root);
@@ -449,7 +454,7 @@ COST CostSolver::ElapsedTime(CostSite site)
     COST elapsed_time = 0;
     for (BBLID i = 0; i < sorted[site].size(); ++i) {
         auto *stats = sorted[site][i];
-        elapsed_time += stats->ElapsedTime(0);
+        elapsed_time += stats->MaxElapsedTime();
     }
     return elapsed_time;
 }

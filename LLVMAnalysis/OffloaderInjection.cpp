@@ -381,9 +381,9 @@ struct OffloaderInjection : public ModulePass {
         errs() << "CPU inject count = " << cpu_inject_cnt << ", PIM inject count = " << pim_inject_cnt << "\n";
 
         PIMProfAAW aaw = PIMProfAAW();
-        for (auto &func: M) {
-            func.print(outs(), &aaw);
-        }
+        // for (auto &func: M) {
+        //     func.print(outs(), &aaw);
+        // }
 
         // M.print(errs(), nullptr);
         return true;

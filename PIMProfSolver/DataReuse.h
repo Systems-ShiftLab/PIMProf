@@ -39,7 +39,7 @@ class DataReuseSegment
 private:
     Ty _head;
     std::set<Ty> _set;
-    int _count;
+    uint64_t _count;
 
 public:
     inline DataReuseSegment()
@@ -81,8 +81,8 @@ public:
     inline typename std::set<Ty>::iterator end() { return _set.end(); }
     inline void setHead(Ty head) { _head = head; }
     inline Ty getHead() const { return _head; }
-    inline void setCount(int count) { _count = count; }
-    inline int getCount() const { return _count; }
+    inline void setCount(uint64_t count) { _count = count; }
+    inline uint64_t getCount() const { return _count; }
 
     inline bool operator==(DataReuseSegment &rhs)
     {
@@ -116,7 +116,7 @@ public:
     std::map<Ty, TrieNode *> _children;
     Ty _cur;
     TrieNode *_parent;
-    int64_t _count;
+    uint64_t _count;
 
 public:
     inline TrieNode()
@@ -189,6 +189,7 @@ public:
             _leaves.push_back(temp);
         }
         temp->_isLeaf = true;
+        assert(temp->_count + seg->getCount() >= temp->_count); // detect overflow
         temp->_count += seg->getCount();
     }
 

@@ -21,6 +21,34 @@
 namespace PIMProf {
 
 /* ===================================================================== */
+/* DisjointSet */
+/* ===================================================================== */
+class DisjointSet {
+  public:
+    std::unordered_map<BBLID, BBLID> parent;
+
+    BBLID Find(BBLID l) {
+        auto it = parent.find(l);
+        if (it == parent.end()) {
+            parent[l] = l;
+        }
+        else {
+            while (parent[l] != l) {
+                parent[l] = parent[parent[l]];
+                l = parent[l];
+            }
+        }
+        return l;
+    }
+
+    void Union(BBLID m, BBLID n) {
+        BBLID x = Find(m);
+        BBLID y = Find(n);
+        parent[x] = y;
+    }
+};
+
+/* ===================================================================== */
 /* BBLScope */
 /* ===================================================================== */
 class BBLScope {
@@ -76,7 +104,7 @@ PRETTY_PRINT_FUNC_HELPER(warning, YELLOWCOLOR)
 class CommandLineParser {
   public:
     enum Mode {
-        MPKI, PARA, REUSE
+        MPKI, PARA, REUSE, DEBUG
     };
   private:
     std::string _cpustatsfile, _pimstatsfile;

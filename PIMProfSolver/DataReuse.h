@@ -269,13 +269,62 @@ public:
 
     std::ostream &PrintAllSegments(std::ostream &out, BBLID (*get_id)(Ty))
     {
-        for (auto it = _leaves.begin(); it != _leaves.end(); ++it)
+        for (auto it : _leaves)
         {
             DataReuseSegment<Ty> seg;
-            ExportSegment(&seg, *it);
+            ExportSegment(&seg, it);
             seg.print(out, get_id);
         }
         return out;
+    }
+
+    std::ostream &PrintBBLOccurrence(std::ostream &out, BBLID (*get_id)(Ty))
+    {
+        // occurrence[bblid][seg_length].first stores seg_length
+        // occurrence[bblid][seg_length].second stores count
+        std::vector<std::vector<std::pair<int, int>>> occurrence;
+        std::vector<int> total_occurrence;
+        std::vector<int> length_dist;
+        for (auto it : _leaves) {
+            DataReuseSegment<Ty> seg;
+            ExportSegment(&seg, it);
+            size_t seg_length = seg.size();
+
+            for (auto elem : seg) {
+                BBLID bblid = get_id(elem);
+                if (occurrence.size() <= bblid) {
+                    occurrence.resize(bblid + 1);
+                    total_occurrence.resize(bblid + 1);
+                }
+                if (occurrence[bblid].size() <= seg_length) {
+                    occurrence[bblid].resize(seg_length + 1);
+                }
+                if (length_dist.size() <= seg_length) {
+                    length_dist.resize(seg_length + 1);
+                }
+                occurrence[bblid][seg_length].first = seg_length;
+                occurrence[bblid][seg_length].second += seg.getCount();
+                total_occurrence[bblid] += seg.getCount();
+                length_dist[seg_length] += seg.getCount();
+            }
+        }
+
+        for (BBLID i = 0; i < total_occurrence.size(); ++i) {
+            if (total_occurrence[i] > 0) {
+                std::sort(occurrence[i].begin(), occurrence[i].end(),
+                    [](auto lhs, auto rhs) { return lhs.second > rhs.second; });
+                out << "BBLID = " << i << ", total = " << total_occurrence[i] << " | ";
+                for (auto elem : occurrence[i]) {
+                    if (elem.second <= 0) break;
+                    out << "[" << elem.first << "]" << elem.second << " ";
+                }
+                out << std::endl;
+            }
+        }
+
+        for (size_t i = 0; i < length_dist.size(); ++i) {
+            out << "length = " << i << " | " << length_dist[i] << std::endl;
+        }
     }
 };
 } // namespace PIMProf

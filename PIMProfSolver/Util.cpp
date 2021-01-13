@@ -87,6 +87,22 @@ void CommandLineParser::initialize(int argc, char *argv[])
             Usage();
         }
     }
+    else if (_mode_string == "debug") {
+        _mode = Mode::DEBUG;
+        const char* const short_opt = "c:p:r:o:h";
+        const option long_opt[] = {
+            {"cpu", required_argument, nullptr, 'c'},
+            {"pim", required_argument, nullptr, 'p'},
+            {"reuse", required_argument, nullptr, 'r'},
+            {"output", required_argument, nullptr, 'o'},
+            {"help", no_argument, nullptr, 'h'},
+            {nullptr, no_argument, nullptr, 0}
+        };
+        parser(short_opt, long_opt);
+        if (_cpustatsfile == "" || _pimstatsfile == "" || _reusefile == "" || _outputfile == "") {
+            Usage();
+        }
+    }
     else {
         Usage();
     }

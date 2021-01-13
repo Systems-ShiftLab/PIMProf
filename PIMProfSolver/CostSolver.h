@@ -26,25 +26,36 @@
 
 namespace PIMProf
 {
+// provide separate elapsed time for each thread
+// as well as the merged BBLStats
 class ThreadBBLStats : public BBLStats {
   private:
     std::vector<COST> thread_elapsed_time;
     std::vector<COST> sorted_elapsed_time;
-    double parallelism;
+    int parallelism;
     bool dirty = true;
 
   public:
-    ThreadBBLStats(const BBLStats &bblstats) : BBLStats(bblstats)
+    ThreadBBLStats(int tid, const BBLStats &bblstats) : BBLStats(bblstats)
     {
-        thread_elapsed_time.push_back(bblstats.elapsed_time);
-        sorted_elapsed_time.push_back(bblstats.elapsed_time);
+        if (tid >= thread_elapsed_time.size()) {
+            thread_elapsed_time.resize(tid + 1, 0);
+            sorted_elapsed_time.resize(tid + 1, 0);
+        }
+        thread_elapsed_time[tid] = bblstats.elapsed_time;
+        sorted_elapsed_time[tid] = bblstats.elapsed_time;
         parallelism = 0;
     }
 
-    ThreadBBLStats& MergeStats(const BBLStats &rhs) {
+    ThreadBBLStats& MergeStats(int tid, const BBLStats &rhs) {
+        if (tid >= thread_elapsed_time.size()) {
+            thread_elapsed_time.resize(tid + 1, 0);
+            sorted_elapsed_time.resize(tid + 1, 0);
+        }
         BBLStats::MergeStats(rhs);
-        thread_elapsed_time.push_back(rhs.elapsed_time);
-        sorted_elapsed_time.push_back(rhs.elapsed_time);
+        thread_elapsed_time[tid] = rhs.elapsed_time;
+        sorted_elapsed_time[tid] = rhs.elapsed_time;
+        parallelism++;
         return *this;
     }
 
@@ -53,6 +64,7 @@ class ThreadBBLStats : public BBLStats {
     }
 
     COST ElapsedTime(int tid) {
+        assert(tid < thread_elapsed_time.size());
         return thread_elapsed_time[tid];
     }
 
@@ -62,6 +74,15 @@ class ThreadBBLStats : public BBLStats {
             elapsed_time = sorted_elapsed_time[thread_elapsed_time.size() - 1];
         }
         return elapsed_time;
+    }
+
+    void print(std::ostream &ofs) {
+        ofs << bblid << ","
+            << std::hex << bblhash.first << "," << bblhash.second << "," << std::dec;
+        for (auto elem : thread_elapsed_time) {
+            ofs << elem << ",";
+        }
+        ofs << std::endl;
     }
 
 };
@@ -88,6 +109,7 @@ class CostSolver {
     typedef DataReuse<BBLID> BBLIDDataReuse;
     typedef DataReuseSegment<BBLID> BBLIDDataReuseSegment;
     typedef TrieNode<BBLID> BBLIDTrieNode;
+    static BBLID _get_id(BBLID bblid) { return bblid; }
 
   private:
     CommandLineParser *_command_line_parser;
@@ -109,6 +131,12 @@ class CostSolver {
     void initialize(CommandLineParser *parser);
     ~CostSolver();
 
+    inline COST SingleSegMaxReuseCost() {
+        return std::max(
+            _flush_cost[CPU] + _fetch_cost[PIM],
+            _flush_cost[PIM] + _fetch_cost[CPU]);
+    }
+
     void ParseStats(std::istream &ifs, UUIDHashMap<ThreadBBLStats *> &stats);
     void ParseReuse(std::istream &ifs, BBLIDDataReuse &reuse);
 
@@ -116,12 +144,12 @@ class CostSolver {
 
     DECISION PrintSolution(std::ostream &out);
 
-    void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, BBLIDTrieNode *root, bool isDifferent);
+    void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, const BBLIDTrieNode *root, bool isDifferent);
 
-    COST Cost(const DECISION &decision, BBLIDTrieNode *reusetree);
-    COST ElapsedTime(CostSite site); // return CPU/PIM only elapsd time
+    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree);
+    COST ElapsedTime(CostSite site); // return CPU/PIM only elapsed time
     std::pair<COST, COST> ElapsedTime(const DECISION &decision); // return execution time pair (cpu_elapsed_time, pim_elapsed_time) for decision
-    COST ReuseCost(const DECISION &decision, BBLIDTrieNode *reusetree);
+    COST ReuseCost(const DECISION &decision, const BBLIDTrieNode *reusetree);
 
     void ReadConfig(ConfigReader &reader);
 
@@ -133,9 +161,13 @@ class CostSolver {
     void PrintStats(std::ostream &ofs);
 
   private:
+    COST PermuteDecision(DECISION &decision, const std::vector<BBLID> &cur_batch, const BBLIDTrieNode *partial_root);
+
     DECISION PrintMPKIStats(std::ostream &ofs);
     DECISION PrintReuseStats(std::ostream &ofs);
     DECISION PrintGreedyStats(std::ostream &ofs);
+    void PrintDisjointSets(std::ostream &ofs);
+    DECISION Debug_ConsiderEverySegment(std::ostream &ofs);
 };
 
 } // namespace PIMProf

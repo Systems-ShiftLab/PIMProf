@@ -143,14 +143,14 @@ public:
                 return lhs.first.first < rhs.first.first;
             }
         );
-        for (auto it : sorted) {
+        for(auto it : sorted) {
             total += it.second;
             std::cout << std::hex << it.first.first << " " << it.first.second << std::dec << " " << it.second << std::endl;
         }
-        std::cout << "TOTAL = " << total << std::endl;
+        std::cout << "tid = " << tid << ", total = " << total << std::endl;
 
-        std::cout << "Switch CPU to PIM = " << m_switch_cpu2pim << std::endl;
-        std::cout << "Switch PIM to CPU = " << m_switch_pim2cpu << std::endl;
+        std::cout << "switch CPU to PIM = " << m_switch_cpu2pim << std::endl;
+        std::cout << "switch PIM to CPU = " << m_switch_pim2cpu << std::endl;
 
         delete m_using_pim;
         delete m_current_bblhash;
@@ -173,7 +173,7 @@ public:
     void setTid(int _tid) { tid = _tid; }
     bool IsUsingPIM() { return m_using_pim->back(); }
 
-    BBLStats *GetBBLStats(UUID temp)
+    BBLStats *GetBBLStats()
     {
         
         // auto it0 = m_bblhash2stats->find(bblhash);
@@ -282,16 +282,14 @@ public:
     // time unit is FS (1e-6 NS)
     void AddTimeInstruction(uint64_t time, uint64_t instr)
     {
-        UUID bblhash = m_current_bblhash->back();
-        BBLStats *bblstats = GetBBLStats(bblhash);
+        BBLStats *bblstats = GetBBLStats();
         bblstats->elapsed_time += (COST)time / 1e6;
         bblstats->instruction_count += instr;
     }
 
     void AddMemory(uint64_t memory_access)
     {
-        UUID bblhash = m_current_bblhash->back();
-        GetBBLStats(bblhash)->memory_access += memory_access;
+        GetBBLStats()->memory_access += memory_access;
     }
 
     // time unit is FS (1e-6 NS)
@@ -302,7 +300,6 @@ public:
 
     void InsertSegOnHit(uintptr_t tag, bool is_store)
     {
-        UUID bblhash = m_current_bblhash->back();
         PtrDataReuseSegment *seg;
         auto it = m_tag2seg->find(tag);
         if (it == m_tag2seg->end())
@@ -314,7 +311,7 @@ public:
         {
             seg = it->second;
         }
-        BBLStats *bblstats = GetBBLStats(bblhash);
+        BBLStats *bblstats = GetBBLStats();
         seg->insert(bblstats);
         // int32_t threadcount = _storage->_cost_package->_thread_count;
         // if (threadcount > seg->getCount())

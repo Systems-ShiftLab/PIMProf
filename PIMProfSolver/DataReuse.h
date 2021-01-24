@@ -312,7 +312,7 @@ public:
         for (BBLID i = 0; i < total_occurrence.size(); ++i) {
             if (total_occurrence[i] > 0) {
                 std::sort(occurrence[i].begin(), occurrence[i].end(),
-                    [](auto lhs, auto rhs) { return lhs.second > rhs.second; });
+                    [](std::pair<int, int> lhs, std::pair<int, int> rhs) { return lhs.second > rhs.second; });
                 out << "BBLID = " << i << ", total = " << total_occurrence[i] << " | ";
                 for (auto elem : occurrence[i]) {
                     if (elem.second <= 0) break;
@@ -325,6 +325,7 @@ public:
         for (size_t i = 0; i < length_dist.size(); ++i) {
             out << "length = " << i << " | " << length_dist[i] << std::endl;
         }
+        return out;
     }
 };
 } // namespace PIMProf

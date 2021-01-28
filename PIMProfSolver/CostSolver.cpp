@@ -149,34 +149,59 @@ void CostSolver::PrintStats(std::ostream &ofs)
 void CostSolver::ParseReuse(std::istream &ifs, DataReuse<BBLID> &reuse)
 {
     std::string line, token;
+
+    // we parses reuse segments and BBL switch counts at the same time
+    bool isreusesegment = true; 
     
     while(std::getline(ifs, line)) {
         if (line.find(HORIZONTAL_LINE) != std::string::npos) {
-            std::getline(ifs, line); // skip next line
+            std::getline(ifs, line);
+            std::stringstream ss(line);
+            ss >> token;
+            if (token == "ReuseSegment") {
+                isreusesegment = true;
+            }
+            else if (token == "BBLSwitchCount") {
+                isreusesegment = false;
+            }
+            else { assert(0); }
             continue;
         }
-        std::stringstream ss(line);
-        BBLIDDataReuseSegment seg;
-        ss >> token >> token >> token;
-        BBLID head = std::stoi(token.substr(0, token.size() - 1));
-        int64_t count;
-        ss >> token >> token >> count;
-        ss >> token;
-        BBLID bblid;
-        while (ss >> bblid) {
-            seg.insert(bblid);
+        if (isreusesegment) {
+            std::stringstream ss(line);
+            BBLIDDataReuseSegment seg;
+            ss >> token >> token >> token;
+            BBLID head = std::stoi(token.substr(0, token.size() - 1));
+            int64_t count;
+            ss >> token >> token >> count;
+            ss >> token;
+            BBLID bblid;
+            while (ss >> bblid) {
+                seg.insert(bblid);
+            }
+            seg.setHead(head);
+            if (count < 0) {
+                errormsg("count < 0 for line ``%s''", line.c_str());
+                assert(count >= 0);
+            }
+            seg.setCount(count);
+            reuse.UpdateTrie(reuse.getRoot(), &seg);
         }
-        seg.setHead(head);
-        if (count < 0) {
-            errormsg("count < 0 for line ``%s''", line.c_str());
-            assert(count >= 0);
+        else {
+            std::stringstream ss(line);
+            BBLID from;
+            ss >> token >> token >> from >> token;
+            while (ss >> token) {
+                size_t delim = token.find(':');
+                BBLID to = stoi(token.substr(0, delim));
+                int count = stoi(token.substr(delim + 1));
+                
+            }
         }
-        seg.setCount(count);
-        reuse.UpdateTrie(reuse.getRoot(), &seg);
     }
 
-    std::ofstream ofs("graph.dot", std::ios::out);
-    reuse.PrintDotGraph(ofs, [](BBLID bblid){ return bblid; });
+    // std::ofstream ofs("graph.dot", std::ios::out);
+    // reuse.PrintDotGraph(ofs, [](BBLID bblid){ return bblid; });
 
     // reuse.PrintAllSegments(std::cout, [](BBLID bblid){ return bblid; });
 }
@@ -498,9 +523,9 @@ CostSolver::DECISION CostSolver::Debug_ConsiderEverySegment(std::ostream &ofs)
 {
     _data_reuse.SortLeaves();
     std::ofstream oo("sortedsegments.out", std::ofstream::out);
-    _data_reuse.PrintAllSegments(oo, _get_id);
+    _data_reuse.PrintAllSegments(oo, CostSolver::_get_id);
     oo << std::endl;
-    _data_reuse.PrintBBLOccurrence(oo, _get_id);
+    _data_reuse.PrintBBLOccurrence(oo, CostSolver::_get_id);
 
 
     COST elapsed_time_min = (ElapsedTime(CPU) < ElapsedTime(PIM) ? ElapsedTime(CPU) : ElapsedTime(PIM));

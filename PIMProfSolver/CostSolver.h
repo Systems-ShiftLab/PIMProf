@@ -109,6 +109,9 @@ class CostSolver {
     typedef DataReuse<BBLID> BBLIDDataReuse;
     typedef DataReuseSegment<BBLID> BBLIDDataReuseSegment;
     typedef TrieNode<BBLID> BBLIDTrieNode;
+
+    // instance of get_id function, prototype:
+    // BBLID get_id(Ty elem);
     static BBLID _get_id(BBLID bblid) { return bblid; }
 
   private:

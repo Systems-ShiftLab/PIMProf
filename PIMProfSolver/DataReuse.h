@@ -1,5 +1,5 @@
 //===- DataReuse.h - Data reuse class template ------------------*- C++ -*-===//
-//
+// Type Ty used here must be either a fundamental data type or a pointer
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,12 +20,82 @@
 #include <set>
 #include <map>
 #include <algorithm>
+#include <unordered_map>
 #include <cassert>
 
 #include "Util.h"
 
 namespace PIMProf
 {
+/* ===================================================================== */
+/* BBLSwitchCount */
+/* ===================================================================== */
+template <class Ty>
+class BBLSwitchCount
+{
+private:
+    std::unordered_map<Ty, int> _elem2idx;
+    std::vector<Ty> _idx2elem;
+    std::vector<int> _total_count;
+    std::vector<std::vector<int>> _count;
+
+public:
+    inline void createElem(const Ty elem)
+    {
+        auto it = _elem2idx.find(elem);
+        if (it == _elem2idx.end()) {
+            _idx2elem.push_back(elem);
+            _elem2idx.insert(std::make_pair(elem, _idx2elem.size() - 1));
+        }
+    }
+
+    inline size_t getIdx(const Ty elem)
+    {
+        auto it = _elem2idx.find(elem);
+        assert(it != _elem2idx.end());
+        return it->second;
+    }
+
+    inline Ty getElem(const size_t idx)
+    {
+        assert(idx < _idx2elem.size());
+        return _idx2elem[idx];
+    }
+
+    inline void insert(Ty from, Ty to, int count=1)
+    {
+        createElem(from);
+        createElem(to);
+        size_t fromidx = getIdx(from);
+        size_t toidx = getIdx(to);
+        if(_count.size() <= fromidx) {
+            _count.resize(fromidx + 1);
+            _total_count.resize(fromidx + 1, 0);
+        }
+        if (_count[fromidx].size() <= toidx) {
+            _count[fromidx].resize(toidx + 1, 0);
+        }
+        _count[fromidx][toidx] += count;
+        _total_count[fromidx] += count;
+    }
+
+    std::ostream &print(std::ostream &out, BBLID (*get_id)(Ty))
+    {
+        for (size_t fromidx = 0; fromidx < _count.size(); ++fromidx) {
+            if (_total_count[fromidx] > 0) {
+                out << "from = " << get_id(getElem(fromidx)) << " | ";
+                for (size_t toidx = 0; toidx < _count[fromidx].size(); ++toidx) {
+                    if (_count[fromidx][toidx] > 0) {
+                        out << get_id(getElem(toidx)) << ":" << _count[fromidx][toidx] << " ";
+                    }
+                }
+                out << std::endl;
+            }
+        }
+        return out;
+    }
+};
+
 /* ===================================================================== */
 /* DataReuseSegment */
 /* ===================================================================== */
@@ -42,8 +112,7 @@ private:
     uint64_t _count;
 
 public:
-    inline DataReuseSegment()
-    {
+    inline DataReuseSegment() {
         _count = 1;
     }
 

@@ -9,15 +9,15 @@ def main(mypath):
     costfiles.sort()
     with open(path.join(mypath, "decision.csv"), "w") as csvfile:
         csvwriter = csv.writer(csvfile, delimiter=",")
-        csvwriter.writerow([None, None, "CPU", "PIM", "Reuse"])
+        csvwriter.writerow([None, None, "CPU", "PIM", "Reuse", "Switch"])
         for name in costfiles:
             workload = name[:-4]
             rows = [
-                [workload, "CPU-only", None, None, None],
-                [None, "PIM-only", None, None, None],
-                [None, "MPKI", None, None, None],
-                [None, "Greedy", None, None, None],
-                [None, "Opt", None, None, None],
+                [workload, "CPU-only", None, None, None, None],
+                [None, "PIM-only", None, None, None, None],
+                [None, "MPKI", None, None, None, None],
+                [None, "Greedy", None, None, None, None],
+                [None, "Opt", None, None, None, None],
             ]
             print(name)
             with open(join(mypath, name), "r") as f:
@@ -32,16 +32,19 @@ def main(mypath):
                 rows[2][2] = line[7]
                 rows[2][3] = line[10]
                 rows[2][4] = line[13]
+                rows[2][5] = line[16]
 
                 line = f.readline().split() # Greedy
                 rows[3][2] = line[7]
                 rows[3][3] = line[10]
                 rows[3][4] = line[13]
+                rows[3][5] = line[16]
 
                 line = f.readline().split() # Reuse
                 rows[4][2] = line[7]
                 rows[4][3] = line[10]
                 rows[4][4] = line[13]
+                rows[4][5] = line[16]
 
             csvwriter.writerows(rows)
 

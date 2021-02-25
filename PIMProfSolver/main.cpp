@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     _cost_solver.PrintSolution(ofs);
 
     // std::ofstream ofs("decision.out");
-    // CostSolver::DECISION decision = _cost_solver.PrintSolution(ofs);
+    // DECISION decision = _cost_solver.PrintSolution(ofs);
     // ofs.close();
 
     // ofs.open("BBLReuseCost.dot", std::ofstream::out);

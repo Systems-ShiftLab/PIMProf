@@ -184,6 +184,11 @@ struct AnnotationInjection : public ModulePass {
                 }
             }
         }
+
+        PIMProfAAW aaw = PIMProfAAW();
+        for (auto &func: M) {
+            func.print(outs(), &aaw);
+        }
         
         // M.print(errs(), nullptr);
         return true;

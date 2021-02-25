@@ -101,14 +101,10 @@ inline void SortStatsMap(UUIDHashMap<ThreadBBLStats *> &statsmap, std::vector<Th
 
 class CostSolver {
   public:
-    /// A DECISION is a vector that represents a certain offloading decision, for example:
-    /// A DECISION vector (PIM, CPU, CPU, PIM) means:
-    /// put the 1st and 4th BBL on PIM and 2nd and 3rd on CPU for execution
-    /// The target of CostSolver is to figure out the decision that will lead to the minimum total cost.
-    typedef std::vector<CostSite> DECISION;
     typedef DataReuse<BBLID> BBLIDDataReuse;
     typedef DataReuseSegment<BBLID> BBLIDDataReuseSegment;
     typedef TrieNode<BBLID> BBLIDTrieNode;
+    typedef BBLSwitchCountList<BBLID> BBLIDBBLSwitchCountList;
 
     // instance of get_id function, prototype:
     // BBLID get_id(Ty elem);
@@ -121,10 +117,14 @@ class CostSolver {
     bool _dirty = true; // track if _sortedstats is stale
 
     BBLIDDataReuse _data_reuse;
+    BBLIDBBLSwitchCountList _bbl_switch_count;
 
     /// the cache flush/fetch cost of each site, in nanoseconds
     COST _flush_cost[MAX_COST_SITE];
     COST _fetch_cost[MAX_COST_SITE];
+
+    /// the switch cost FROM each site (TO the other)
+    COST _switch_cost[MAX_COST_SITE];
 
     double _batchthreshold;
     int _batchsize;
@@ -147,12 +147,13 @@ class CostSolver {
 
     DECISION PrintSolution(std::ostream &out);
 
-    void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, const BBLIDTrieNode *root, bool isDifferent);
 
-    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree);
+    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDBBLSwitchCountList *switchcnt);
     COST ElapsedTime(CostSite site); // return CPU/PIM only elapsed time
     std::pair<COST, COST> ElapsedTime(const DECISION &decision); // return execution time pair (cpu_elapsed_time, pim_elapsed_time) for decision
+    COST SwitchCost(const DECISION &decision, const BBLIDBBLSwitchCountList *switchcnt);
     COST ReuseCost(const DECISION &decision, const BBLIDTrieNode *reusetree);
+    void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, const BBLIDTrieNode *root, bool isDifferent);
 
     void ReadConfig(ConfigReader &reader);
 
@@ -170,7 +171,8 @@ class CostSolver {
     DECISION PrintReuseStats(std::ostream &ofs);
     DECISION PrintGreedyStats(std::ostream &ofs);
     void PrintDisjointSets(std::ostream &ofs);
-    DECISION Debug_ConsiderEverySegment(std::ostream &ofs);
+    DECISION Debug_StartFromUnimportantSegment(std::ostream &ofs);
+    DECISION Debug_ConsiderSwitchCost(std::ostream &ofs);
 };
 
 } // namespace PIMProf

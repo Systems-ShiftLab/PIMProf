@@ -14,6 +14,14 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
 
+#include "llvm/IR/AssemblyAnnotationWriter.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/FormattedStream.h"
+
 #include "Common.h"
 
 using namespace llvm;
@@ -133,5 +141,23 @@ void InjectVTuneITT(Module &M, VTUNE_MODE mode, Instruction *insertPt) {
     CallInst::Create(
         offloader, arglist, "", insertPt);
 }
+
+/********************************************************
+* Assembly annotation writer
+********************************************************/
+
+class PIMProfAAW : public AssemblyAnnotationWriter {
+public:
+    void emitInstructionAnnot(const Instruction *I, formatted_raw_ostream &ofs) {
+        ofs << "######## At ";
+        DILocation *deb = I->getDebugLoc();
+        if (deb != NULL) {
+            ofs << deb->getFilename();
+            ofs << " line: " << deb->getLine();
+            ofs << " col: " << deb->getColumn();
+        }
+        ofs << "\n";
+    }
+};
 
 } // namespace PIMProf

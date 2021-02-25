@@ -9,6 +9,7 @@
 #define __COMMON_H__
 
 #include <string>
+#include <vector>
 #include <map>
 #include <unordered_map>
 
@@ -114,6 +115,24 @@ enum CostSite {
     DEFAULT = 0x0fffffff,
     INVALID = 0x3fffffff // a placeholder that does not count as a cost site
 };
+
+const std::string CostSiteString[] {
+    "C", "P", "M",
+    "N", "A",
+    "D",
+    "I"
+};
+
+inline const std::string getCostSiteString(CostSite site)
+{
+    return CostSiteString[site];
+}
+
+/// A DECISION is a vector that represents a certain offloading decision, for example:
+/// A DECISION vector (PIM, CPU, CPU, PIM) means:
+/// put the 1st and 4th BBL on PIM and 2nd and 3rd on CPU for execution
+/// The target of CostSolver is to figure out the decision that will lead to the minimum total cost.
+typedef std::vector<CostSite> DECISION;
 
 enum ACCESS_TYPE
 {

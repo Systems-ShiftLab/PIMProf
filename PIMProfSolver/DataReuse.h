@@ -31,13 +31,13 @@ namespace PIMProf
 /* BBLSwitchCount */
 /* ===================================================================== */
 template <class Ty>
-class BBLSwitchCount
+class BBLSwitchCountMatrix
 {
 private:
-    std::unordered_map<Ty, int> _elem2idx;
+    std::unordered_map<Ty, uint64_t> _elem2idx;
     std::vector<Ty> _idx2elem;
-    std::vector<int> _total_count;
-    std::vector<std::vector<int>> _count;
+    std::vector<uint64_t> _total_count;
+    std::vector<std::vector<uint64_t>> _count;
 
 public:
     inline void createElem(const Ty elem)
@@ -62,7 +62,7 @@ public:
         return _idx2elem[idx];
     }
 
-    inline void insert(Ty from, Ty to, int count=1)
+    inline void insert(Ty from, Ty to, uint64_t count=1)
     {
         createElem(from);
         createElem(to);
@@ -91,6 +91,96 @@ public:
                 }
                 out << std::endl;
             }
+        }
+        return out;
+    }
+};
+
+// just declaration for now because this has no use currently
+template <class Ty>
+class BBLSwitchCountList;
+
+// template specialiation for CostSolver implementation
+// here we use adjacency list instead for faster lookup
+template <>
+class BBLSwitchCountList<BBLID> {
+public:
+    class BBLSwitchCountRow {
+    public:
+        BBLID _fromidx;
+        std::vector<std::pair<BBLID, uint64_t>> _toidxvec;
+
+        BBLSwitchCountRow(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
+        : _fromidx(fromidx),
+          _toidxvec(toidxvec)
+        {}
+
+        COST Cost(const DECISION &decision, const COST switch_cost[MAX_COST_SITE]) {
+            COST result = 0;
+            for (auto &elem : _toidxvec) {
+                BBLID toidx = elem.first;
+                uint64_t count = elem.second;
+                if (decision[_fromidx] != INVALID && decision[toidx] != INVALID && decision[_fromidx] != decision[toidx]) {
+                    result += switch_cost[decision[_fromidx]] * count;
+                }
+            }
+            return result;
+        }
+
+        // descending sort by count
+        void Sort() {
+            std::sort(_toidxvec.begin(), _toidxvec.end(), 
+                [](std::pair<BBLID, uint64_t> l, std::pair<BBLID, uint64_t> r) { return l.second > r.second; });
+        }
+    };
+private:
+    std::vector<BBLSwitchCountRow> _count;
+public:
+
+    inline size_t getIdx(const BBLID elem) { return elem; }
+    inline BBLID getElem(const size_t idx) { return idx; }
+
+    inline std::vector<BBLSwitchCountRow>::iterator begin() { return _count.begin(); }
+    inline std::vector<BBLSwitchCountRow>::iterator end() { return _count.end(); }
+
+    inline void ListInsert(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
+    {
+        _count.push_back(BBLSwitchCountRow(fromidx, toidxvec));
+    }
+
+    void Sort() {
+        for (auto &row : _count) {
+            row.Sort();
+        }
+    }
+
+    std::ostream &print(std::ostream &out)
+    {
+        for (auto &row : _count) {
+            out << "from = " << row._fromidx << " | ";
+            for (auto &elem : row._toidxvec) {
+                out << elem.first << ":" << elem.second << " ";
+            }
+            out << std::endl;
+        }
+        return out;
+    }
+
+    std::ostream &printSwitch(std::ostream &out, const DECISION &decision, const COST switch_cost[MAX_COST_SITE])
+    {
+        for (auto &row : _count) {
+            if (row.Cost(decision, switch_cost) == 0) continue;
+            CostSite fromsite = decision[row._fromidx];
+            out << "from = " << row._fromidx << getCostSiteString(fromsite) << " | ";
+            for (auto &elem : row._toidxvec) {
+                BBLID toidx = elem.first;
+                CostSite tosite = decision[toidx];
+                uint64_t count = elem.second;
+                if (fromsite != INVALID && tosite != INVALID && fromsite != tosite) {
+                    out << toidx << getCostSiteString(tosite) << ":" << count << " ";
+                }
+            }
+            out << std::endl;
         }
         return out;
     }
@@ -235,9 +325,8 @@ public:
         // seg->print(std::cout);
 
         TrieNode<Ty> *curNode = root;
-        for (auto it = seg->_set.begin(); it != seg->_set.end(); ++it)
+        for (auto cur : seg->_set)
         {
-            Ty cur = *it;
             TrieNode<Ty> *temp = curNode->_children[cur];
             if (temp == NULL)
             {
@@ -266,9 +355,9 @@ public:
     {
         if (!root->_isLeaf)
         {
-            for (auto it = root->_children.begin(); it != root->_children.end(); ++it)
+            for (auto it : root->_children)
             {
-                DeleteTrie(it->second);
+                DeleteTrie(it.second);
             }
         }
         delete root;
@@ -312,11 +401,10 @@ public:
             out << "    V_" << parent << " -> V_" << count << ";" << std::endl;
             parent = count;
             count++;
-            auto it = root->_children.begin();
-            auto eit = root->_children.end();
-            for (; it != eit; ++it)
+
+            for (auto it : root->_children)
             {
-                DataReuse::PrintDotGraphHelper(out, it->second, parent, count, get_id);
+                DataReuse::PrintDotGraphHelper(out, it.second, parent, count, get_id);
             }
         }
     }
@@ -328,9 +416,9 @@ public:
         out << "digraph trie {" << std::endl;
         out << "    V_0"
             << " [label=\"root\"];" << std::endl;
-        for (auto it = _root->_children.begin(); it != _root->_children.end(); ++it)
+        for (auto it : _root->_children)
         {
-            DataReuse::PrintDotGraphHelper(out, it->second, parent, count, get_id);
+            DataReuse::PrintDotGraphHelper(out, it.second, parent, count, get_id);
         }
         out << "}" << std::endl;
         return out;

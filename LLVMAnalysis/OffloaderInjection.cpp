@@ -19,10 +19,6 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
 
-#include "llvm/IR/AssemblyAnnotationWriter.h"
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/DebugInfoMetadata.h"
-
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/raw_os_ostream.h"
 #include "llvm/Support/FormattedStream.h"
@@ -286,20 +282,6 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
 //     }
 // }
 
-class PIMProfAAW : public AssemblyAnnotationWriter {
-public:
-    void emitInstructionAnnot(const Instruction *I, formatted_raw_ostream &ofs) {
-        ofs << "######## At ";
-        DILocation *deb = I->getDebugLoc();
-        if (deb != NULL) {
-            ofs << deb->getFilename();
-            ofs << " line: " << deb->getLine();
-            ofs << " col: " << deb->getColumn();
-        }
-        ofs << "\n";
-    }
-};
-
 struct OffloaderInjection : public ModulePass {
     static char ID;
     OffloaderInjection() : ModulePass(ID) {}
@@ -376,14 +358,17 @@ struct OffloaderInjection : public ModulePass {
             //     }
             // }
         }
-        
+
         errs() << "Found = " << found_cnt << ", Not Found = " << not_found_cnt << "\n";
         errs() << "CPU inject count = " << cpu_inject_cnt << ", PIM inject count = " << pim_inject_cnt << "\n";
+        
+        outs() << "Found = " << found_cnt << ", Not Found = " << not_found_cnt << "\n";
+        outs() << "CPU inject count = " << cpu_inject_cnt << ", PIM inject count = " << pim_inject_cnt << "\n";
 
         PIMProfAAW aaw = PIMProfAAW();
-        // for (auto &func: M) {
-        //     func.print(outs(), &aaw);
-        // }
+        for (auto &func: M) {
+            func.print(outs(), &aaw);
+        }
 
         // M.print(errs(), nullptr);
         return true;

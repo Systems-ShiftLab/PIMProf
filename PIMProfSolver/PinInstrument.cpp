@@ -495,7 +495,7 @@ void PIMProfSolver::FinishInstrument(int32_t code, void *void_self)
     std::ofstream ofs(
         pkg._command_line_parser.outputfile().c_str(),
         std::ofstream::out);
-    CostSolver::DECISION decision = self->_cost_solver.PrintSolution(ofs);
+    DECISION decision = self->_cost_solver.PrintSolution(ofs);
     ofs.close();
     infomsg() << "parallel:" << pkg._in_omp_parallel << std::endl;
 

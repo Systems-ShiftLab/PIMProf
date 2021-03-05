@@ -110,12 +110,16 @@ public:
         BBLID _fromidx;
         std::vector<std::pair<BBLID, uint64_t>> _toidxvec;
 
-        BBLSwitchCountRow(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
+        BBLSwitchCountRow(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec={})
         : _fromidx(fromidx),
           _toidxvec(toidxvec)
         {}
 
+        inline const auto begin() { return _toidxvec.begin(); }
+        inline const auto end() { return _toidxvec.end(); }
+
         COST Cost(const DECISION &decision, const COST switch_cost[MAX_COST_SITE]) {
+            if (_toidxvec.size() == 0) return 0;
             COST result = 0;
             for (auto &elem : _toidxvec) {
                 BBLID toidx = elem.first;
@@ -137,15 +141,19 @@ private:
     std::vector<BBLSwitchCountRow> _count;
 public:
 
-    inline size_t getIdx(const BBLID elem) { return elem; }
-    inline BBLID getElem(const size_t idx) { return idx; }
-
     inline std::vector<BBLSwitchCountRow>::iterator begin() { return _count.begin(); }
     inline std::vector<BBLSwitchCountRow>::iterator end() { return _count.end(); }
 
-    inline void ListInsert(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
+    inline BBLSwitchCountRow &getRow(BBLID fromidx) {
+        return _count[fromidx];
+    }
+
+    inline void RowInsert(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
     {
-        _count.push_back(BBLSwitchCountRow(fromidx, toidxvec));
+        while(_count.size() <= fromidx) {
+            _count.push_back(BBLSwitchCountRow(_count.size()));
+        }
+        _count[fromidx] = BBLSwitchCountRow(fromidx, toidxvec);
     }
 
     void Sort() {
@@ -157,6 +165,7 @@ public:
     std::ostream &print(std::ostream &out)
     {
         for (auto &row : _count) {
+            if (row._toidxvec.size() == 0) continue;
             out << "from = " << row._fromidx << " | ";
             for (auto &elem : row._toidxvec) {
                 out << elem.first << ":" << elem.second << " ";
@@ -169,8 +178,10 @@ public:
     std::ostream &printSwitch(std::ostream &out, const DECISION &decision, const COST switch_cost[MAX_COST_SITE])
     {
         for (auto &row : _count) {
-            if (row.Cost(decision, switch_cost) == 0) continue;
+            COST cost = row.Cost(decision, switch_cost);
+            if (cost == 0) continue;
             CostSite fromsite = decision[row._fromidx];
+            out << "cost = " << cost << ", ";
             out << "from = " << row._fromidx << getCostSiteString(fromsite) << " | ";
             for (auto &elem : row._toidxvec) {
                 BBLID toidx = elem.first;

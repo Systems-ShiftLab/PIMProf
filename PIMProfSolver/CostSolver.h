@@ -126,9 +126,9 @@ class CostSolver {
     /// the switch cost FROM each site (TO the other)
     COST _switch_cost[MAX_COST_SITE];
 
-    double _batchthreshold;
-    int _batchsize;
-    int _mpkithreshold;
+    double _batch_threshold;
+    int _batch_size;
+    int _mpki_threshold;
 
   public:
     void initialize(CommandLineParser *parser);

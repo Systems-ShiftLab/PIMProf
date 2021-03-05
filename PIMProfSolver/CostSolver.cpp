@@ -20,8 +20,8 @@ using namespace PIMProf;
 void CostSolver::initialize(CommandLineParser *parser)
 {
     _command_line_parser = parser;
-    _batchthreshold = 0;
-    _batchsize = 0;
+    _batch_threshold = 0;
+    _batch_size = 0;
 
     std::ifstream cpustats(_command_line_parser->cpustatsfile());
     std::ifstream pimstats(_command_line_parser->pimstatsfile());
@@ -41,8 +41,9 @@ void CostSolver::initialize(CommandLineParser *parser)
     _fetch_cost[CostSite::PIM] = 30;
     _switch_cost[CostSite::CPU] = 800;
     _switch_cost[CostSite::PIM] = 800;
-    _batchthreshold = 0.001;
-    _batchsize = 10;
+    _mpki_threshold = 80;
+    _batch_threshold = 0.001;
+    _batch_size = 10;
 }
 
 CostSolver::~CostSolver()
@@ -200,10 +201,10 @@ void CostSolver::ParseReuse(std::istream &ifs, DataReuse<BBLID> &reuse)
                 uint64_t count = stoi(token.substr(delim + 1));
                 toidxvec.push_back(std::make_pair(toidx, count));
             }
-            _bbl_switch_count.ListInsert(fromidx, toidxvec);
-            _bbl_switch_count.Sort();
+            _bbl_switch_count.RowInsert(fromidx, toidxvec);
         }
     }
+    _bbl_switch_count.Sort();
 
     // std::ofstream ofs("graph.dot", std::ios::out);
     // reuse.PrintDotGraph(ofs, [](BBLID bblid){ return bblid; });
@@ -237,7 +238,7 @@ DECISION CostSolver::PrintSolution(std::ostream &ofs)
     if (_command_line_parser->mode() == CommandLineParser::Mode::DEBUG) {
         ofs << "CPU only time (ns): " << ElapsedTime(CPU) << std::endl
             << "PIM only time (ns): " << ElapsedTime(PIM) << std::endl;
-        decision = Debug_StartFromUnimportantSegment(ofs);
+        decision = Debug_ConsiderSwitchCost(ofs);
     }
 
     PrintDecision(ofs, decision, false);
@@ -295,7 +296,6 @@ DECISION CostSolver::PrintMPKIStats(std::ostream &ofs)
     }
 
     uint64_t instr_threshold = pim_total_instr * 0.01;
-    uint64_t mpki_threshold = 5;
     
     for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
         auto *cpustats = sorted[CPU][i];
@@ -311,7 +311,7 @@ DECISION CostSolver::PrintMPKIStats(std::ostream &ofs)
             continue;
         }
 
-        if (mpki > mpki_threshold && instr > instr_threshold) {
+        if (mpki > _mpki_threshold && instr > instr_threshold) {
             decision.push_back(CostSite::PIM);
         }
         else {
@@ -323,6 +323,7 @@ DECISION CostSolver::PrintMPKIStats(std::ostream &ofs)
     COST switch_cost = SwitchCost(decision, &_bbl_switch_count);
     auto elapsed_time = ElapsedTime(decision);
     COST total_time = reuse_cost + switch_cost + elapsed_time.first + elapsed_time.second;
+    assert(total_time == Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count));
 
     ofs << "MPKI offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << " + SWITCH " << switch_cost << std::endl;
 
@@ -347,6 +348,7 @@ DECISION CostSolver::PrintGreedyStats(std::ostream &ofs)
     COST switch_cost = SwitchCost(decision, &_bbl_switch_count);
     auto elapsed_time = ElapsedTime(decision);
     COST total_time = reuse_cost + switch_cost + elapsed_time.first + elapsed_time.second;
+    assert(total_time == Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count));
 
     ofs << "Greedy offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << " + SWITCH " << switch_cost << std::endl;
 
@@ -354,6 +356,7 @@ DECISION CostSolver::PrintGreedyStats(std::ostream &ofs)
 }
 
 
+// this function does not check whether there is duplicate BBLID in cur_batch
 COST CostSolver::PermuteDecision(DECISION &decision, const std::vector<BBLID> &cur_batch, const BBLIDTrieNode *partial_root)
 {
 
@@ -402,7 +405,7 @@ DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
     int batch_cnt = 0;
     while(cur_node < leaves_size) {
         std::vector<BBLID> cur_batch;
-        // insert segments until the number of different BBLs exceeds _batchsize or all nodes are added
+        // insert segments until the number of different BBLs exceeds _batch_size or all nodes are added
         while (cur_node < leaves_size) {
             BBLIDDataReuseSegment seg;
             _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[cur_node]);
@@ -410,7 +413,7 @@ DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
             // std::cout << cur_batch.size() << " " << diff.size() << std::endl;
             cur_node++;
             // ignore too long segments
-            if (diff.size() > (unsigned)_batchsize) continue;
+            if (diff.size() > (unsigned)_batch_size) continue;
             
             allidset.insert(seg);
             cur_batch.insert(cur_batch.end(), diff.begin(), diff.end());
@@ -418,7 +421,7 @@ DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
 
             seg_count = seg.getCount();
 
-            if (cur_batch.size() + diff.size() > (unsigned)_batchsize) break;
+            if (cur_batch.size() + diff.size() > (unsigned)_batch_size) break;
         }
 
         std::cout << "batch = " << batch_cnt << ", size = " << cur_batch.size() << std::endl;
@@ -431,7 +434,7 @@ DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
 
         std::cout << "seg_count = " << seg_count << ", reuse_max = " << reuse_max << ", cur_total = " << cur_total << std::endl;
         std::cout << std::endl;
-        if (seg_count * reuse_max < _batchthreshold * cur_total) break;
+        if (seg_count * reuse_max < _batch_threshold * cur_total) break;
         batch_cnt++;
     }
     // std::ofstream ofs("temp.dot", std::ofstream::out);
@@ -479,6 +482,7 @@ DECISION CostSolver::PrintReuseStats(std::ostream &ofs)
     COST switch_cost = SwitchCost(decision, &_bbl_switch_count);
     auto elapsed_time = ElapsedTime(decision);
     COST total_time = reuse_cost + switch_cost + elapsed_time.first + elapsed_time.second;
+    assert(total_time == Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count));
 
     ofs << "Reuse offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << " + SWITCH " << switch_cost << std::endl;
 
@@ -500,7 +504,7 @@ void CostSolver::PrintDisjointSets(std::ostream &ofs)
         for (auto elem : seg) {
             ds.Union(first, elem);
         }
-        if (seg.getCount() * reuse_max < _batchthreshold * elapsed_time_min) break;
+        if (seg.getCount() * reuse_max < _batch_threshold * elapsed_time_min) break;
     }
 
     for (auto it : ds.parent) {
@@ -543,10 +547,12 @@ DECISION CostSolver::Debug_StartFromUnimportantSegment(std::ostream &ofs)
     BBLIDDataReuseSegment allidset;
     int cur_node = 0;
     int leaves_size = _data_reuse.getLeaves().size();
+
+    // find out the node with smallest importance but exceeds the threshold, skip the rest
     while (cur_node < leaves_size) {
         BBLIDDataReuseSegment seg;
         _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[cur_node]);
-        if (seg.getCount() * reuse_max < _batchthreshold * elapsed_time_min) break;
+        if (seg.getCount() * reuse_max < _batch_threshold * elapsed_time_min) break;
         cur_node++;
     }
 
@@ -558,7 +564,7 @@ DECISION CostSolver::Debug_StartFromUnimportantSegment(std::ostream &ofs)
         std::cout << "cur_node = " << cur_node << ", size = " << seg.size() << std::endl;
 
         // ignore too long segments
-        if (seg.size() > _batchsize) continue;
+        if (seg.size() >= _batch_size) continue;
 
         cur_total = PermuteDecision(decision, cur_batch, partial_root);
         
@@ -591,7 +597,7 @@ DECISION CostSolver::Debug_StartFromUnimportantSegment(std::ostream &ofs)
 
     cur_total = Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count);
     std::cout << "cur_total = " << cur_total << std::endl;
-    // iterate over the remaining BBs 5 times until convergence
+    // iterate over the remaining BBs until convergence
     for (int j = 0; j < 2; j++) {
         for (BBLID id = 0; id < sorted[CPU].size(); id++) {
             // swap decision[id] and check if it reduces overhead
@@ -610,7 +616,8 @@ DECISION CostSolver::Debug_StartFromUnimportantSegment(std::ostream &ofs)
     COST reuse_cost = ReuseCost(decision, _data_reuse.getRoot());
     COST switch_cost = SwitchCost(decision, &_bbl_switch_count);
     auto elapsed_time = ElapsedTime(decision);
-    COST total_time = reuse_cost + elapsed_time.first + elapsed_time.second;
+    COST total_time = reuse_cost + switch_cost + elapsed_time.first + elapsed_time.second;
+    assert(total_time == Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count));
 
     ofs << "Reuse offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << " + SWITCH " << switch_cost << std::endl;
 
@@ -618,112 +625,140 @@ DECISION CostSolver::Debug_StartFromUnimportantSegment(std::ostream &ofs)
     std::ofstream oo(
         (_command_line_parser->outputfile() + ".debug").c_str(),
         std::ofstream::out);
-    _bbl_switch_count.Sort();
     _bbl_switch_count.printSwitch(oo, decision, _switch_cost);
 
     return decision;
 }
 
-// DECISION CostSolver::Debug_ConsiderSwitchCost(std::ostream &ofs)
-// {
-//     _data_reuse.SortLeaves();
-//     // std::ofstream oo("sortedsegments.out", std::ofstream::out);
-//     // _data_reuse.PrintAllSegments(oo, CostSolver::_get_id);
-//     // oo << std::endl;
-//     // _data_reuse.PrintBBLOccurrence(oo, CostSolver::_get_id);
+DECISION CostSolver::Debug_ConsiderSwitchCost(std::ostream &ofs)
+{
+    _data_reuse.SortLeaves();
+    // std::ofstream oo("sortedsegments.out", std::ofstream::out);
+    // _data_reuse.PrintAllSegments(oo, CostSolver::_get_id);
+    // oo << std::endl;
+    // _data_reuse.PrintBBLOccurrence(oo, CostSolver::_get_id);
 
 
-//     COST elapsed_time_min = (ElapsedTime(CPU) < ElapsedTime(PIM) ? ElapsedTime(CPU) : ElapsedTime(PIM));
-//     COST reuse_max = SingleSegMaxReuseCost();
+    COST elapsed_time_min = (ElapsedTime(CPU) < ElapsedTime(PIM) ? ElapsedTime(CPU) : ElapsedTime(PIM));
+    COST reuse_max = SingleSegMaxReuseCost();
 
-//     //initialize all decision to INVALID
-//     DECISION decision;
-//     decision.resize(_bblhash2stats[CPU].size(), INVALID);
-//     COST cur_total = FLT_MAX;
+    //initialize all decision to INVALID
+    DECISION decision;
+    decision.resize(_bblhash2stats[CPU].size(), INVALID);
+    COST cur_total = FLT_MAX;
 
-//     BBLIDTrieNode *partial_root = new BBLIDTrieNode();
-//     BBLIDDataReuseSegment allidset;
-//     int cur_node = 0;
-//     int leaves_size = _data_reuse.getLeaves().size();
-//     while (cur_node < leaves_size) {
-//         BBLIDDataReuseSegment seg;
-//         _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[cur_node]);
-//         if (seg.getCount() * reuse_max < _batchthreshold * elapsed_time_min) break;
-//         cur_node++;
-//     }
+    BBLIDTrieNode *partial_root = new BBLIDTrieNode();
+    BBLIDDataReuseSegment allidset;
+    int cur_node = 0;
+    int leaves_size = _data_reuse.getLeaves().size();
 
-//     for (; cur_node >= 0; --cur_node) {
-//         BBLIDDataReuseSegment seg;
-//         _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[cur_node]);
-//         _data_reuse.UpdateTrie(partial_root, &seg);
-//         std::vector<BBLID> cur_batch(seg.begin(), seg.end());
-//         std::cout << "cur_node = " << cur_node << ", size = " << seg.size() << std::endl;
+    // find out the node with smallest importance but exceeds the threshold, skip the rest
+    while (cur_node < leaves_size) {
+        BBLIDDataReuseSegment seg;
+        _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[cur_node]);
+        if (seg.getCount() * reuse_max < _batch_threshold * elapsed_time_min) break;
+        cur_node++;
+    }
 
-//         // ignore too long segments
-//         if (seg.size() > _batchsize) continue;
+    for (; cur_node >= 0; --cur_node) {
+        BBLIDDataReuseSegment seg;
+        _data_reuse.ExportSegment(&seg, _data_reuse.getLeaves()[cur_node]);
+        _data_reuse.UpdateTrie(partial_root, &seg);
 
-//         cur_total = PermuteDecision(decision, cur_batch, partial_root);
+        // ignore too long segments
+        if (seg.size() >= _batch_size) continue;
+
+        // find BBLs with most occurence in all switching points related to BBLs in current segment
+        std::unordered_map<BBLID, uint64_t> total_switch_cnt_map;
+        for (auto fromidx : seg) {
+            BBLSwitchCountList<BBLID>::BBLSwitchCountRow &row = _bbl_switch_count.getRow(fromidx);
+            for (auto elem : row) {
+                BBLID toidx = elem.first;
+                uint64_t count = elem.second;
+                auto it = total_switch_cnt_map.find(toidx);
+                if (it != total_switch_cnt_map.end()) {
+                    it->second += count;
+                }
+                else {
+                    total_switch_cnt_map[toidx] = count;
+                }
+            }
+        }
+        std::vector<std::pair<BBLID, uint64_t>> total_switch_cnt_vec(total_switch_cnt_map.begin(), total_switch_cnt_map.end());
+        std::sort(total_switch_cnt_vec.begin(), total_switch_cnt_vec.end(),
+            [](auto l, auto r){ return l.second > r.second; });
+
+        for (auto elem : total_switch_cnt_vec) {
+            if (seg.size() >= _batch_size) break;
+            seg.insert(elem.first);
+        }
+
+        std::vector<BBLID> cur_batch(seg.begin(), seg.end());
+        std::cout << "cur_node = " << cur_node << ", size = " << seg.size() << std::endl;
+
+        cur_total = PermuteDecision(decision, cur_batch, partial_root);
         
-//         for (auto elem : cur_batch) {
-//             std::cout << elem << getCostSiteString(decision[elem]) << " ";
-//         }
+        for (auto elem : cur_batch) {
+            std::cout << elem << getCostSiteString(decision[elem]) << " ";
+        }
+ 
 
-//         std::cout << "seg_count = " << seg.getCount() << ", reuse_max = " << reuse_max << ", cur_total = " << cur_total << std::endl;
-//         std::cout << std::endl;
-//     }
+        std::cout << "seg_count = " << seg.getCount() << ", reuse_max = " << reuse_max << ", cur_total = " << cur_total << std::endl;
+        std::cout << std::endl;
+    }
 
-//     _data_reuse.DeleteTrie(partial_root);
+    _data_reuse.DeleteTrie(partial_root);
 
-//     const std::vector<ThreadBBLStats *> *sorted = getSorted();
+    const std::vector<ThreadBBLStats *> *sorted = getSorted();
 
-//     // assign decision for BBLs that did not occur in the reuse chains
-//     for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
-//         auto *cpustats = sorted[CPU][i];
-//         auto *pimstats = sorted[PIM][i];
+    // assign decision for BBLs that did not occur in the reuse chains
+    for (BBLID i = 0; i < sorted[CPU].size(); ++i) {
+        auto *cpustats = sorted[CPU][i];
+        auto *pimstats = sorted[PIM][i];
 
-//         if (decision[i] == INVALID) {
-//             if (cpustats->MaxElapsedTime() <= pimstats->MaxElapsedTime()) {
-//                 decision[i] = CPU;
-//             }
-//             else {
-//                 decision[i] = PIM;
-//             }
-//         }
-//     }
+        if (decision[i] == INVALID) {
+            if (cpustats->MaxElapsedTime() <= pimstats->MaxElapsedTime()) {
+                decision[i] = CPU;
+            }
+            else {
+                decision[i] = PIM;
+            }
+        }
+    }
 
-//     cur_total = Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count);
-//     std::cout << "cur_total = " << cur_total << std::endl;
-//     // iterate over the remaining BBs 5 times until convergence
-//     for (int j = 0; j < 2; j++) {
-//         for (BBLID id = 0; id < sorted[CPU].size(); id++) {
-//             // swap decision[id] and check if it reduces overhead
-//             decision[id] = (decision[id] == CPU ? PIM : CPU);
-//             COST temp_total = Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count);
-//             if (temp_total > cur_total) {
-//                 decision[id] = (decision[id] == CPU ? PIM : CPU);
-//             }
-//             else {
-//                 cur_total = temp_total;
-//             }
-//         }
-//         std::cout << "cur_total = " << cur_total << std::endl;
-//     }
+    cur_total = Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count);
+    std::cout << "cur_total = " << cur_total << std::endl;
+    // iterate over the remaining BBs until convergence
+    for (int j = 0; j < 2; j++) {
+        for (BBLID id = 0; id < sorted[CPU].size(); id++) {
+            // swap decision[id] and check if it reduces overhead
+            decision[id] = (decision[id] == CPU ? PIM : CPU);
+            COST temp_total = Cost(decision, _data_reuse.getRoot(), &_bbl_switch_count);
+            if (temp_total > cur_total) {
+                decision[id] = (decision[id] == CPU ? PIM : CPU);
+            }
+            else {
+                cur_total = temp_total;
+            }
+        }
+        std::cout << "cur_total = " << cur_total << std::endl;
+    }
 
-//     COST reuse_cost = ReuseCost(decision, _data_reuse.getRoot());
-//     COST switch_cost = SwitchCost(decision, &_bbl_switch_count);
-//     auto elapsed_time = ElapsedTime(decision);
-//     COST total_time = reuse_cost + elapsed_time.first + elapsed_time.second;
+    COST reuse_cost = ReuseCost(decision, _data_reuse.getRoot());
+    COST switch_cost = SwitchCost(decision, &_bbl_switch_count);
+    auto elapsed_time = ElapsedTime(decision);
+    COST total_time = reuse_cost + switch_cost + elapsed_time.first + elapsed_time.second;
 
-//     ofs << "Reuse offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << " + SWITCH " << switch_cost << std::endl;
+    ofs << "Reuse offloading time (ns): " << total_time << " = CPU " << elapsed_time.first << " + PIM " << elapsed_time.second << " + REUSE " << reuse_cost << " + SWITCH " << switch_cost << std::endl;
 
 
-//     std::ofstream oo(
-//         (_command_line_parser->outputfile() + ".debug").c_str(),
-//         std::ofstream::out);
-//     _bbl_switch_count.printSwitch(oo, decision, _switch_cost);
+    std::ofstream oo(
+        (_command_line_parser->outputfile() + ".debug").c_str(),
+        std::ofstream::out);
+    _bbl_switch_count.printSwitch(oo, decision, _switch_cost);
 
-//     return decision;
-// }
+    return decision;
+}
 
 COST CostSolver::Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDBBLSwitchCountList *switchcnt)
 {

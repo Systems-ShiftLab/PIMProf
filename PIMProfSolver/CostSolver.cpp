@@ -41,7 +41,7 @@ void CostSolver::initialize(CommandLineParser *parser)
     _fetch_cost[CostSite::PIM] = 30;
     _switch_cost[CostSite::CPU] = 800;
     _switch_cost[CostSite::PIM] = 800;
-    _mpki_threshold = 80;
+    _mpki_threshold = 10;
     _batch_threshold = 0.001;
     _batch_size = 10;
 }

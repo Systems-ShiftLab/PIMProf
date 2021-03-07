@@ -59,11 +59,11 @@ void InjectSniperAnnotationCall(Module &M, BasicBlock &BB) {
     // errs() << "\n";
     // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
-    std::string funcname = BB.getParent()->getName();
-    uint64_t isomp = (funcname.find(OpenMPIdentifier) != std::string::npos);
+    // std::string funcname = BB.getParent()->getName();
+    // uint64_t isomp = (funcname.find(OpenMPIdentifier) != std::string::npos);
 
-    uint64_t control_head = ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONHEAD, isomp);
-    uint64_t control_tail = ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONTAIL, isomp);
+    // uint64_t control_head = ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONHEAD, isomp);
+    // uint64_t control_tail = ControlValue::GetControlValue(MAGIC_OP_ANNOTATIONTAIL, isomp);
 
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
@@ -81,8 +81,55 @@ void InjectSniperAnnotationCall(Module &M, BasicBlock &BB) {
     // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 }
 
-
 void InjectSniperAnnotationCall(Module &M, Function &F) {
+    // skip function declarations
+    if (F.empty()) return;
+
+    /***** generate arguments for the InlineAsm ******/
+
+    // use the content of function itself as the hash key
+    std::string F_content;
+    raw_string_ostream rso(F_content);
+    rso << F;
+    uint64_t bblhash[2];
+
+
+    MurmurHash3_x64_128(F_content.c_str(), F_content.size(), 0, bblhash);
+
+    // errs() << "Before annotator injection: " << F.getName() << "\n";
+    // for (auto &i : F) {
+    //     i.print(errs());
+    //     errs() << "\n";
+    // }
+    // errs() << "\n";
+    // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+
+
+    // need to skip all PHIs and LandingPad instructions
+    // check the declaration of getFirstInsertionPt()
+    Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
+    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, bblhash[1], bblhash[0], beginning);
+
+    // inject an end call before every return instruction
+    for (auto &BB : F) {
+        for (auto &I : BB) {
+            if (isa<ReturnInst>(I)) {
+                InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, bblhash[1], bblhash[0], &I);
+            }
+        }
+    }
+
+    // errs() << "After annotator injection: " << F.getName() << "\n";
+    // for (auto &i : F) {
+    //     i.print(errs());
+    //     errs() << "\n";
+    // }
+    // errs() << "\n";
+    // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+}
+
+
+void InjectSniperMainAnnotationCall(Module &M, Function &F) {
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
@@ -157,6 +204,7 @@ struct AnnotationInjection : public ModulePass {
         assert(injectmodeenv != NULL);
 
         if (strcmp(injectmodeenv, "SNIPER") == 0) Mode = InjectMode::SNIPER;
+        else if (strcmp(injectmodeenv, "SNIPER2") == 0) Mode = InjectMode::SNIPER2;
         else if (strcmp(injectmodeenv, "PIMPROF") == 0) Mode = InjectMode::PIMPROF;
         else {
             assert(0 && "Invalid environment variable PIMPROFINJECTMODE");
@@ -180,6 +228,16 @@ struct AnnotationInjection : public ModulePass {
             }
             for (auto &func : M) {
                 if (func.getName() == "main") {
+                    InjectSniperMainAnnotationCall(M, func);
+                }
+            }
+        }
+        if (Mode == InjectMode::SNIPER2) {
+            for (auto &func : M) {
+                if (func.getName() == "main") {
+                    InjectSniperMainAnnotationCall(M, func);
+                }
+                else {
                     InjectSniperAnnotationCall(M, func);
                 }
             }

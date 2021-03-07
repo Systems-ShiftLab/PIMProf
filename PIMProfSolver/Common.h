@@ -142,7 +142,7 @@ enum ACCESS_TYPE
 };
 
 enum class InjectMode {
-    SNIPER, VTUNE, PIMPROF,
+    SNIPER, SNIPER2, VTUNE, PIMPROF,
     DEFAULT = 0x0fffffff,
     INVALID = 0x3fffffff // a placeholder that does not count as a cost site
 };

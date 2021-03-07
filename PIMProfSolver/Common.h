@@ -164,6 +164,6 @@ const UUID GLOBAL_BBLHASH(GLOBAL_BBLID, GLOBAL_BBLID);
 const BBLID MAIN_BBLID = 1;
 const UUID MAIN_BBLHASH(MAIN_BBLID, MAIN_BBLID);
 
-}; // namespace PIMProf
+} // namespace PIMProf
 
 #endif // __COMMON_H__

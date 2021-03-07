@@ -115,8 +115,11 @@ public:
           _toidxvec(toidxvec)
         {}
 
-        inline const auto begin() { return _toidxvec.begin(); }
-        inline const auto end() { return _toidxvec.end(); }
+        inline auto begin() { return _toidxvec.begin(); }
+        inline auto end() { return _toidxvec.end(); }
+
+        inline const auto begin() const { return _toidxvec.begin(); }
+        inline const auto end() const { return _toidxvec.end(); }
 
         COST Cost(const DECISION &decision, const COST switch_cost[MAX_COST_SITE]) {
             if (_toidxvec.size() == 0) return 0;
@@ -141,8 +144,11 @@ private:
     std::vector<BBLSwitchCountRow> _count;
 public:
 
-    inline std::vector<BBLSwitchCountRow>::iterator begin() { return _count.begin(); }
-    inline std::vector<BBLSwitchCountRow>::iterator end() { return _count.end(); }
+    inline auto begin() { return _count.begin(); }
+    inline auto end() { return _count.end(); }
+
+    inline const auto begin() const { return _count.begin(); }
+    inline const auto end() const { return _count.end(); }
 
     inline BBLSwitchCountRow &getRow(BBLID fromidx) {
         return _count[fromidx];
@@ -150,7 +156,7 @@ public:
 
     inline void RowInsert(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
     {
-        while(_count.size() <= fromidx) {
+        while((BBLID)_count.size() <= fromidx) {
             _count.push_back(BBLSwitchCountRow(_count.size()));
         }
         _count[fromidx] = BBLSwitchCountRow(fromidx, toidxvec);

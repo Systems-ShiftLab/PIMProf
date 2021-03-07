@@ -38,7 +38,7 @@ class ThreadBBLStats : public BBLStats {
   public:
     ThreadBBLStats(int tid, const BBLStats &bblstats) : BBLStats(bblstats)
     {
-        if (tid >= thread_elapsed_time.size()) {
+        if (tid >= (int)thread_elapsed_time.size()) {
             thread_elapsed_time.resize(tid + 1, 0);
             sorted_elapsed_time.resize(tid + 1, 0);
         }
@@ -48,7 +48,7 @@ class ThreadBBLStats : public BBLStats {
     }
 
     ThreadBBLStats& MergeStats(int tid, const BBLStats &rhs) {
-        if (tid >= thread_elapsed_time.size()) {
+        if (tid >= (int)thread_elapsed_time.size()) {
             thread_elapsed_time.resize(tid + 1, 0);
             sorted_elapsed_time.resize(tid + 1, 0);
         }
@@ -64,7 +64,7 @@ class ThreadBBLStats : public BBLStats {
     }
 
     COST ElapsedTime(int tid) {
-        assert(tid < thread_elapsed_time.size());
+        assert(tid < (int)thread_elapsed_time.size());
         return thread_elapsed_time[tid];
     }
 
@@ -148,10 +148,10 @@ class CostSolver {
     DECISION PrintSolution(std::ostream &out);
 
 
-    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDBBLSwitchCountList *switchcnt);
+    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDBBLSwitchCountList &switchcnt);
     COST ElapsedTime(CostSite site); // return CPU/PIM only elapsed time
     std::pair<COST, COST> ElapsedTime(const DECISION &decision); // return execution time pair (cpu_elapsed_time, pim_elapsed_time) for decision
-    COST SwitchCost(const DECISION &decision, const BBLIDBBLSwitchCountList *switchcnt);
+    COST SwitchCost(const DECISION &decision, const BBLIDBBLSwitchCountList &switchcnt);
     COST ReuseCost(const DECISION &decision, const BBLIDTrieNode *reusetree);
     void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, const BBLIDTrieNode *root, bool isDifferent);
 

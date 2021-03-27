@@ -31,7 +31,7 @@ namespace PIMProf
 /* BBLSwitchCount */
 /* ===================================================================== */
 template <class Ty>
-class BBLSwitchCountMatrix
+class SwitchCountMatrix
 {
 private:
     std::unordered_map<Ty, uint64_t> _elem2idx;
@@ -98,19 +98,19 @@ public:
 
 // just declaration for now because this has no use currently
 template <class Ty>
-class BBLSwitchCountList;
+class SwitchCountList;
 
 // template specialiation for CostSolver implementation
 // here we use adjacency list instead for faster lookup
 template <>
-class BBLSwitchCountList<BBLID> {
+class SwitchCountList<BBLID> {
 public:
-    class BBLSwitchCountRow {
+    class SwitchCountRow {
     public:
         BBLID _fromidx;
         std::vector<std::pair<BBLID, uint64_t>> _toidxvec;
 
-        BBLSwitchCountRow(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec={})
+        SwitchCountRow(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec={})
         : _fromidx(fromidx),
           _toidxvec(toidxvec)
         {}
@@ -141,7 +141,7 @@ public:
         }
     };
 private:
-    std::vector<BBLSwitchCountRow> _count;
+    std::vector<SwitchCountRow> _count;
 public:
 
     inline auto begin() { return _count.begin(); }
@@ -150,16 +150,16 @@ public:
     inline const auto begin() const { return _count.begin(); }
     inline const auto end() const { return _count.end(); }
 
-    inline BBLSwitchCountRow &getRow(BBLID fromidx) {
+    inline SwitchCountRow &getRow(BBLID fromidx) {
         return _count[fromidx];
     }
 
     inline void RowInsert(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
     {
         while((BBLID)_count.size() <= fromidx) {
-            _count.push_back(BBLSwitchCountRow(_count.size()));
+            _count.push_back(SwitchCountRow(_count.size()));
         }
-        _count[fromidx] = BBLSwitchCountRow(fromidx, toidxvec);
+        _count[fromidx] = SwitchCountRow(fromidx, toidxvec);
     }
 
     void Sort() {

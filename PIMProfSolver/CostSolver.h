@@ -104,7 +104,7 @@ class CostSolver {
     typedef DataReuse<BBLID> BBLIDDataReuse;
     typedef DataReuseSegment<BBLID> BBLIDDataReuseSegment;
     typedef TrieNode<BBLID> BBLIDTrieNode;
-    typedef BBLSwitchCountList<BBLID> BBLIDBBLSwitchCountList;
+    typedef SwitchCountList<BBLID> BBLIDSwitchCountList;
 
     // instance of get_id function, prototype:
     // BBLID get_id(Ty elem);
@@ -117,7 +117,7 @@ class CostSolver {
     bool _dirty = true; // track if _sortedstats is stale
 
     BBLIDDataReuse _data_reuse;
-    BBLIDBBLSwitchCountList _bbl_switch_count;
+    BBLIDSwitchCountList _bbl_switch_count;
 
     /// the cache flush/fetch cost of each site, in nanoseconds
     COST _flush_cost[MAX_COST_SITE];
@@ -148,10 +148,10 @@ class CostSolver {
     DECISION PrintSolution(std::ostream &out);
 
 
-    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDBBLSwitchCountList &switchcnt);
+    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDSwitchCountList &switchcnt);
     COST ElapsedTime(CostSite site); // return CPU/PIM only elapsed time
     std::pair<COST, COST> ElapsedTime(const DECISION &decision); // return execution time pair (cpu_elapsed_time, pim_elapsed_time) for decision
-    COST SwitchCost(const DECISION &decision, const BBLIDBBLSwitchCountList &switchcnt);
+    COST SwitchCost(const DECISION &decision, const BBLIDSwitchCountList &switchcnt);
     COST ReuseCost(const DECISION &decision, const BBLIDTrieNode *reusetree);
     void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, const BBLIDTrieNode *root, bool isDifferent);
 

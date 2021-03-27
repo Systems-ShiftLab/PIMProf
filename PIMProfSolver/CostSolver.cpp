@@ -671,7 +671,7 @@ DECISION CostSolver::Debug_ConsiderSwitchCost(std::ostream &ofs)
         // find BBLs with most occurence in all switching points related to BBLs in current segment
         std::unordered_map<BBLID, uint64_t> total_switch_cnt_map;
         for (auto fromidx : seg) {
-            BBLSwitchCountList<BBLID>::BBLSwitchCountRow &row = _bbl_switch_count.getRow(fromidx);
+            SwitchCountList<BBLID>::SwitchCountRow &row = _bbl_switch_count.getRow(fromidx);
             for (auto elem : row) {
                 BBLID toidx = elem.first;
                 uint64_t count = elem.second;
@@ -760,7 +760,7 @@ DECISION CostSolver::Debug_ConsiderSwitchCost(std::ostream &ofs)
     return decision;
 }
 
-COST CostSolver::Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDBBLSwitchCountList &switchcnt)
+COST CostSolver::Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDSwitchCountList &switchcnt)
 {
     auto pair = ElapsedTime(decision);
     return (ReuseCost(decision, reusetree) + SwitchCost(decision, switchcnt) + pair.first + pair.second);
@@ -799,7 +799,7 @@ std::pair<COST, COST> CostSolver::ElapsedTime(const DECISION &decision)
 }
 
 // decision here can be INVALID
-COST CostSolver::SwitchCost(const DECISION &decision, const BBLIDBBLSwitchCountList &switchcnt)
+COST CostSolver::SwitchCost(const DECISION &decision, const BBLIDSwitchCountList &switchcnt)
 {
     COST cur_switch_cost = 0;
     for (auto row : switchcnt) {

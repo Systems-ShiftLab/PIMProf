@@ -93,7 +93,7 @@ inline void SortStatsMap(UUIDHashMap<BBLStats *> &statsmap, std::vector<BBLStats
 
 class ThreadStats
 {
-    typedef BBLSwitchCountMatrix<BBLStats *> PtrBBLSwitchCountMatrix;
+    typedef SwitchCountMatrix<BBLStats *> PtrSwitchCountMatrix;
     typedef DataReuseSegment<BBLStats *> PtrDataReuseSegment;
     typedef DataReuse<BBLStats *> PtrDataReuse;
 
@@ -114,7 +114,7 @@ private:
     UUIDHashMap<BBLStats *> *m_bblhash2stats;
 
     // count the number of times BBL switch from one to another
-    PtrBBLSwitchCountMatrix *m_bbl_switch_count;
+    PtrSwitchCountMatrix *m_bbl_switch_count;
 
     // a map from tag to data reuse segments
     std::unordered_map<uint64_t, PtrDataReuseSegment *> *m_tag2seg;
@@ -140,7 +140,7 @@ public:
         m_current_bblstats = new std::vector<PIMProf::BBLStats *>;
         m_current_bblstats->push_back(globalstats);
 
-        m_bbl_switch_count = new PtrBBLSwitchCountMatrix();
+        m_bbl_switch_count = new PtrSwitchCountMatrix();
         m_tag2seg = new std::unordered_map<uint64_t, PtrDataReuseSegment *>;
         m_data_reuse = new PtrDataReuse();
     }

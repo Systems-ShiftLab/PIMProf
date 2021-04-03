@@ -32,7 +32,7 @@ namespace PIMProf
 /* PIMProf Thread Data Collection */
 /* ===================================================================== */
 
-class BBLStats
+class RunStats
 {
 public:
     // For multithread stats, all threads should achieve a consensus on bblid.
@@ -45,9 +45,9 @@ public:
 
     // instance of get_id function, prototype:
     // BBLID get_id(Ty elem);
-    static BBLID _get_id(BBLStats *stats) { return stats->bblid; }
+    static BBLID _get_id(RunStats *stats) { return stats->bblid; }
 
-    BBLStats(
+    RunStats(
         BBLID _bblid = GLOBAL_BBLID,
         UUID _bblhash = GLOBAL_BBLHASH,
         COST _elapsed_time = 0,
@@ -57,7 +57,7 @@ public:
     {
     }
 
-    // BBLStats(const BBLStats &rhs) {
+    // RunStats(const RunStats &rhs) {
     //     bblid = rhs.bblid;
     //     bblhash = rhs.bblhash;
     //     elapsed_time = rhs.elapsed_time;
@@ -65,21 +65,21 @@ public:
     //     memory_access = rhs.memory_access;
     // }
 
-    BBLStats& MergeStats(const BBLStats &rhs) {
+    RunStats& MergeStats(const RunStats &rhs) {
         elapsed_time += rhs.elapsed_time;
         instruction_count += rhs.instruction_count;
         memory_access += rhs.memory_access;
         return *this;
     }
 
-    BBLStats& operator += (const BBLStats& rhs) {
+    RunStats& operator += (const RunStats& rhs) {
         MergeStats(rhs);
         return *this;
     }
 };
 
 // the pointers in sorted will point to the same location as the pointers in statsmap
-inline void SortStatsMap(UUIDHashMap<BBLStats *> &statsmap, std::vector<BBLStats *> &sorted)
+inline void SortStatsMap(UUIDHashMap<RunStats *> &statsmap, std::vector<RunStats *> &sorted)
 {
     sorted.clear();
     for (auto it = statsmap.begin(); it != statsmap.end(); ++it) {
@@ -88,14 +88,14 @@ inline void SortStatsMap(UUIDHashMap<BBLStats *> &statsmap, std::vector<BBLStats
     std::sort(
         sorted.begin(),
         sorted.end(),
-        [](BBLStats *lhs, BBLStats *rhs) { return lhs->bblhash < rhs->bblhash; });
+        [](RunStats *lhs, RunStats *rhs) { return lhs->bblhash < rhs->bblhash; });
 }
 
 class ThreadStats
 {
-    typedef SwitchCountMatrix<BBLStats *> PtrSwitchCountMatrix;
-    typedef DataReuseSegment<BBLStats *> PtrDataReuseSegment;
-    typedef DataReuse<BBLStats *> PtrDataReuse;
+    typedef SwitchCountMatrix<RunStats *> PtrSwitchCountMatrix;
+    typedef DataReuseSegment<RunStats *> PtrDataReuseSegment;
+    typedef DataReuse<RunStats *> PtrDataReuse;
 
 private:
     int tid;
@@ -105,13 +105,13 @@ private:
     int m_switch_pim2cpu;
 
     std::vector<bool> *m_using_pim;
-    std::vector<BBLStats *> *m_current_bblstats;
+    std::vector<RunStats *> *m_current_bblstats;
 
     // UUID is the unique identifier of each BBL,
-    // and there is a one-to-one correspondence between UUID and BBLStats*.
+    // and there is a one-to-one correspondence between UUID and RunStats*.
     // All class objects need to be stored in pointer form,
     // otherwise Sniper will somehow deallocate them unexpectedly.
-    UUIDHashMap<BBLStats *> *m_bblhash2stats;
+    UUIDHashMap<RunStats *> *m_bbl_hash2stats;
 
     // count the number of times BBL switch from one to another
     PtrSwitchCountMatrix *m_bbl_switch_count;
@@ -120,7 +120,7 @@ private:
     std::unordered_map<uint64_t, PtrDataReuseSegment *> *m_tag2seg;
 
     // data structure for storing data reuse info
-    PtrDataReuse *m_data_reuse;
+    PtrDataReuse *m_bbl_data_reuse;
 
 public:
     ThreadStats(int _tid = 0)
@@ -133,16 +133,16 @@ public:
         m_using_pim->push_back(false);
 
         // GLOBAL_BBLHASH is the region outside main function.
-        m_bblhash2stats = new UUIDHashMap<BBLStats *>;
-        BBLStats *globalstats = new BBLStats();
-        m_bblhash2stats->insert(std::make_pair(GLOBAL_BBLHASH, globalstats));
+        m_bbl_hash2stats = new UUIDHashMap<RunStats *>;
+        RunStats *globalstats = new RunStats();
+        m_bbl_hash2stats->insert(std::make_pair(GLOBAL_BBLHASH, globalstats));
 
-        m_current_bblstats = new std::vector<PIMProf::BBLStats *>;
+        m_current_bblstats = new std::vector<PIMProf::RunStats *>;
         m_current_bblstats->push_back(globalstats);
 
         m_bbl_switch_count = new PtrSwitchCountMatrix();
         m_tag2seg = new std::unordered_map<uint64_t, PtrDataReuseSegment *>;
-        m_data_reuse = new PtrDataReuse();
+        m_bbl_data_reuse = new PtrDataReuse();
     }
 
     ~ThreadStats()
@@ -166,11 +166,11 @@ public:
         delete m_using_pim;
         delete m_current_bblstats;
 
-        for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it)
+        for (auto it = m_bbl_hash2stats->begin(); it != m_bbl_hash2stats->end(); ++it)
         {
             delete it->second;
         }
-        delete m_bblhash2stats;
+        delete m_bbl_hash2stats;
 
         delete m_bbl_switch_count;
 
@@ -180,13 +180,13 @@ public:
         }
         delete m_tag2seg;
 
-        delete m_data_reuse;
+        delete m_bbl_data_reuse;
     }
 
     void setTid(int _tid) { tid = _tid; }
     bool IsUsingPIM() { return m_using_pim->back(); }
 
-    BBLStats *GetCurrentBBLStats() { return m_current_bblstats->back(); }
+    RunStats *GetCurrentRunStats() { return m_current_bblstats->back(); }
     UUID GetCurrentBBLHash() { return m_current_bblstats->back()->bblhash; }
 
     void *stats_addr = NULL;
@@ -195,25 +195,25 @@ public:
     void BBLStart(uint64_t hi, uint64_t lo)
     {
         UUID bblhash = UUID(hi, lo);
-        BBLStats *prev_back = GetCurrentBBLStats();
-        auto it = m_bblhash2stats->find(bblhash);
+        RunStats *prev_back = GetCurrentRunStats();
+        auto it = m_bbl_hash2stats->find(bblhash);
         
         
-        if (it == m_bblhash2stats->end()) {
-            BBLStats *stats = new BBLStats(GLOBAL_BBLID, bblhash);
-            m_bblhash2stats->insert(std::make_pair(bblhash, stats));
+        if (it == m_bbl_hash2stats->end()) {
+            RunStats *stats = new RunStats(GLOBAL_BBLID, bblhash);
+            m_bbl_hash2stats->insert(std::make_pair(bblhash, stats));
             m_current_bblstats->push_back(stats);
         }
         else {
             m_current_bblstats->push_back(it->second);
         }
-        m_bbl_switch_count->insert(prev_back, GetCurrentBBLStats());
+        m_bbl_switch_count->insert(prev_back, GetCurrentRunStats());
     }
 
     void BBLEnd(uint64_t hi, uint64_t lo)
     {
         UUID bblhash = UUID(hi, lo);
-        BBLStats *prev_back = GetCurrentBBLStats();
+        RunStats *prev_back = GetCurrentRunStats();
         // printf("%d: %lx %lx %lx %lx\n", tid, bblhash.first, bblhash.second, GetCurrentBBLHash().first, GetCurrentBBLHash().second);
         if (bblhash != GetCurrentBBLHash()) 
         {
@@ -221,7 +221,7 @@ public:
         }
         assert(bblhash == GetCurrentBBLHash());
         m_current_bblstats->pop_back();
-        m_bbl_switch_count->insert(prev_back, GetCurrentBBLStats());
+        m_bbl_switch_count->insert(prev_back, GetCurrentRunStats());
     }
 
     void OffloadStart(uint64_t hi, uint64_t type)
@@ -266,14 +266,14 @@ public:
     // time unit is FS (1e-6 NS)
     void AddTimeInstruction(uint64_t time, uint64_t instr)
     {
-        BBLStats *bblstats = GetCurrentBBLStats();
+        RunStats *bblstats = GetCurrentRunStats();
         bblstats->elapsed_time += (COST)time / 1e6;
         bblstats->instruction_count += instr;
     }
 
     void AddMemory(uint64_t memory_access)
     {
-        GetCurrentBBLStats()->memory_access += memory_access;
+        GetCurrentRunStats()->memory_access += memory_access;
     }
 
     // time unit is FS (1e-6 NS)
@@ -295,7 +295,7 @@ public:
         {
             seg = it->second;
         }
-        BBLStats *bblstats = GetCurrentBBLStats();
+        RunStats *bblstats = GetCurrentRunStats();
         seg->insert(bblstats);
         // int32_t threadcount = _storage->_cost_package->_thread_count;
         // if (threadcount > seg->getCount())
@@ -303,7 +303,7 @@ public:
         // split then insert on store
         if (is_store)
         {
-            m_data_reuse->UpdateTrie(m_data_reuse->getRoot(), seg);
+            m_bbl_data_reuse->UpdateTrie(m_bbl_data_reuse->getRoot(), seg);
             seg->clear();
             seg->insert(bblstats);
             // if (threadcount > seg->getCount())
@@ -318,16 +318,16 @@ public:
         if (it == m_tag2seg->end())
             return; // ignore it if there is no existing segment
         seg = it->second;
-        m_data_reuse->UpdateTrie(m_data_reuse->getRoot(), seg);
+        m_bbl_data_reuse->UpdateTrie(m_bbl_data_reuse->getRoot(), seg);
         seg->clear();
     }
 
-    void MergeStatsMap(UUIDHashMap<BBLStats *> &statsmap)
+    void MergeStatsMap(UUIDHashMap<RunStats *> &statsmap)
     {
-        for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it) {
+        for (auto it = m_bbl_hash2stats->begin(); it != m_bbl_hash2stats->end(); ++it) {
             auto p = statsmap.find(it->first);
             if (p == statsmap.end()) {
-                BBLStats *stats = new BBLStats(GLOBAL_BBLID, it->first);
+                RunStats *stats = new RunStats(GLOBAL_BBLID, it->first);
                 stats->MergeStats(*it->second);
                 statsmap.insert(std::make_pair(it->first, stats));
             }
@@ -339,19 +339,19 @@ public:
     }
 
     // threads should achieve consensus on BBLID
-    void GenerateBBLID(UUIDHashMap<BBLStats *> &statsmap)
+    void GenerateBBLID(UUIDHashMap<RunStats *> &statsmap)
     {
-        std::vector<BBLStats *> sorted;
+        std::vector<RunStats *> sorted;
         SortStatsMap(statsmap, sorted);
         for (BBLID i = 0; i < (int)sorted.size(); ++i) {
             statsmap[sorted[i]->bblhash]->bblid = i;
         }
     }
 
-    void AssignBBLID(UUIDHashMap<BBLStats *> &statsmap)
+    void AssignBBLID(UUIDHashMap<RunStats *> &statsmap)
     {
 
-        for (auto it = m_bblhash2stats->begin(); it != m_bblhash2stats->end(); ++it) {
+        for (auto it = m_bbl_hash2stats->begin(); it != m_bbl_hash2stats->end(); ++it) {
             UUID bblhash = it->second->bblhash;
             auto p = statsmap.find(bblhash);
             assert(p != statsmap.end());
@@ -366,13 +366,13 @@ public:
 
     // void PrintDataReuseDotGraph(std::ostream &ofs)
     // {
-    //     m_data_reuse->PrintDotGraph(ofs);
+    //     m_bbl_data_reuse->PrintDotGraph(ofs);
     // }
 
     void PrintStats(std::ostream &ofs)
     {
-        std::vector<BBLStats *> sorted;
-        SortStatsMap(*m_bblhash2stats, sorted);
+        std::vector<RunStats *> sorted;
+        SortStatsMap(*m_bbl_hash2stats, sorted);
 
         ofs << HORIZONTAL_LINE << std::endl;
         ofs << "Thread " << tid << std::endl;
@@ -402,14 +402,14 @@ public:
     {
         ofs << HORIZONTAL_LINE << std::endl;
         ofs << "ReuseSegment - Thread " << tid << std::endl;
-        m_data_reuse->PrintAllSegments(ofs, BBLStats::_get_id);
+        m_bbl_data_reuse->PrintAllSegments(ofs, RunStats::_get_id);
     }
 
     void PrintBBLSwitchCount(std::ostream &ofs)
     {
         ofs << HORIZONTAL_LINE << std::endl;
         ofs << "BBLSwitchCount - Thread " << tid << std::endl;
-        m_bbl_switch_count->print(ofs, BBLStats::_get_id);
+        m_bbl_switch_count->print(ofs, RunStats::_get_id);
     }
 
   private:

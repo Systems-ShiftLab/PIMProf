@@ -500,9 +500,9 @@ void PIMProfSolver::FinishInstrument(int32_t code, void *void_self)
     infomsg() << "parallel:" << pkg._in_omp_parallel << std::endl;
 
     ofs.open("BBLReuseCost.dot", std::ofstream::out);
-    pkg._data_reuse.print(
+    pkg._bbl_data_reuse.print(
         ofs,
-        pkg._data_reuse.getRoot());
+        pkg._bbl_data_reuse.getRoot());
     ofs.close();
 
     ofs.open("bblcdf.out", std::ofstream::out);

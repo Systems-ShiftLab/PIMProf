@@ -27,16 +27,15 @@
 namespace PIMProf
 {
 // provide separate elapsed time for each thread
-// as well as the merged BBLStats
-class ThreadBBLStats : public BBLStats {
+// as well as the merged RunStats
+class ThreadRunStats : public RunStats {
   private:
     std::vector<COST> thread_elapsed_time;
     std::vector<COST> sorted_elapsed_time;
-    int parallelism;
     bool dirty = true;
 
   public:
-    ThreadBBLStats(int tid, const BBLStats &bblstats) : BBLStats(bblstats)
+    ThreadRunStats(int tid, const RunStats &bblstats) : RunStats(bblstats)
     {
         if (tid >= (int)thread_elapsed_time.size()) {
             thread_elapsed_time.resize(tid + 1, 0);
@@ -44,23 +43,44 @@ class ThreadBBLStats : public BBLStats {
         }
         thread_elapsed_time[tid] = bblstats.elapsed_time;
         sorted_elapsed_time[tid] = bblstats.elapsed_time;
-        parallelism = 0;
     }
 
-    ThreadBBLStats& MergeStats(int tid, const BBLStats &rhs) {
+    ThreadRunStats& MergeStats(int tid, const RunStats &rhs) {
         if (tid >= (int)thread_elapsed_time.size()) {
             thread_elapsed_time.resize(tid + 1, 0);
             sorted_elapsed_time.resize(tid + 1, 0);
         }
-        BBLStats::MergeStats(rhs);
+        RunStats::MergeStats(rhs);
         thread_elapsed_time[tid] = rhs.elapsed_time;
         sorted_elapsed_time[tid] = rhs.elapsed_time;
-        parallelism++;
         return *this;
+    }
+
+    ThreadRunStats& MergeStats(const ThreadRunStats &rhs) {
+        size_t rhssize = rhs.thread_elapsed_time.size();
+        if (thread_elapsed_time.size() < rhssize) {
+            thread_elapsed_time.resize(rhssize, 0);
+            sorted_elapsed_time.resize(rhssize, 0);
+        }
+        RunStats::MergeStats(rhs);
+        for (size_t tid = 0; tid < rhssize; ++tid) {
+            thread_elapsed_time[tid] += rhs.thread_elapsed_time[tid];
+            dirty = true;
+        }
+        return *this;
+    }
+
+    int parallelism() {
+        int result = 0;
+        for (COST elem: thread_elapsed_time) {
+            if (elem > 0) result++;
+        }
+        return result;
     }
 
     void SortElapsedTime() {
         std::sort(sorted_elapsed_time.begin(), sorted_elapsed_time.end());
+        dirty = false;
     }
 
     COST ElapsedTime(int tid) {
@@ -87,7 +107,7 @@ class ThreadBBLStats : public BBLStats {
 
 };
 
-inline void SortStatsMap(UUIDHashMap<ThreadBBLStats *> &statsmap, std::vector<ThreadBBLStats *> &sorted)
+inline void SortStatsMap(UUIDHashMap<ThreadRunStats *> &statsmap, std::vector<ThreadRunStats *> &sorted)
 {
     sorted.clear();
     for (auto it = statsmap.begin(); it != statsmap.end(); ++it) {
@@ -96,28 +116,41 @@ inline void SortStatsMap(UUIDHashMap<ThreadBBLStats *> &statsmap, std::vector<Th
     std::sort(
         sorted.begin(),
         sorted.end(),
-        [](ThreadBBLStats *lhs, ThreadBBLStats *rhs) { return lhs->bblhash < rhs->bblhash; });
+        [](ThreadRunStats *lhs, ThreadRunStats *rhs) { return lhs->bblhash < rhs->bblhash; });
 }
 
 class CostSolver {
   public:
+    typedef DataReuse<ThreadRunStats *> FuncDataReuse;
+    typedef DataReuseSegment<ThreadRunStats *> FuncDataReuseSegment;
+    typedef TrieNode<ThreadRunStats *> FuncTrieNode;
+
     typedef DataReuse<BBLID> BBLIDDataReuse;
     typedef DataReuseSegment<BBLID> BBLIDDataReuseSegment;
     typedef TrieNode<BBLID> BBLIDTrieNode;
-    typedef SwitchCountList<BBLID> BBLIDSwitchCountList;
+
+  private:
+    CommandLineParser *_command_line_parser;
 
     // instance of get_id function, prototype:
     // BBLID get_id(Ty elem);
     static BBLID _get_id(BBLID bblid) { return bblid; }
-
+  
+  // track function level runstats
   private:
-    CommandLineParser *_command_line_parser;
-    UUIDHashMap<ThreadBBLStats *> _bblhash2stats[MAX_COST_SITE];
-    std::vector<ThreadBBLStats *> _sortedstats[MAX_COST_SITE];
-    bool _dirty = true; // track if _sortedstats is stale
+    UUIDHashMap<ThreadRunStats *> _func_hash2stats[MAX_COST_SITE];
+    std::vector<ThreadRunStats *> _func_sorted_stats[MAX_COST_SITE];
+    FuncDataReuse _func_data_reuse;
+    SwitchCountList _func_switch_count;
 
-    BBLIDDataReuse _data_reuse;
-    BBLIDSwitchCountList _bbl_switch_count;
+  // track BBL level runstats
+  private:
+    UUIDHashMap<ThreadRunStats *> _bbl_hash2stats[MAX_COST_SITE];
+    std::vector<ThreadRunStats *> _bbl_sorted_stats[MAX_COST_SITE];
+    bool _dirty = true; // track if _bbl_sorted_stats is stale
+
+    BBLIDDataReuse _bbl_data_reuse;
+    SwitchCountList _bbl_switch_count;
 
     /// the cache flush/fetch cost of each site, in nanoseconds
     COST _flush_cost[MAX_COST_SITE];
@@ -129,6 +162,7 @@ class CostSolver {
     double _batch_threshold;
     int _batch_size;
     int _mpki_threshold;
+    int _parallelism_threshold;
 
   public:
     void initialize(CommandLineParser *parser);
@@ -140,18 +174,19 @@ class CostSolver {
             _flush_cost[PIM] + _fetch_cost[CPU]);
     }
 
-    void ParseStats(std::istream &ifs, UUIDHashMap<ThreadBBLStats *> &stats);
-    void ParseReuse(std::istream &ifs, BBLIDDataReuse &reuse);
+    void ParseStats(std::istream &ifs, UUIDHashMap<ThreadRunStats *> &stats);
+    void ParseReuse(std::istream &ifs, BBLIDDataReuse &reuse, SwitchCountList &switchcnt);
 
-    const std::vector<ThreadBBLStats *>* getSorted();
+    // const std::vector<ThreadRunStats *>* getFuncSortedStats();
+    const std::vector<ThreadRunStats *>* getBBLSortedStats();
 
     DECISION PrintSolution(std::ostream &out);
 
 
-    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const BBLIDSwitchCountList &switchcnt);
+    COST Cost(const DECISION &decision, const BBLIDTrieNode *reusetree, const SwitchCountList &switchcnt);
     COST ElapsedTime(CostSite site); // return CPU/PIM only elapsed time
     std::pair<COST, COST> ElapsedTime(const DECISION &decision); // return execution time pair (cpu_elapsed_time, pim_elapsed_time) for decision
-    COST SwitchCost(const DECISION &decision, const BBLIDSwitchCountList &switchcnt);
+    COST SwitchCost(const DECISION &decision, const SwitchCountList &switchcnt);
     COST ReuseCost(const DECISION &decision, const BBLIDTrieNode *reusetree);
     void TrieBFS(COST &cost, const DECISION &decision, BBLID bblid, const BBLIDTrieNode *root, bool isDifferent);
 
@@ -164,6 +199,12 @@ class CostSolver {
 
     void PrintStats(std::ostream &ofs);
 
+  // BBL level to function level stats converter
+  private:
+    void BBL2Func(UUIDHashMap<ThreadRunStats *> &bbl, UUIDHashMap<ThreadRunStats *> &func);
+    void BBL2Func(BBLIDDataReuse &bbl, FuncDataReuse &func);
+    void BBL2Func(SwitchCountList &bbl, SwitchCountList &func);
+
   private:
     COST PermuteDecision(DECISION &decision, const std::vector<BBLID> &cur_batch, const BBLIDTrieNode *partial_root);
 
@@ -173,6 +214,7 @@ class CostSolver {
     void PrintDisjointSets(std::ostream &ofs);
     DECISION Debug_StartFromUnimportantSegment(std::ostream &ofs);
     DECISION Debug_ConsiderSwitchCost(std::ostream &ofs);
+    DECISION Debug_HierarchicalDecision(std::ostream &ofs);
 };
 
 } // namespace PIMProf

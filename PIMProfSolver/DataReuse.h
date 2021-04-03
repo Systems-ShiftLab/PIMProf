@@ -96,21 +96,14 @@ public:
     }
 };
 
-// just declaration for now because this has no use currently
-template <class Ty>
-class SwitchCountList;
-
-// template specialiation for CostSolver implementation
-// here we use adjacency list instead for faster lookup
-template <>
-class SwitchCountList<BBLID> {
-public:
+class SwitchCountList{
+    public:
     class SwitchCountRow {
     public:
-        BBLID _fromidx;
-        std::vector<std::pair<BBLID, uint64_t>> _toidxvec;
+        int64_t _fromidx;
+        std::vector<std::pair<int64_t, uint64_t>> _toidxvec; // <toidx, count>
 
-        SwitchCountRow(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec={})
+        SwitchCountRow(int64_t fromidx, std::vector<std::pair<int64_t, uint64_t>> toidxvec={})
         : _fromidx(fromidx),
           _toidxvec(toidxvec)
         {}
@@ -125,7 +118,7 @@ public:
             if (_toidxvec.size() == 0) return 0;
             COST result = 0;
             for (auto &elem : _toidxvec) {
-                BBLID toidx = elem.first;
+                uint64_t toidx = elem.first;
                 uint64_t count = elem.second;
                 if (decision[_fromidx] != INVALID && decision[toidx] != INVALID && decision[_fromidx] != decision[toidx]) {
                     result += switch_cost[decision[_fromidx]] * count;
@@ -137,7 +130,7 @@ public:
         // descending sort by count
         void Sort() {
             std::sort(_toidxvec.begin(), _toidxvec.end(), 
-                [](std::pair<BBLID, uint64_t> l, std::pair<BBLID, uint64_t> r) { return l.second > r.second; });
+                [](std::pair<int64_t, uint64_t> l, std::pair<int64_t, uint64_t> r) { return l.second > r.second; });
         }
     };
 private:
@@ -154,7 +147,7 @@ public:
         return _count[fromidx];
     }
 
-    inline void RowInsert(BBLID fromidx, std::vector<std::pair<BBLID, uint64_t>> toidxvec)
+    inline void RowInsert(BBLID fromidx, std::vector<std::pair<int64_t, uint64_t>> toidxvec)
     {
         while((BBLID)_count.size() <= fromidx) {
             _count.push_back(SwitchCountRow(_count.size()));
@@ -202,6 +195,7 @@ public:
         return out;
     }
 };
+
 
 /* ===================================================================== */
 /* DataReuseSegment */

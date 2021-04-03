@@ -122,10 +122,10 @@ class DecisionMap {
                 else if (i == 4) {
                     ss >> decision.difference;
                 }
-                else if (i == 5) {
+                else if (i == 6) {
                     ss >> std::hex >> hi;
                 }
-                else if (i == 6) {
+                else if (i == 7) {
                     ss >> std::hex >> lo;
                 }
                 else {

@@ -104,7 +104,7 @@ class CostPackage {
 
 //   public:
 //     /// keep track of the data reuse cost
-//     DataReuse _data_reuse;
+//     DataReuse _bbl_data_reuse;
 //     std::unordered_map<ADDRINT, DataReuseSegment> _tag_seg_map;
 
   public:

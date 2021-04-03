@@ -69,7 +69,7 @@ void STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID 
             seg.setCount(threadcount);
         // split then insert on store
         if (accessType == ACCESS_TYPE::ACCESS_TYPE_STORE) {
-            _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), seg);
+            _storage->_cost_package->_bbl_data_reuse.UpdateTrie(_storage->_cost_package->_bbl_data_reuse.getRoot(), seg);
             seg.clear();
             seg.insert(bblid);
             if (threadcount > seg.getCount())
@@ -80,7 +80,7 @@ void STORAGE_LEVEL_BASE::InsertOnHit(ADDRINT tag, ACCESS_TYPE accessType, BBLID 
 
 void STORAGE_LEVEL_BASE::SplitOnMiss(ADDRINT tag) {
     DataReuseSegment &seg = _storage->_cost_package->_tag_seg_map[tag];
-    _storage->_cost_package->_data_reuse.UpdateTrie(_storage->_cost_package->_data_reuse.getRoot(), seg);
+    _storage->_cost_package->_bbl_data_reuse.UpdateTrie(_storage->_cost_package->_bbl_data_reuse.getRoot(), seg);
     seg.clear();
 }
 

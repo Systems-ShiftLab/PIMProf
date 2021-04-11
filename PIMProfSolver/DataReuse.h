@@ -108,11 +108,11 @@ class SwitchCountList{
           _toidxvec(toidxvec)
         {}
 
-        inline auto begin() { return _toidxvec.begin(); }
-        inline auto end() { return _toidxvec.end(); }
+        inline std::vector<std::pair<int64_t, uint64_t>>::iterator begin() { return _toidxvec.begin(); }
+        inline std::vector<std::pair<int64_t, uint64_t>>::iterator end() { return _toidxvec.end(); }
 
-        inline const auto begin() const { return _toidxvec.begin(); }
-        inline const auto end() const { return _toidxvec.end(); }
+        inline const std::vector<std::pair<int64_t, uint64_t>>::const_iterator begin() const { return _toidxvec.begin(); }
+        inline const std::vector<std::pair<int64_t, uint64_t>>::const_iterator end() const { return _toidxvec.end(); }
 
         COST Cost(const DECISION &decision, const COST switch_cost[MAX_COST_SITE]) {
             if (_toidxvec.size() == 0) return 0;
@@ -137,11 +137,11 @@ private:
     std::vector<SwitchCountRow> _count;
 public:
 
-    inline auto begin() { return _count.begin(); }
-    inline auto end() { return _count.end(); }
+    inline std::vector<PIMProf::SwitchCountList::SwitchCountRow>::iterator begin() { return _count.begin(); }
+    inline std::vector<PIMProf::SwitchCountList::SwitchCountRow>::iterator end() { return _count.end(); }
 
-    inline const auto begin() const { return _count.begin(); }
-    inline const auto end() const { return _count.end(); }
+    inline const std::vector<PIMProf::SwitchCountList::SwitchCountRow>::const_iterator begin() const { return _count.begin(); }
+    inline const std::vector<PIMProf::SwitchCountList::SwitchCountRow>::const_iterator end() const { return _count.end(); }
 
     inline SwitchCountRow &getRow(BBLID fromidx) {
         return _count[fromidx];

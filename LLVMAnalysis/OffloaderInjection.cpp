@@ -110,7 +110,7 @@ class DecisionMap {
             std::stringstream ss(line);
             std::string token;
             Decision decision;
-            uint64_t hi, lo;
+            int64_t hi, lo;
             for (int i = 0; i < 10; i++) {
                 if (i == 0) {
                     ss >> decision.bblid;
@@ -119,14 +119,14 @@ class DecisionMap {
                     ss >> token;
                     decision.decision = (token == "P" ? CostSite::PIM : CostSite::CPU);
                 }
-                else if (i == 4) {
+                else if (i == 5) {
                     ss >> decision.difference;
                 }
                 else if (i == 6) {
-                    ss >> std::hex >> hi;
+                    ss >> hi;
                 }
                 else if (i == 7) {
-                    ss >> std::hex >> lo;
+                    ss >> lo;
                 }
                 else {
                     // ignore it

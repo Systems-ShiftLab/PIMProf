@@ -1,5 +1,5 @@
 # PIMProf
-This project is compatible with LLVM 7.0.1 and clang 7
+This project is compatible with LLVM 10 and clang 10
 
 # Structure of repository
 * `Configs/`: The configuration files of PIMProf. The default is `defaultconfig_32.ini`.
@@ -8,23 +8,17 @@ This project is compatible with LLVM 7.0.1 and clang 7
 * `test/`: The unit test.
 
 # Prerequisite
-1. Install llvm-7 and clang-7. Using `apt` will work.
-```
-$ apt install clang-7 llvm-7
-``` 
-2. Download intel pin 3.11 from intel website.
-3. Edit `Makefile.config` and point the variables to the correct path.
+Install llvm-10 and clang-10.
+`
+$ apt install clang-10 llvm-10` 
 
-# Run
-1. Compile with:
-```
+# Compilation
+
 $ make -j
-```
-2. Compile and run the unit test with:
-```
-$ make test
-```
-3. 
+
+# Testing
+PIMProf solver now depends on the runtime performance provided by simulators. We integrate our tool to Sniper in a separated repository:
+
 
 # Detailed Usage
 We use the unit test in `test/` as an example:

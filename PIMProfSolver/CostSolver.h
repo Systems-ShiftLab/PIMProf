@@ -215,6 +215,7 @@ class CostSolver {
     DECISION Debug_StartFromUnimportantSegment(std::ostream &ofs);
     DECISION Debug_ConsiderSwitchCost(std::ostream &ofs);
     DECISION Debug_HierarchicalDecision(std::ostream &ofs);
+    DECISION Debug_RandomDecision(std::ostream &ofs);
 };
 
 } // namespace PIMProf

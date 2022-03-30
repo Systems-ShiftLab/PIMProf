@@ -6,7 +6,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Pass.h"
@@ -177,13 +176,13 @@ void InjectSniperOffloaderCall(Module &M, BasicBlock &BB) {
     Instruction *beginning = &(*BB.getFirstInsertionPt());
 
     if (decision.decision == CostSite::PIM) {
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_DECISION_PIM, beginning);
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_DECISION_PIM, BB.getTerminator());
+        InjectSimMagic2(M, beginning, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_DECISION_PIM);
+        InjectSimMagic2(M, BB.getTerminator(), SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_DECISION_PIM);
         pim_inject_cnt++;
     }
     else {
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_DECISION_CPU, beginning);
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_DECISION_CPU, BB.getTerminator());
+        InjectSimMagic2(M, beginning, SNIPER_SIM_PIMPROF_OFFLOAD_START, bblhash[1], PIMPROF_DECISION_CPU);
+        InjectSimMagic2(M, BB.getTerminator(), SNIPER_SIM_PIMPROF_OFFLOAD_END, bblhash[1], PIMPROF_DECISION_CPU);
         cpu_inject_cnt++;
     }
 }
@@ -192,15 +191,15 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
-    InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_START, beginning);
+    InjectSimMagic0(M, beginning, SNIPER_SIM_CMD_ROI_START);
 
     if (MainDecision == CostSite::PIM) {
         // offload start
         // prototype: OffloadStart(uint64_t hi, uint64_t type)
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_START, MAIN_BBLID, PIMPROF_DECISION_PIM, beginning);
+        InjectSimMagic2(M, beginning, SNIPER_SIM_PIMPROF_OFFLOAD_START, MAIN_BBLID, PIMPROF_DECISION_PIM);
     }
     else {
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, PIMPROF_DECISION_CPU, beginning);
+        InjectSimMagic2(M, beginning, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, PIMPROF_DECISION_CPU);
     }
 
     // inject an end call before every return instruction
@@ -211,12 +210,12 @@ void InjectSniperOffloaderCall(Module &M, Function &F) {
                     // offload end
                     // prototype: OffloadStart(uint64_t hi, uint64_t type)
                     // here type=PIMPROF_TEST_END shows this is the end of main BBL
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_OFFLOAD_END, MAIN_BBLID, PIMPROF_DECISION_PIM, &I);
+                    InjectSimMagic2(M, &I, SNIPER_SIM_PIMPROF_OFFLOAD_END, MAIN_BBLID, PIMPROF_DECISION_PIM);
                 }
                 else {
-                    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, PIMPROF_DECISION_CPU, &I);
+                    InjectSimMagic2(M, &I, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, PIMPROF_DECISION_CPU);
                 }
-                InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
+                InjectSimMagic0(M, &I, SNIPER_SIM_CMD_ROI_END);
             }
         }
     }

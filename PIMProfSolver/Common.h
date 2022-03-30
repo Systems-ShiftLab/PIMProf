@@ -23,11 +23,7 @@ static const std::string PIMProfAnnotationHead = "PIMProfAnnotationHead";
 static const std::string PIMProfAnnotationTail = "PIMProfAnnotationTail";
 
 // a hack for dealing with name mangling
-static const std::string PIMProfOffloaderName = "_Z16PIMProfOffloaderiiii";
-static const std::string PIMProfOffloader2Name = "_Z17PIMProfOffloader2i";
-static const std::string PIMProfOffloaderNullName = "_Z20PIMProfOffloaderNulliiii";
-
-static const std::string VTuneOffloaderName = "_Z14VTuneOffloaderi";
+static const std::string PIMProfVTuneAnnotationName = "_Z22PIMProfVTuneAnnotationimm";
 
 static const std::string PIMProfDecisionEnv = "PIMPROFDECISION";
 static const std::string PIMProfROIEnv = "PIMPROFROI";
@@ -94,7 +90,7 @@ enum MAGIC_OP {
 };
 
 enum VTUNE_MODE {
-    VTUNE_MODE_CREATE,
+    VTUNE_MODE_CREATE_DOMAIN,
     VTUNE_MODE_RESUME,
     VTUNE_MODE_PAUSE,
     VTUNE_MODE_DETACH,
@@ -142,7 +138,7 @@ enum ACCESS_TYPE
 };
 
 enum class InjectMode {
-    SNIPER, SNIPER2, VTUNE, PIMPROF,
+    SNIPER, SNIPER2, VTUNE, VTUNE2, PIMPROF,
     DEFAULT = 0x0fffffff,
     INVALID = 0x3fffffff // a placeholder that does not count as a cost site
 };

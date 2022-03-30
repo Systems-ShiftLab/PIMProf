@@ -6,7 +6,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Pass.h"
@@ -22,11 +21,12 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
+
 #include <iostream>
 
 #include "MurmurHash3.h"
-#include "Common.h"
 #include "InjectMagic.h"
+#include "PIMProfAnnotation.h"
 
 using namespace llvm;
 
@@ -40,7 +40,6 @@ InjectMode Mode = InjectMode::INVALID;
 
 // Add annotation to the start/end of every BB in this function
 void InjectSniperAnnotationCallBB(Module &M, Function &F) {
-
     /***** generate arguments for the InlineAsm ******/
 
 
@@ -52,6 +51,7 @@ void InjectSniperAnnotationCallBB(Module &M, Function &F) {
     MurmurHash3_x64_128(F_content.c_str(), F_content.size(), 0, funchash);
 
     for (auto &BB : F) {
+        if(BB.empty()) continue;
         // use the content of BB itself as the hash key
         std::string BB_content;
         raw_string_ostream rso(BB_content);
@@ -59,12 +59,9 @@ void InjectSniperAnnotationCallBB(Module &M, Function &F) {
         uint64_t bblhash[2];
         MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
 
-        // errs() << "Before annotator injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
+        
+        // errs() << "Before annotator injection: " << "\n";
+        // LLVMPrint(BB, errs());
         // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
         // std::string funcname = BB.getParent()->getName();
@@ -77,15 +74,11 @@ void InjectSniperAnnotationCallBB(Module &M, Function &F) {
         // check the declaration of getFirstInsertionPt()
         Instruction *beginning = &(*BB.getFirstInsertionPt());
 
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, funchash[1], bblhash[1], beginning);
-        InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, funchash[1], bblhash[1], BB.getTerminator());
+        InjectSimMagic2(M, beginning, SNIPER_SIM_PIMPROF_BBL_START, funchash[1], bblhash[1]);
+        InjectSimMagic2(M, BB.getTerminator(), SNIPER_SIM_PIMPROF_BBL_END, funchash[1], bblhash[1]);
 
-        // errs() << "After annotator injection: " << BB.getName() << "\n";
-        // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-        //     (*i).print(errs());
-        //     errs() << "\n";
-        // }
-        // errs() << "\n";
+        // errs() << "After annotator injection: " << "\n";
+        // LLVMPrint(BB, errs());
         // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
     }
 
@@ -107,35 +100,27 @@ void InjectSniperAnnotationCallFunc(Module &M, Function &F) {
 
     MurmurHash3_x64_128(F_content.c_str(), F_content.size(), 0, funchash);
 
-    // errs() << "Before annotator injection: " << F.getName() << "\n";
-    // for (auto &i : F) {
-    //     i.print(errs());
-    //     errs() << "\n";
-    // }
-    // errs() << "\n";
-    // errs() << "Hash = " << funchash[1] << " " << funchash[0] << "\n";
+    // errs() << "Before annotator injection: " << "\n";
+    // LLVMPrint(F, errs());
+    // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
 
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
-    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, funchash[1], funchash[0], beginning);
+    InjectSimMagic2(M, beginning, SNIPER_SIM_PIMPROF_BBL_START, funchash[1], funchash[0]);
 
     // inject an end call before every return instruction
     for (auto &BB : F) {
         for (auto &I : BB) {
             if (isa<ReturnInst>(I)) {
-                InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, funchash[1], funchash[0], &I);
+                InjectSimMagic2(M, &I, SNIPER_SIM_PIMPROF_BBL_END, funchash[1], funchash[0]);
             }
         }
     }
 
-    // errs() << "After annotator injection: " << F.getName() << "\n";
-    // for (auto &i : F) {
-    //     i.print(errs());
-    //     errs() << "\n";
-    // }
-    // errs() << "\n";
+    // errs() << "After annotator injection: " << "\n";
+    // LLVMPrint(F, errs());
     // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 }
 
@@ -144,18 +129,118 @@ void InjectSniperAnnotationCallMain(Module &M, Function &F) {
     // need to skip all PHIs and LandingPad instructions
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
-    InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_START, beginning);
-    InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, MAIN_BBLID, beginning);
+    InjectSimMagic0(M, beginning, SNIPER_SIM_CMD_ROI_START);
+    InjectSimMagic2(M, beginning, SNIPER_SIM_PIMPROF_BBL_START, MAIN_BBLID, MAIN_BBLID);
 
     // inject an end call before every return instruction
     for (auto &BB : F) {
         for (auto &I : BB) {
             if (isa<ReturnInst>(I)) {
-                InjectSimMagic2(M, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, MAIN_BBLID, &I);
-                InjectSimMagic0(M, SNIPER_SIM_CMD_ROI_END, &I);
+                InjectSimMagic2(M, &I, SNIPER_SIM_PIMPROF_BBL_END, MAIN_BBLID, MAIN_BBLID);
+                InjectSimMagic0(M, &I, SNIPER_SIM_CMD_ROI_END);
             }
         }
     }
+}
+
+/********************************************************
+* VTune
+********************************************************/
+
+// Add annotation to the start/end of every BB in this function
+void InjectVTuneAnnotationCallBB(Module &M, Function &F) {
+
+    /***** generate arguments for the InlineAsm ******/
+
+
+    // use the content of function itself as the hash key
+    std::string F_content;
+    raw_string_ostream rso(F_content);
+    rso << F;
+    uint64_t funchash[2];
+    MurmurHash3_x64_128(F_content.c_str(), F_content.size(), 0, funchash);
+
+    for (auto &BB : F) {
+        if(BB.empty()) continue;
+        // use the content of BB itself as the hash key
+        std::string BB_content;
+        raw_string_ostream rso(BB_content);
+        rso << BB;
+        uint64_t bblhash[2];
+        MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
+
+        Instruction *beginning = &(*BB.getFirstInsertionPt());
+
+        // errs() << "Before annotator injection: " << "\n";
+        // LLVMPrint(BB, errs());
+        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+
+        InjectFunctionCall2(M, beginning,
+            PIMProfVTuneAnnotationName, VTUNE_MODE_FRAME_BEGIN, funchash[1], bblhash[1]);
+
+        InjectFunctionCall2(M, BB.getTerminator(),
+            PIMProfVTuneAnnotationName, VTUNE_MODE_FRAME_END, funchash[1], bblhash[1]);
+
+        // errs() << "After annotator injection: " << "\n";
+        // LLVMPrint(BB, errs());
+        // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
+    }
+
+}
+
+// Add annotation to only the start/end of this function
+void InjectVTuneAnnotationCallFunc(Module &M, Function &F) {
+    // skip function declarations
+    if (F.empty()) return;
+
+    /***** generate arguments for the InlineAsm ******/
+
+    // use the content of function itself as the hash key
+    std::string F_content;
+    raw_string_ostream rso(F_content);
+    rso << F;
+    uint64_t funchash[2];
+
+
+    MurmurHash3_x64_128(F_content.c_str(), F_content.size(), 0, funchash);
+
+    // need to skip all PHIs and LandingPad instructions
+    // check the declaration of getFirstInsertionPt()
+    Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
+    InjectFunctionCall2(M, beginning,
+        PIMProfVTuneAnnotationName, VTUNE_MODE_FRAME_BEGIN, funchash[1], funchash[0]);
+
+    // inject an end call before every return instruction
+    for (auto &BB : F) {
+        for (auto &I : BB) {
+            if (isa<ReturnInst>(I)) {
+                InjectFunctionCall2(M, &I,
+                    PIMProfVTuneAnnotationName, VTUNE_MODE_FRAME_END, funchash[1], funchash[0]);
+            }
+        }
+    }
+}
+
+
+void InjectVTuneAnnotationCallMain(Module &M, Function &F) {
+    // errs() << "Before annotator injection: " << "\n";
+    // LLVMPrint(F, errs());
+
+    Instruction *beginning = &(*F.getEntryBlock().getFirstInsertionPt());
+    InjectFunctionCall2(M, beginning,
+        PIMProfVTuneAnnotationName, VTUNE_MODE_RESUME, MAIN_BBLID, MAIN_BBLID);
+
+    // inject an end call before every return instruction
+    for (auto &BB : F) {
+        for (auto &I : BB) {
+            if (isa<ReturnInst>(I)) {
+                InjectFunctionCall2(M, &I,
+                    PIMProfVTuneAnnotationName, VTUNE_MODE_DETACH, MAIN_BBLID, MAIN_BBLID);
+            }
+        }
+    }
+    // errs() << "After annotator injection: " << "\n";
+    // LLVMPrint(F, errs());
 }
 
 /********************************************************
@@ -175,12 +260,8 @@ void InjectPIMProfAnnotationCall(Module &M, BasicBlock &BB) {
 
     MurmurHash3_x64_128(BB_content.c_str(), BB_content.size(), 0, bblhash);
 
-    // errs() << "Before annotator injection: " << BB.getName() << "\n";
-    // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-    //     (*i).print(errs());
-    //     errs() << "\n";
-    // }
-    // errs() << "\n";
+    // errs() << "Before annotator injection: " << "\n";
+    // LLVMPrint(BB, errs());
     // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 
     std::string funcname = BB.getParent()->getName();
@@ -193,18 +274,18 @@ void InjectPIMProfAnnotationCall(Module &M, BasicBlock &BB) {
     // check the declaration of getFirstInsertionPt()
     Instruction *beginning = &(*BB.getFirstInsertionPt());
 
-    InjectPIMProfMagic(M, bblhash[1], bblhash[0], control_head, beginning);
-    InjectPIMProfMagic(M, bblhash[1], bblhash[0], control_tail, BB.getTerminator());
+    InjectPIMProfMagic(M, beginning, bblhash[1], bblhash[0], control_head);
+    InjectPIMProfMagic(M, BB.getTerminator(), bblhash[1], bblhash[0], control_tail);
 
-    // errs() << "After annotator injection: " << BB.getName() << "\n";
-    // for (auto i = BB.begin(), ie = BB.end(); i != ie; i++) {
-    //     (*i).print(errs());
-    //     errs() << "\n";
-    // }
-    // errs() << "\n";
+    // errs() << "After annotator injection: " << "\n";
+    // LLVMPrint(BB, errs());
     // errs() << "Hash = " << bblhash[1] << " " << bblhash[0] << "\n";
 }
 
+
+/********************************************************
+* Main
+********************************************************/
 struct AnnotationInjection : public ModulePass {
     static char ID;
     AnnotationInjection() : ModulePass(ID) {}
@@ -217,6 +298,8 @@ struct AnnotationInjection : public ModulePass {
         if (strcmp(injectmodeenv, "SNIPER") == 0) Mode = InjectMode::SNIPER;
         else if (strcmp(injectmodeenv, "SNIPER2") == 0) Mode = InjectMode::SNIPER2;
         else if (strcmp(injectmodeenv, "PIMPROF") == 0) Mode = InjectMode::PIMPROF;
+        else if (strcmp(injectmodeenv, "VTUNE") == 0) Mode = InjectMode::VTUNE;
+        else if (strcmp(injectmodeenv, "VTUNE2") == 0) Mode = InjectMode::VTUNE2;
         else {
             assert(0 && "Invalid environment variable PIMPROFINJECTMODE");
         }
@@ -246,16 +329,41 @@ struct AnnotationInjection : public ModulePass {
                 if (func.getName() == "main") {
                     InjectSniperAnnotationCallMain(M, func);
                 }
-                else {
-                    InjectSniperAnnotationCallFunc(M, func);
+                // else {
+                //     InjectSniperAnnotationCallFunc(M, func);
+                // }
+            }
+        }
+        if (Mode == InjectMode::VTUNE) {
+            for (auto &func : M) {
+                // ignore initialization of globals
+                if (func.getSection() != ".text.startup") {
+                    InjectVTuneAnnotationCallBB(M, func);
+                }
+            }
+            for (auto &func : M) {
+                if (func.getName() == "main") {
+                    InjectVTuneAnnotationCallMain(M, func);
+                }
+            }
+        }
+        if (Mode == InjectMode::VTUNE2) {
+            for (auto &func : M) {// ignore initialization of globals
+                if (func.getSection() != ".text.startup") {
+                    InjectVTuneAnnotationCallFunc(M, func);
+                }
+            }
+            for (auto &func : M) {
+                if (func.getName() == "main") {
+                    InjectVTuneAnnotationCallMain(M, func);
                 }
             }
         }
 
-        PIMProfAAW aaw = PIMProfAAW();
-        for (auto &func: M) {
-            func.print(outs(), &aaw);
-        }
+        // PIMProfAAW aaw = PIMProfAAW();
+        // for (auto &func: M) {
+        //     func.print(outs(), &aaw);
+        // }
         
         // M.print(errs(), nullptr);
         return true;

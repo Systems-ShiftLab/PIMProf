@@ -13,12 +13,8 @@ using namespace PIMProf;
 
 void Usage()
 {
-    infomsg("Usage: ./Solver.exe <mode> <mode_specific_params>");
+    infomsg("Usage: ./Solver.exe <mode> -c <cpu_stats_file> -p <pim_stats_file> -r <reuse_file> -o <output_file>");
     infomsg("Select mode from: mpki, para, reuse");
-    infomsg("Mode specific parameters:");
-    infomsg("mpki mode: ./Solver.exe mpki <cpu_stats_file> <pim_stats_file> <output_file>");
-    infomsg("para mode: ./Solver.exe para <cpu_stats_file> <pim_stats_file> <output_file>");
-    infomsg("reuse mode: ./Solver.exe reuse <cpu_stats_file> <pim_stats_file> <reuse_file> <output_file>");
     exit(0);
 }
 

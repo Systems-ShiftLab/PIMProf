@@ -30,9 +30,12 @@ Clone the repository and checkout to the `dev` branch to see all changes made by
 ```
 $ git checkout dev
 ```
-To compile Sniper, you might want to check the Sniper website ([https://snipersim.org](https://snipersim.org)) and follow their instructions. You need to install a few prerequisite libraries, and download a recent version of Intel Pin tool before compiling Sniper.
+To compile Sniper, you might want to check the Sniper website ([https://snipersim.org](https://snipersim.org)) and follow their instructions. You need to install a few prerequisite libraries, and download a recent version of Intel Pin tool before compiling Sniper. Note that the current version of Sniper requires Pin <= 3.21.
 
-We made minimal modifications to integrate PIMProf into Sniper. All the changes to the Sniper code base can be found by `grep`ing "Yizhou" in the repository, and the same idea can be applied when integrating PIMProf to other simulators.
+We made minimal modifications to integrate PIMProf into Sniper. All the changes to the Sniper code base can be found by `grep`ing "Yizhou" in the repository, and the same idea can be applied when integrating PIMProf to other simulators. We found it easiest to directly modify the include directory in `common/system/simulator.h`.
+```
+#include "/home/warsier/Downloads/PIMProf/PIMProfSolver/Stats.h"
+```
 
 # Testing
 The [sniper_PIMProf](https://github.com/Systems-ShiftLab/sniper_PIMProf) repository also comes with two testing suites: a unit test, and the [GAP](https://github.com/sbeamer/gapbs) graph workload suites. They can be found in folder `sniper_PIMProf/PIMProf`.

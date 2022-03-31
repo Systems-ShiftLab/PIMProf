@@ -13,13 +13,13 @@ foreach(TARGET ${ANNOTATION_INJECTION} ${OFFLOADER_INJECTION})
 endforeach()
 
 # process PIMProf static library targets
-set(PIMPROF_ANNOTATION PIMProfAnnotation)
+# set(PIMPROF_ANNOTATION PIMProfAnnotation)
 
-add_library(${PIMPROF_ANNOTATION} STATIC
-    ${PIMPROF_ANNOTATION}.cpp)
-target_include_directories(${PIMPROF_ANNOTATION} PRIVATE
-    ${VTUNE_HOME}/include/)
-target_link_directories(${PIMPROF_ANNOTATION} PRIVATE
-    ${VTUNE_HOME}/lib64/)
-target_link_libraries(${PIMPROF_ANNOTATION}
-    libittnotify.a)
+# add_library(${PIMPROF_ANNOTATION} STATIC
+#     ${PIMPROF_ANNOTATION}.cpp)
+# target_include_directories(${PIMPROF_ANNOTATION} PRIVATE
+#     ${VTUNE_HOME}/include/)
+# target_link_directories(${PIMPROF_ANNOTATION} PRIVATE
+#     ${VTUNE_HOME}/lib64/)
+# target_link_libraries(${PIMPROF_ANNOTATION}
+#     libittnotify.a)

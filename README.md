@@ -87,6 +87,13 @@ We have modified the `Makefile` and provide a simple `run_inj.sh` to demonstrate
 
 Note that the repository does not come with any pre-generated graphs. To generate graphs for testing purpose, please refer to the README from GAP.
 
+Before compilation, you need to modify the `CXX`, `PIMPROF_ROOT`, `PIMPROF_MODE` to the correct value.
+Then you may run:
+```
+$ make inj
+```
+to generate the corresponding binary.
+
 # notes
 https://stackoverflow.com/questions/8486314/setting-processor-affinity-with-c-that-will-run-on-linux
 

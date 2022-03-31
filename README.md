@@ -23,8 +23,10 @@ $ make -j
 ```
 # Integration of PIMProf into Sniper
 PIMProf solver now entirely depends on the runtime performance provided by simulators. As the proof of concept, we integrate our tool to Sniper in a separated repository:
+
 [https://github.com/Systems-ShiftLab/sniper_PIMProf](https://github.com/Systems-ShiftLab/sniper_PIMProf)
-Clone the repository and checkout to the `dev` branch to see changes made by PIMProf.
+
+Clone the repository and checkout to the `dev` branch to see all changes made by PIMProf.
 ```
 $ git checkout dev
 ```
@@ -81,8 +83,9 @@ The generated decision is stored in `reusedecision.out`.
 
 
 ## GAP graph workloads ([https://github.com/sbeamer/gapbs](https://github.com/sbeamer/gapbs))
+We have modified the `Makefile` and provide a simple `run_inj.sh` to demonstrate the idea of how to provide offloading decisions for GAP.
 
-
+Note that the repository does not come with any pre-generated graphs. To generate graphs for testing purpose, please refer to the README from GAP.
 
 # notes
 https://stackoverflow.com/questions/8486314/setting-processor-affinity-with-c-that-will-run-on-linux

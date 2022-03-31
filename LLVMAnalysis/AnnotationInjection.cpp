@@ -329,9 +329,9 @@ struct AnnotationInjection : public ModulePass {
                 if (func.getName() == "main") {
                     InjectSniperAnnotationCallMain(M, func);
                 }
-                // else {
-                //     InjectSniperAnnotationCallFunc(M, func);
-                // }
+                else {
+                    InjectSniperAnnotationCallFunc(M, func);
+                }
             }
         }
         if (Mode == InjectMode::VTUNE) {

@@ -30,7 +30,7 @@ Clone the repository and checkout to the `dev` branch to see all changes made by
 ```
 $ git checkout dev
 ```
-To compile Sniper, you might want to check the Sniper website ([https://snipersim.org](https://snipersim.org)) and follow their instructions. You need to install a few prerequisite libraries, and download a recent version of Intel Pin tool before compiling Sniper. Note that the current version of Sniper requires Pin <= 3.21.
+To compile Sniper, you might want to check the Sniper website ([https://snipersim.org](https://snipersim.org)) and follow their instructions. You need to install a few prerequisite libraries, and download a recent version of Intel Pin tool before compiling Sniper. Note that the current version of Sniper only works with **Pin <= 3.20**.
 
 We made minimal modifications to integrate PIMProf into Sniper. All the changes to the Sniper code base can be found by `grep`ing "Yizhou" in the repository, and the same idea can be applied when integrating PIMProf to other simulators. We found it easiest to directly modify the include directory in `common/system/simulator.h`.
 ```
